@@ -1,24 +1,128 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Lock, CreditCard, Users, Heart, Wallet, Smartphone } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Lock, WifiOff, Clock } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
+import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
+import { VaultSectionCard } from '@/components/vault/VaultSectionCard';
+import { VaultSyncStatus } from '@/components/vault/VaultSyncStatus';
+import { VaultSectionEditor, VaultSectionData } from '@/components/vault/VaultSectionEditor';
+import { useVaultSession } from '@/hooks/useVaultSession';
+import { useVaultSync, VaultSection, VAULT_SECTIONS } from '@/hooks/useVaultSync';
+import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
+import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function Vault() {
   const { isPremium, loading } = useEntitlements();
   const { t } = useLocale();
+  const { isUnlocked, lock, getPassphrase, recordActivity, timeUntilLock } = useVaultSession();
+  const { 
+    isOnline, 
+    isSyncing, 
+    sectionStatuses, 
+    hasUnsyncedChanges, 
+    getSection, 
+    saveSection, 
+    sync,
+    refresh 
+  } = useVaultSync();
 
-  const sections = [
-    { key: 'ids', icon: CreditCard, label: t.vault.sections.ids },
-    { key: 'contacts', icon: Users, label: t.vault.sections.contacts },
-    { key: 'medical', icon: Heart, label: t.vault.sections.medical },
-    { key: 'finance', icon: Wallet, label: t.vault.sections.finance },
-    { key: 'devices', icon: Smartphone, label: t.vault.sections.devices },
-  ];
+  const [editingSection, setEditingSection] = useState<VaultSection | null>(null);
+  const [sectionData, setSectionData] = useState<VaultSectionData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingSection, setIsLoadingSection] = useState(false);
+
+  // Format time until lock
+  const formatTimeUntilLock = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Record activity on user interaction
+  useEffect(() => {
+    if (!isUnlocked) return;
+    
+    const handleActivity = () => recordActivity();
+    
+    document.addEventListener('click', handleActivity);
+    document.addEventListener('keydown', handleActivity);
+    
+    return () => {
+      document.removeEventListener('click', handleActivity);
+      document.removeEventListener('keydown', handleActivity);
+    };
+  }, [isUnlocked, recordActivity]);
+
+  // Load section data when editing
+  const handleEditSection = useCallback(async (section: VaultSection) => {
+    const passphrase = getPassphrase();
+    if (!passphrase) return;
+
+    setIsLoadingSection(true);
+    try {
+      const cached = await getSection(section);
+      
+      if (cached) {
+        const payload: EncryptedPayload = {
+          ciphertextB64: cached.ciphertextB64,
+          ivB64: cached.ivB64,
+          saltB64: cached.saltB64,
+          version: cached.version,
+        };
+        const decrypted = await decryptJSON<VaultSectionData>(payload, passphrase);
+        setSectionData(decrypted);
+      } else {
+        setSectionData(null);
+      }
+      setEditingSection(section);
+    } catch {
+      toast.error(t.vault.wrongPassphrase);
+      lock();
+    } finally {
+      setIsLoadingSection(false);
+    }
+  }, [getSection, getPassphrase, lock, t]);
+
+  // Save section data
+  const handleSaveSection = useCallback(async (section: VaultSection, data: VaultSectionData) => {
+    const passphrase = getPassphrase();
+    if (!passphrase) return;
+
+    setIsSaving(true);
+    try {
+      const encrypted = await encryptJSON(data, passphrase);
+      const result = await saveSection(section, encrypted);
+      
+      if (result.synced) {
+        toast.success(t.vault.sync.syncedToCloud);
+      } else {
+        toast.success(t.vault.sync.savedLocally);
+      }
+      
+      await refresh();
+    } finally {
+      setIsSaving(false);
+    }
+  }, [getPassphrase, saveSection, refresh, t]);
+
+  // Sync when coming online
+  useEffect(() => {
+    if (isOnline && isUnlocked && hasUnsyncedChanges) {
+      sync();
+    }
+  }, [isOnline, isUnlocked, hasUnsyncedChanges, sync]);
+
+  // Sync on mount if premium and unlocked
+  useEffect(() => {
+    if (isPremium && isUnlocked && isOnline) {
+      sync();
+    }
+  }, [isPremium, isUnlocked, isOnline, sync]);
 
   if (loading) {
     return (
@@ -39,59 +143,96 @@ export default function Vault() {
       <main className="flex-1">
         {!isPremium ? (
           <PremiumLockedState title={t.vault.title} />
+        ) : !isUnlocked ? (
+          <div className="container-wide section-padding py-8">
+            <VaultUnlockForm onUnlock={() => refresh()} />
+          </div>
         ) : (
           <div className="container-wide section-padding py-8">
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Lock className="h-5 w-5 text-primary" />
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-foreground">{t.vault.title}</h1>
                 </div>
-                <h1 className="text-2xl font-bold text-foreground">{t.vault.title}</h1>
+                <p className="text-muted-foreground">{t.vault.subtitle}</p>
               </div>
-              <p className="text-muted-foreground">{t.vault.subtitle}</p>
+
+              <div className="flex items-center gap-4">
+                {/* Auto-lock timer */}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>{t.vault.autoLock} {formatTimeUntilLock(timeUntilLock)}</span>
+                </div>
+
+                <VaultSyncStatus
+                  isOnline={isOnline}
+                  isSyncing={isSyncing}
+                  hasUnsyncedChanges={hasUnsyncedChanges}
+                  onSync={sync}
+                />
+
+                <Button variant="outline" onClick={lock} className="gap-2">
+                  <Lock className="h-4 w-4" />
+                  {t.vault.lockVault}
+                </Button>
+              </div>
             </div>
 
-            {/* Unlock Vault */}
-            <Card className="mb-8 max-w-md">
-              <CardHeader>
-                <CardTitle className="text-base">{t.vault.unlockVault}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Input 
-                  type="password" 
-                  placeholder={t.vault.passphrasePlaceholder}
-                />
-                <Button className="w-full">{t.vault.unlockVault}</Button>
-              </CardContent>
-            </Card>
+            {/* Offline banner */}
+            {!isOnline && (
+              <Alert className="mb-6 border-amber-200 bg-amber-50">
+                <WifiOff className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  {t.vault.sync.offlineBanner}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Loading section indicator */}
+            {isLoadingSection && (
+              <div className="text-center py-8 text-muted-foreground">{t.common.loading}</div>
+            )}
 
             {/* Sections Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sections.map((section) => (
-                <Card key={section.key} className="cursor-pointer hover:border-primary/50 transition-colors">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 rounded-lg bg-muted">
-                        <section.icon className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <h3 className="font-medium">{section.label}</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{t.common.comingSoon}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {VAULT_SECTIONS.map((section) => {
+                const status = sectionStatuses.find(s => s.section === section) || {
+                  section,
+                  hasData: false,
+                  updatedAt: null,
+                  isSynced: true,
+                };
+                return (
+                  <VaultSectionCard
+                    key={section}
+                    section={section}
+                    status={status}
+                    onEdit={handleEditSection}
+                  />
+                );
+              })}
             </div>
-
-            {/* Coming Next */}
-            <p className="mt-8 text-sm text-muted-foreground text-center">
-              {t.vault.comingNext}
-            </p>
           </div>
         )}
       </main>
 
       <Footer />
+
+      {/* Section Editor Modal */}
+      {editingSection && (
+        <VaultSectionEditor
+          section={editingSection}
+          open={!!editingSection}
+          onOpenChange={(open) => !open && setEditingSection(null)}
+          initialData={sectionData}
+          onSave={handleSaveSection}
+          isSaving={isSaving}
+        />
+      )}
     </div>
   );
 }
