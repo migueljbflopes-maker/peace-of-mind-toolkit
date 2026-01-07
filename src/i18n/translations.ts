@@ -118,6 +118,22 @@ export const translations = {
       },
       autoLock: 'Auto-lock in',
       edit: 'Edit',
+      // Setup form
+      setup: {
+        title: 'Create Your Vault',
+        subtitle: 'Choose a passphrase to encrypt your sensitive data.',
+        warning: 'Important: If you forget your passphrase, we cannot recover your data. Write it down in a safe place.',
+        createPassphrase: 'Create Passphrase',
+        passphrasePlaceholder: 'Enter a strong passphrase (min 6 chars)',
+        confirmPassphrase: 'Confirm Passphrase',
+        confirmPlaceholder: 'Re-enter your passphrase',
+        tooShort: 'Passphrase must be at least 6 characters',
+        noMatch: 'Passphrases do not match',
+        securityNote: 'Your passphrase never leaves this device. Data is encrypted locally before sync.',
+        createVault: 'Create Vault',
+        success: 'Vault created! Start adding your information.',
+        error: 'Failed to create vault. Try again.',
+      },
       // Section form labels
       forms: {
         ids: {
@@ -341,6 +357,22 @@ export const translations = {
       },
       autoLock: 'Bloqueio automático em',
       edit: 'Editar',
+      // Setup form
+      setup: {
+        title: 'Cria o Teu Cofre',
+        subtitle: 'Escolhe uma frase-passe para encriptar os teus dados sensíveis.',
+        warning: 'Importante: Se esqueceres a tua frase-passe, não conseguimos recuperar os teus dados. Guarda-a num lugar seguro.',
+        createPassphrase: 'Criar Frase-Passe',
+        passphrasePlaceholder: 'Introduz uma frase-passe forte (mín 6 chars)',
+        confirmPassphrase: 'Confirmar Frase-Passe',
+        confirmPlaceholder: 'Re-introduz a tua frase-passe',
+        tooShort: 'A frase-passe deve ter pelo menos 6 caracteres',
+        noMatch: 'As frases-passe não coincidem',
+        securityNote: 'A tua frase-passe nunca sai deste dispositivo. Os dados são encriptados localmente antes de sincronizar.',
+        createVault: 'Criar Cofre',
+        success: 'Cofre criado! Começa a adicionar as tuas informações.',
+        error: 'Falha ao criar cofre. Tenta novamente.',
+      },
       // Section form labels
       forms: {
         ids: {
