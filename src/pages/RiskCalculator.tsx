@@ -418,26 +418,28 @@ export default function RiskCalculator() {
             <h1 className="text-xl font-semibold text-foreground">Your Risk Assessment</h1>
           </div>
 
-          {/* Score Card */}
-          <Card className="p-6 mb-5 bg-[#F8FAFC] border-border/50">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-background border-4 border-primary/20 mb-3">
-                <span className="text-3xl font-bold text-foreground">{score}</span>
+          {/* Score Card - Compact */}
+          <Card className="p-4 mb-4 bg-[#F8FAFC] border-border/50">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-background border-2 border-primary/20">
+                <span className="text-2xl font-bold text-foreground">{score}</span>
               </div>
-              <div className={cn("inline-flex items-center px-3 py-1 rounded-full text-sm font-medium", scoreStyle.bg, scoreStyle.color, scoreStyle.border, "border")}>
-                {riskLevel} Risk Level
+              <div>
+                <div className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", scoreStyle.bg, scoreStyle.color, scoreStyle.border, "border")}>
+                  {riskLevel} Risk Level
+                </div>
               </div>
             </div>
 
             {/* 4-Dimension Breakdown Bars */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               {breakdownItems.map(item => (
                 <div key={item.key}>
-                  <div className="flex justify-between text-sm mb-1">
+                  <div className="flex justify-between text-xs mb-0.5">
                     <span className="text-muted-foreground">{item.label}</span>
                     <span className="text-foreground font-medium">{item.value}%</span>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary/70 rounded-full transition-all duration-500" 
                       style={{ width: `${item.value}%` }} 
@@ -568,13 +570,6 @@ export default function RiskCalculator() {
               className="text-xs text-muted-foreground hover:text-foreground underline"
             >
               Save & continue later
-            </button>
-            <span className="mx-2 text-muted-foreground/50">•</span>
-            <button 
-              onClick={resetQuiz}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
-            >
-              Start over
             </button>
           </div>
         </div>
