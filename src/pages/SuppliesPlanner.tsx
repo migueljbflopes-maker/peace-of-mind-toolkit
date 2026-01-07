@@ -41,6 +41,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 // Types
 type HouseholdSize = "1" | "2" | "3-4" | "5-6" | "7+";
@@ -351,6 +352,7 @@ const SuppliesPlanner = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { isPremium } = useEntitlements();
   const totalWizardSteps = 12;
 
   // Wizard state
@@ -980,16 +982,28 @@ const SuppliesPlanner = () => {
           {/* Sticky CTA Bar */}
           <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 -mx-4 px-4 py-3 mb-4">
             <div className="flex flex-col gap-2">
-              <Button 
-                onClick={() => setShowPaywallModal(true)}
-                className="w-full gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Get my Personalized Resiliency Plan (€49)
-              </Button>
-              <p className="text-[10px] text-center text-muted-foreground">
-                Printable offline PDF + Vault + Plans A & B. No subscription.
-              </p>
+              {isPremium ? (
+                <Button 
+                  onClick={() => navigate("/premium/red-folder")}
+                  className="w-full gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Continue to Red Folder PDF
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    onClick={() => setShowPaywallModal(true)}
+                    className="w-full gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Get my Personalized Resiliency Plan (€49)
+                  </Button>
+                  <p className="text-[10px] text-center text-muted-foreground">
+                    Printable offline PDF + Vault + Plans A & B. No subscription.
+                  </p>
+                </>
+              )}
               <div className="flex items-center justify-between text-xs">
                 <button
                   onClick={handleSavePlan}
