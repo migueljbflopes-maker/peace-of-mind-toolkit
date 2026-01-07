@@ -66,11 +66,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const signOut = useCallback(async () => {
+    console.log('[AuthProvider] signOut called');
     const { error } = await supabase.auth.signOut();
     if (error) {
+      console.error('[AuthProvider] signOut error:', error);
       toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } else {
+      console.log('[AuthProvider] signOut success, forcing state cleanup');
+      // Force state cleanup as fallback
+      setUser(null);
+      setSession(null);
     }
-    // State will be cleaned automatically by onAuthStateChange
     return { error };
   }, [toast]);
 

@@ -1,5 +1,5 @@
 import { useState, forwardRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
@@ -37,6 +37,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [bePreparedOpen, setBePreparedOpen] = useState(false);
   const { user, isAuthenticated, signOut, loading } = useAuth();
   const { t } = useLocale();
+  const navigate = useNavigate();
 
   const navLinks = [
     { label: t.nav.library, href: "/library", icon: Library },
@@ -53,8 +54,11 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   ];
 
   const handleSignOut = async () => {
-    await signOut();
+    const { error } = await signOut();
     setMobileMenuOpen(false);
+    if (!error) {
+      navigate('/');
+    }
   };
 
   return (
