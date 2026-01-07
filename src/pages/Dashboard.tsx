@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import {
   ChevronRight,
   MapPin,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,7 +41,7 @@ interface SuppliesPlan {
   preparedness_pct: number | null;
 }
 
-const Dashboard = forwardRef<HTMLDivElement>((_, ref) => {
+export default function Dashboard() {
   const navigate = useNavigate();
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -52,10 +52,10 @@ const Dashboard = forwardRef<HTMLDivElement>((_, ref) => {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !entitlementsLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       navigate(`/login?return_url=/dashboard`);
     }
-  }, [authLoading, entitlementsLoading, isAuthenticated, navigate]);
+  }, [authLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -129,7 +129,7 @@ const Dashboard = forwardRef<HTMLDivElement>((_, ref) => {
   ];
 
   return (
-    <div ref={ref} className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
       <main className="flex-1">
@@ -293,8 +293,4 @@ const Dashboard = forwardRef<HTMLDivElement>((_, ref) => {
       <Footer />
     </div>
   );
-});
-
-Dashboard.displayName = 'Dashboard';
-
-export default Dashboard;
+}

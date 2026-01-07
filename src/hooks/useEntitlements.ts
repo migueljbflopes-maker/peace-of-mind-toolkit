@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from './useAuth';
 
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
@@ -33,24 +33,21 @@ export function useEntitlements() {
   });
   const [loading, setLoading] = useState(true);
 
-  // Dev/preview premium simulation - works in DEV mode and Lovable preview
-  const isDevMode = import.meta.env.DEV || 
-    (typeof window !== 'undefined' && window.location.hostname.includes('lovableproject.com'));
-
+  // Dev-only premium simulation
   const [devPremiumOverride, setDevPremiumOverride] = useState(() => {
-    if (isDevMode) {
+    if (import.meta.env.DEV) {
       return localStorage.getItem(DEV_PREMIUM_KEY) === 'true';
     }
     return false;
   });
 
   const toggleDevPremium = useCallback(() => {
-    if (!isDevMode) return;
+    if (!import.meta.env.DEV) return;
     
     const newValue = !devPremiumOverride;
     setDevPremiumOverride(newValue);
     localStorage.setItem(DEV_PREMIUM_KEY, String(newValue));
-  }, [devPremiumOverride, isDevMode]);
+  }, [devPremiumOverride]);
 
   // Fetch entitlements from database
   const fetchEntitlements = useCallback(async () => {
@@ -97,7 +94,7 @@ export function useEntitlements() {
   }, [authLoading, fetchEntitlements]);
 
   // Effective premium status (considering dev override)
-  const isPremium = isDevMode && devPremiumOverride ? true : entitlements.isPremium;
+  const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
 
   return {
     ...entitlements,
@@ -107,6 +104,6 @@ export function useEntitlements() {
     // Dev-only
     devPremiumOverride,
     toggleDevPremium,
-    isDevMode,
+    isDevMode: import.meta.env.DEV,
   };
 }

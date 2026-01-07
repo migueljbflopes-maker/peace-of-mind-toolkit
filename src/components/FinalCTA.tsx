@@ -1,11 +1,10 @@
-import { forwardRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield } from "lucide-react";
 
-const FinalCTA = forwardRef<HTMLElement>((_, ref) => {
+const FinalCTA = () => {
   return (
-    <section ref={ref} className="container-wide section-padding py-16 sm:py-20">
+    <section className="container-wide section-padding py-16 sm:py-20">
       <div className="relative rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-10 sm:p-14 text-center overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -47,8 +46,6 @@ const FinalCTA = forwardRef<HTMLElement>((_, ref) => {
       </div>
     </section>
   );
-});
-
-FinalCTA.displayName = "FinalCTA";
+};
 
 export default FinalCTA;
