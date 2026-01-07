@@ -5,7 +5,7 @@ import ValueSection from "@/components/ValueSection";
 import HowItWorks from "@/components/HowItWorks";
 import FeaturesSection from "@/components/FeaturesSection";
 import TipsPreview from "@/components/TipsPreview";
-import ProductsSection from "@/components/ProductsSection";
+import AmazonProductsSection from "@/components/AmazonProductsSection";
 import PricingTeaser from "@/components/PricingTeaser";
 import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
@@ -22,7 +22,7 @@ const Index = () => {
         <HowItWorks />
         <FeaturesSection />
         <TipsPreview />
-        <ProductsSection />
+        <AmazonProductsSection />
         <PricingTeaser />
         <FAQ />
         <FinalCTA />
