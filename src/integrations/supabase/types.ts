@@ -362,9 +362,6 @@ export type Database = {
           plan_name: string
           price_eur: number
           revoked_at: string | null
-          stripe_checkout_session_id: string | null
-          stripe_customer_id: string | null
-          stripe_payment_intent_id: string | null
           updated_at: string
           user_id: string
         }
@@ -374,9 +371,6 @@ export type Database = {
           plan_name?: string
           price_eur?: number
           revoked_at?: string | null
-          stripe_checkout_session_id?: string | null
-          stripe_customer_id?: string | null
-          stripe_payment_intent_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -386,9 +380,6 @@ export type Database = {
           plan_name?: string
           price_eur?: number
           revoked_at?: string | null
-          stripe_checkout_session_id?: string | null
-          stripe_customer_id?: string | null
-          stripe_payment_intent_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -429,6 +420,36 @@ export type Database = {
           risk_level?: string | null
           score?: number | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_customer_map: {
+        Row: {
+          created_at: string | null
+          id: string
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

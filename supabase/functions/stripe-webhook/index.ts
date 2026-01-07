@@ -111,15 +111,12 @@ serve(async (req) => {
 
         logStep("Granting premium to user", { userId });
 
-        // Upsert premium entitlement
+        // Upsert premium entitlement (public-facing, no Stripe IDs)
         const { error: upsertError } = await supabase
           .from("premium_entitlements")
           .upsert({
             user_id: userId,
             is_premium: true,
-            stripe_customer_id: session.customer as string,
-            stripe_checkout_session_id: session.id,
-            stripe_payment_intent_id: session.payment_intent as string,
             granted_at: new Date().toISOString(),
             revoked_at: null,
             plan_name: "Personalized Resiliency Plan",
@@ -133,6 +130,24 @@ serve(async (req) => {
           throw new Error(`Failed to grant premium: ${upsertError.message}`);
         }
 
+        // Store Stripe IDs in private table (service role only)
+        const { error: mapError } = await supabase
+          .from("stripe_customer_map")
+          .upsert({
+            user_id: userId,
+            stripe_customer_id: session.customer as string,
+            stripe_checkout_session_id: session.id,
+            stripe_payment_intent_id: session.payment_intent as string,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: "user_id",
+          });
+
+        if (mapError) {
+          logStep("WARNING: Failed to store Stripe IDs", { error: mapError.message });
+          // Don't throw - premium was granted, this is secondary
+        }
+
         logStep("Premium granted successfully", { userId });
         break;
       }
@@ -141,29 +156,29 @@ serve(async (req) => {
         const charge = event.data.object as Stripe.Charge;
         logStep("Processing charge.refunded", { chargeId: charge.id });
 
-        // Find user by stripe_customer_id or payment_intent
-        const { data: entitlement } = await supabase
-          .from("premium_entitlements")
+        // Find user by stripe_customer_id in private map
+        const { data: customerMap } = await supabase
+          .from("stripe_customer_map")
           .select("user_id")
           .or(`stripe_customer_id.eq.${charge.customer},stripe_payment_intent_id.eq.${charge.payment_intent}`)
           .maybeSingle();
 
-        if (entitlement) {
+        if (customerMap) {
           const { error: revokeError } = await supabase
             .from("premium_entitlements")
             .update({
               is_premium: false,
               revoked_at: new Date().toISOString(),
             })
-            .eq("user_id", entitlement.user_id);
+            .eq("user_id", customerMap.user_id);
 
           if (revokeError) {
             logStep("ERROR revoking premium", { error: revokeError.message });
           } else {
-            logStep("Premium revoked due to refund", { userId: entitlement.user_id });
+            logStep("Premium revoked due to refund", { userId: customerMap.user_id });
           }
         } else {
-          logStep("No matching entitlement found for refund", { customerId: charge.customer });
+          logStep("No matching customer found for refund", { customerId: charge.customer });
         }
         break;
       }
@@ -175,25 +190,26 @@ serve(async (req) => {
         // Get charge details to find customer
         const charge = await stripe.charges.retrieve(dispute.charge as string);
         
-        const { data: entitlement } = await supabase
-          .from("premium_entitlements")
+        // Find user by stripe_customer_id in private map
+        const { data: customerMap } = await supabase
+          .from("stripe_customer_map")
           .select("user_id")
           .eq("stripe_customer_id", charge.customer)
           .maybeSingle();
 
-        if (entitlement) {
+        if (customerMap) {
           const { error: revokeError } = await supabase
             .from("premium_entitlements")
             .update({
               is_premium: false,
               revoked_at: new Date().toISOString(),
             })
-            .eq("user_id", entitlement.user_id);
+            .eq("user_id", customerMap.user_id);
 
           if (revokeError) {
             logStep("ERROR revoking premium", { error: revokeError.message });
           } else {
-            logStep("Premium revoked due to dispute", { userId: entitlement.user_id });
+            logStep("Premium revoked due to dispute", { userId: customerMap.user_id });
           }
         }
         break;
