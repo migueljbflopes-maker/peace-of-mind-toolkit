@@ -75,6 +75,7 @@ export const translations = {
     vault: {
       title: 'Encrypted Vault',
       subtitle: 'Store sensitive information securely, encrypted with your passphrase.',
+      lockedExplainer: 'Your Vault is encrypted on this device. Unlock it with your passphrase.',
       sections: {
         ids: 'IDs & Documents',
         contacts: 'Emergency Contacts',
@@ -82,9 +83,82 @@ export const translations = {
         finance: 'Financial Info',
         devices: 'Devices & Accounts',
       },
+      sectionDescriptions: {
+        ids: 'Store document numbers and copies info',
+        contacts: 'Important people and services',
+        medical: 'Allergies, medications, conditions',
+        finance: 'Bank names and policy numbers',
+        devices: 'Phones, laptops, important accounts',
+      },
       unlockVault: 'Unlock Vault',
+      lockVault: 'Lock Vault',
       passphrasePlaceholder: 'Enter your passphrase',
-      comingNext: 'Full vault management coming next.',
+      wrongPassphrase: "Couldn't unlock. Check your passphrase.",
+      whatIsThis: 'What is this?',
+      whatIsThisModal: {
+        title: 'About Vault Encryption',
+        point1: 'We never store your passphrase.',
+        point2: 'Only encrypted data (ciphertext) is stored.',
+        point3: 'If you forget your passphrase, we cannot recover it.',
+        point4: 'Your data is encrypted locally before being sent anywhere.',
+      },
+      status: {
+        empty: 'Not filled',
+        partial: 'Partial',
+        complete: 'Complete',
+        lastUpdated: 'Last updated',
+      },
+      sync: {
+        online: 'Online',
+        offline: 'Offline',
+        syncing: 'Syncing...',
+        offlineBanner: 'Offline: saved locally. Will sync when online.',
+        savedLocally: 'Saved locally',
+        syncedToCloud: 'Synced to cloud (encrypted)',
+      },
+      autoLock: 'Auto-lock in',
+      edit: 'Edit',
+      // Section form labels
+      forms: {
+        ids: {
+          fullName: 'Full Name',
+          dob: 'Date of Birth',
+          nationalId: 'National ID / Passport Number',
+          address: 'Address',
+          notes: 'Notes',
+          copiesMade: 'Copies made',
+          storedInOnePlace: 'Documents stored in one place',
+        },
+        contacts: {
+          name: 'Name',
+          relationship: 'Relationship',
+          phone: 'Phone',
+          email: 'Email',
+          addContact: 'Add Contact',
+          doctor: 'Doctor',
+          vet: 'Vet',
+          insurance: 'Insurance',
+          importantServices: 'Important Services',
+        },
+        medical: {
+          allergies: 'Allergies',
+          medications: 'Medications',
+          conditions: 'Conditions',
+          emergencyNotes: 'Emergency Notes',
+        },
+        finance: {
+          banks: 'Banks (names only)',
+          policyNumbers: 'Policy Numbers',
+          emergencyCash: 'Emergency Cash Location',
+          noCredentials: 'No account credentials stored.',
+        },
+        devices: {
+          phones: 'Phones / Laptops',
+          accounts: 'Important Accounts (service names only)',
+          recoveryNotes: 'Recovery Notes',
+          noPasswords: 'No passwords stored.',
+        },
+      },
     },
     // Plans page
     plans: {
@@ -224,6 +298,7 @@ export const translations = {
     vault: {
       title: 'Cofre Encriptado',
       subtitle: 'Guarda informação sensível em segurança, encriptada com a tua frase-passe.',
+      lockedExplainer: 'O teu Cofre está encriptado neste dispositivo. Desbloqueia-o com a tua frase-passe.',
       sections: {
         ids: 'IDs & Documentos',
         contacts: 'Contactos de Emergência',
@@ -231,9 +306,82 @@ export const translations = {
         finance: 'Informação Financeira',
         devices: 'Dispositivos & Contas',
       },
+      sectionDescriptions: {
+        ids: 'Guarda números de documentos e info de cópias',
+        contacts: 'Pessoas e serviços importantes',
+        medical: 'Alergias, medicações, condições',
+        finance: 'Nomes de bancos e números de apólices',
+        devices: 'Telemóveis, portáteis, contas importantes',
+      },
       unlockVault: 'Desbloquear Cofre',
+      lockVault: 'Bloquear Cofre',
       passphrasePlaceholder: 'Introduz a tua frase-passe',
-      comingNext: 'Gestão completa do cofre em breve.',
+      wrongPassphrase: 'Não foi possível desbloquear. Verifica a tua frase-passe.',
+      whatIsThis: 'O que é isto?',
+      whatIsThisModal: {
+        title: 'Sobre a Encriptação do Cofre',
+        point1: 'Nunca guardamos a tua frase-passe.',
+        point2: 'Apenas dados encriptados (ciphertext) são guardados.',
+        point3: 'Se esqueceres a tua frase-passe, não a conseguimos recuperar.',
+        point4: 'Os teus dados são encriptados localmente antes de serem enviados.',
+      },
+      status: {
+        empty: 'Não preenchido',
+        partial: 'Parcial',
+        complete: 'Completo',
+        lastUpdated: 'Última atualização',
+      },
+      sync: {
+        online: 'Online',
+        offline: 'Offline',
+        syncing: 'A sincronizar...',
+        offlineBanner: 'Offline: guardado localmente. Sincroniza quando online.',
+        savedLocally: 'Guardado localmente',
+        syncedToCloud: 'Sincronizado na cloud (encriptado)',
+      },
+      autoLock: 'Bloqueio automático em',
+      edit: 'Editar',
+      // Section form labels
+      forms: {
+        ids: {
+          fullName: 'Nome Completo',
+          dob: 'Data de Nascimento',
+          nationalId: 'BI / Passaporte',
+          address: 'Morada',
+          notes: 'Notas',
+          copiesMade: 'Cópias feitas',
+          storedInOnePlace: 'Documentos guardados num só lugar',
+        },
+        contacts: {
+          name: 'Nome',
+          relationship: 'Relação',
+          phone: 'Telefone',
+          email: 'Email',
+          addContact: 'Adicionar Contacto',
+          doctor: 'Médico',
+          vet: 'Veterinário',
+          insurance: 'Seguro',
+          importantServices: 'Serviços Importantes',
+        },
+        medical: {
+          allergies: 'Alergias',
+          medications: 'Medicações',
+          conditions: 'Condições',
+          emergencyNotes: 'Notas de Emergência',
+        },
+        finance: {
+          banks: 'Bancos (apenas nomes)',
+          policyNumbers: 'Números de Apólices',
+          emergencyCash: 'Localização de Dinheiro de Emergência',
+          noCredentials: 'Sem credenciais de conta guardadas.',
+        },
+        devices: {
+          phones: 'Telemóveis / Portáteis',
+          accounts: 'Contas Importantes (apenas nomes)',
+          recoveryNotes: 'Notas de Recuperação',
+          noPasswords: 'Sem passwords guardadas.',
+        },
+      },
     },
     // Plans page
     plans: {
@@ -302,15 +450,4 @@ export const translations = {
 } as const;
 
 // Use a more flexible type that works with both languages
-export type TranslationKeys = {
-  common: typeof translations.en.common;
-  nav: typeof translations.en.nav;
-  dashboard: typeof translations.en.dashboard;
-  premium: typeof translations.en.premium;
-  vault: typeof translations.en.vault;
-  plans: typeof translations.en.plans;
-  redFolder: typeof translations.en.redFolder;
-  backup: typeof translations.en.backup;
-  paywall: typeof translations.en.paywall;
-  auth: typeof translations.en.auth;
-};
+export type TranslationKeys = typeof translations.en;
