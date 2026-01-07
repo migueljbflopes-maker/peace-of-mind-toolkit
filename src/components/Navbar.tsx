@@ -13,11 +13,14 @@ import {
   Newspaper,
   CreditCard,
   LayoutGrid,
+  User,
+  LogOut,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -25,24 +28,34 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocale } from "@/i18n/useLocale";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bePreparedOpen, setBePreparedOpen] = useState(false);
+  const { user, isAuthenticated, signOut, loading } = useAuth();
+  const { t } = useLocale();
 
   const navLinks = [
-    { label: "Library", href: "/library", icon: Library },
-    { label: "Tips & Peace of Mind", href: "/tips", icon: Lightbulb },
-    { label: "News", href: "/news/weekly", icon: Newspaper },
-    { label: "Pricing", href: "/pricing", icon: CreditCard },
+    { label: t.nav.library, href: "/library", icon: Library },
+    { label: t.nav.tips, href: "/tips", icon: Lightbulb },
+    { label: t.nav.news, href: "/news/weekly", icon: Newspaper },
+    { label: t.nav.pricing, href: "/pricing", icon: CreditCard },
   ];
 
   const bePreparedLinks = [
-    { label: "Calculators Hub", href: "/be-prepared", icon: LayoutGrid },
-    { label: "Risk Calculator", href: "/tools/risk", icon: AlertTriangle },
-    { label: "14-Day Supplies Planner", href: "/tools/supplies", icon: Package },
-    { label: "Products", href: "#products", icon: Package },
+    { label: t.nav.calculatorsHub, href: "/be-prepared", icon: LayoutGrid },
+    { label: t.nav.riskCalculator, href: "/tools/risk", icon: AlertTriangle },
+    { label: t.nav.suppliesPlanner, href: "/tools/supplies", icon: Package },
+    { label: t.nav.products, href: "#products", icon: Package },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    setMobileMenuOpen(false);
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50">
@@ -60,7 +73,7 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center gap-1">
             <Link to="/library">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Library
+                {t.nav.library}
               </Button>
             </Link>
 
@@ -68,7 +81,7 @@ const Navbar = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
-                  Be Prepared
+                  {t.nav.bePrepared}
                   <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -86,49 +99,91 @@ const Navbar = () => {
 
             <Link to="/tips">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Tips & Peace of Mind
+                {t.nav.tips}
               </Button>
             </Link>
 
             <Link to="/news/weekly">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                News
+                {t.nav.news}
               </Button>
             </Link>
 
             <Link to="/pricing">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Pricing
+                {t.nav.pricing}
               </Button>
             </Link>
+
+            {isAuthenticated && (
+              <Link to="/dashboard">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  {t.nav.dashboard}
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Desktop CTAs */}
-          <div className="hidden lg:flex items-center gap-3">
-            <Link to="/start">
-              <Button variant="nav-primary" size="sm">
-                Start Free
-              </Button>
-            </Link>
-            <Link to="/pricing">
-              <Button variant="nav-outline" size="sm">
-                Unlock Premium
-              </Button>
-            </Link>
+          <div className="hidden lg:flex items-center gap-2">
+            <LanguageSwitcher />
+            
+            {!loading && (
+              isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      <User className="h-4 w-4" />
+                      <span className="max-w-[120px] truncate text-sm">
+                        {user?.email?.split('@')[0]}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="cursor-pointer">
+                        {t.nav.dashboard}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      {t.nav.logout}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm">
+                      {t.nav.login}
+                    </Button>
+                  </Link>
+                  <Link to="/pricing">
+                    <Button variant="nav-outline" size="sm">
+                      {t.nav.unlockPremium}
+                    </Button>
+                  </Link>
+                </>
+              )
+            )}
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            className="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? (
-              <X className="h-5 w-5 text-foreground" />
-            ) : (
-              <Menu className="h-5 w-5 text-foreground" />
-            )}
-          </button>
+          <div className="lg:hidden flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <X className="h-5 w-5 text-foreground" />
+              ) : (
+                <Menu className="h-5 w-5 text-foreground" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -142,7 +197,7 @@ const Navbar = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               <Library className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Library</span>
+              <span className="font-medium">{t.nav.library}</span>
             </Link>
 
             {/* Be Prepared Accordion */}
@@ -150,7 +205,7 @@ const Navbar = () => {
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg hover:bg-accent transition-colors">
                 <div className="flex items-center gap-3">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Be Prepared</span>
+                  <span className="font-medium">{t.nav.bePrepared}</span>
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 text-muted-foreground transition-transform ${
@@ -179,7 +234,7 @@ const Navbar = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               <Lightbulb className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Tips & Peace of Mind</span>
+              <span className="font-medium">{t.nav.tips}</span>
             </Link>
 
             <Link
@@ -188,7 +243,7 @@ const Navbar = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               <Newspaper className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">News</span>
+              <span className="font-medium">{t.nav.news}</span>
             </Link>
 
             <Link
@@ -197,20 +252,49 @@ const Navbar = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Pricing</span>
+              <span className="font-medium">{t.nav.pricing}</span>
             </Link>
 
+            {isAuthenticated && (
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{t.nav.dashboard}</span>
+              </Link>
+            )}
+
             <div className="pt-4 border-t border-border space-y-2">
-              <Link to="/start" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="hero" className="w-full">
-                  Start Free
-                </Button>
-              </Link>
-              <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="hero-outline" className="w-full">
-                  Unlock Premium
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    {user?.email}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-2" 
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t.nav.logout}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      {t.nav.login}
+                    </Button>
+                  </Link>
+                  <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="hero-outline" className="w-full">
+                      {t.nav.unlockPremium}
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
