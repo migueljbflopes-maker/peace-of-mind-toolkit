@@ -30,20 +30,8 @@ const FeaturesSection = () => {
         { icon: Lightbulb, label: "Tips & peace of mind articles" },
         { icon: Newspaper, label: "Weekly briefing" },
       ],
+      footnote: "Create a free account to save & sync progress.",
       cta: { label: "Start Free", href: "/start", variant: "secondary" as const },
-    },
-    {
-      name: "Login",
-      subtitle: "Still free",
-      price: "€0",
-      priceNote: "with account",
-      features: [
-        { icon: Check, label: "Everything in Free" },
-        { icon: Bookmark, label: "Save results & progress" },
-        { icon: Bookmark, label: "Bookmarks & drafts" },
-        { icon: Cloud, label: "Sync across devices" },
-      ],
-      cta: { label: "Create Account", href: "/start", variant: "secondary" as const },
     },
     {
       name: "Premium",
@@ -52,7 +40,7 @@ const FeaturesSection = () => {
       priceNote: "no subscription",
       highlight: true,
       features: [
-        { icon: Check, label: "Everything in Login" },
+        { icon: Check, label: "Everything in Free" },
         { icon: FileText, label: "Red Folder PDF generator" },
         { icon: Lock, label: "Encrypted Vault storage" },
         { icon: Map, label: "Plans A & B with maps" },
@@ -76,7 +64,7 @@ const FeaturesSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {tiers.map((tier, index) => (
             <div
               key={index}
@@ -102,7 +90,7 @@ const FeaturesSection = () => {
                 <span className="text-sm text-muted-foreground ml-2">{tier.priceNote}</span>
               </div>
 
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-3 mb-6">
                 {tier.features.map((feature, featureIndex) => (
                   <li key={featureIndex} className="flex items-start gap-3 text-sm">
                     <feature.icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
@@ -110,6 +98,12 @@ const FeaturesSection = () => {
                   </li>
                 ))}
               </ul>
+
+              {tier.footnote && (
+                <p className="text-xs text-muted-foreground mb-6 italic">
+                  {tier.footnote}
+                </p>
+              )}
 
               <Link to={tier.cta.href}>
                 <Button variant={tier.cta.variant} className="w-full">
