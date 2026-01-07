@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, Shield } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
+import { useEntitlements } from '@/hooks/useEntitlements';
 
 interface PremiumBundleCardProps {
   compact?: boolean;
@@ -10,6 +11,12 @@ interface PremiumBundleCardProps {
 
 export function PremiumBundleCard({ compact = false }: PremiumBundleCardProps) {
   const { t } = useLocale();
+  const { isPremium } = useEntitlements();
+
+  // Don't show purchase prompts to premium users
+  if (isPremium) {
+    return null;
+  }
   const features = t.premium.features;
 
   const featureList = [
