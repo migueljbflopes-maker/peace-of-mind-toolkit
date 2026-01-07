@@ -1,73 +1,68 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { WifiOff, Shield, FileText } from "lucide-react";
-import heroImage from "@/assets/hero-preparedness.jpg";
+import iconBugIn from "@/assets/icon-bug-in.jpg";
+import iconBugOut from "@/assets/icon-bug-out.jpg";
+
 const Hero = () => {
-  const trustBullets = [{
-    icon: WifiOff,
-    label: "Works offline"
-  }, {
-    icon: Shield,
-    label: "No login needed"
-  }, {
-    icon: FileText,
-    label: "Printable plans"
-  }];
-  return <section className="relative overflow-hidden bg-background">
-      <div className="container-wide section-padding py-12 sm:py-16 lg:py-20">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-          {/* Left: Content */}
-          <div className="space-y-6 lg:space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight text-balance animate-fade-in">
-                Get ready in 15 minutes.
-              </h1>
-              <p className="text-lg sm:text-xl text-muted-foreground max-w-xl animate-fade-in [animation-delay:100ms] opacity-0">Não dependa da sorte.  Gere o seu plano de sobrevivência personalizado: o que estocar, o que levar e como agir.</p>
-            </div>
-
-            {/* Trust Bullets - Horizontal on mobile */}
-            <div className="flex flex-wrap gap-4 animate-fade-in [animation-delay:150ms] opacity-0">
-              {trustBullets.map((bullet, index) => <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="p-1.5 rounded-lg bg-amber-100">
-                    <bullet.icon className="h-3.5 w-3.5 text-amber-600" />
-                  </div>
-                  <span className="font-medium">{bullet.label}</span>
-                </div>)}
-            </div>
-
-            {/* CTAs */}
-            <div className="flex flex-wrap gap-3 animate-fade-in [animation-delay:200ms] opacity-0">
-              <Link to="/start">
-                <Button variant="cta" size="xl">
-                  Start Free
-                </Button>
-              </Link>
-              <Link to="/tools/risk">
-                <Button variant="hero-outline" size="xl">
-                  Create my plan now
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Right: Hero Image */}
-          <div className="relative animate-fade-in [animation-delay:300ms] opacity-0">
-            <div className="relative rounded-2xl overflow-hidden shadow-soft-xl">
-              <img src={heroImage} alt="Emergency preparedness kit with go-bag, water, first aid, and supplies near front door" className="w-full h-auto object-cover aspect-[16/10]" />
-              {/* Subtle overlay for depth */}
-              <div className="absolute inset-0 bg-gradient-to-t from-navy/10 to-transparent" />
-            </div>
-            
-            {/* Floating badge */}
-            <div className="absolute -bottom-4 left-4 right-4 sm:left-8 sm:right-auto">
-              <div className="inline-flex items-center gap-2 bg-background border border-border rounded-xl px-4 py-2.5 shadow-soft-lg">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-medium text-foreground">Ready when you need it</span>
-              </div>
-            </div>
+  return (
+    <section className="relative min-h-[60vh] md:min-h-[70vh] flex flex-col md:flex-row">
+      {/* Left: Bug In - Blue overlay */}
+      <div 
+        className="relative flex-1 bg-cover bg-center min-h-[30vh] md:min-h-0"
+        style={{ backgroundImage: `url(${iconBugIn})` }}
+      >
+        <div className="absolute inset-0 bg-blue-700/65" />
+        <div className="relative z-10 h-full flex items-end justify-start p-6 md:p-10">
+          <div className="text-white">
+            <p className="text-xs md:text-sm font-bold uppercase tracking-widest opacity-90">Bug In:</p>
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight">HOME READY.</h2>
           </div>
         </div>
       </div>
-    </section>;
+      
+      {/* Right: Bug Out - Orange overlay */}
+      <div 
+        className="relative flex-1 bg-cover bg-center min-h-[30vh] md:min-h-0"
+        style={{ backgroundImage: `url(${iconBugOut})` }}
+      >
+        <div className="absolute inset-0 bg-amber-600/70" />
+        <div className="relative z-10 h-full flex items-end justify-end p-6 md:p-10 text-right">
+          <div className="text-white">
+            <p className="text-xs md:text-sm font-bold uppercase tracking-widest opacity-90">Bug Out:</p>
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight">GO BAG READY.</h2>
+          </div>
+        </div>
+      </div>
+      
+      {/* Center CTA overlay */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none px-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white text-center mb-6 drop-shadow-lg tracking-tight">
+          DO YOU HAVE BOTH PLANS?
+        </h1>
+        <Link to="/tools/risk" className="pointer-events-auto">
+          <Button variant="cta" size="lg" className="text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-shadow">
+            FREE RISK ANALYSIS
+          </Button>
+        </Link>
+        
+        {/* Trust bullets */}
+        <div className="flex flex-wrap justify-center gap-4 md:gap-6 mt-6 pointer-events-auto">
+          <span className="text-white/90 text-xs md:text-sm font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-white/80 rounded-full" />
+            Works offline
+          </span>
+          <span className="text-white/90 text-xs md:text-sm font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-white/80 rounded-full" />
+            No login needed
+          </span>
+          <span className="text-white/90 text-xs md:text-sm font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-white/80 rounded-full" />
+            Printable plans
+          </span>
+        </div>
+      </div>
+    </section>
+  );
 };
+
 export default Hero;
