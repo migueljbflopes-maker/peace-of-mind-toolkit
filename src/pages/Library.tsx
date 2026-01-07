@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LoginModal } from "@/components/modals/LoginModal";
+import { useToast } from "@/hooks/use-toast";
 import {
   Sheet,
   SheetContent,
@@ -25,10 +26,12 @@ import {
   Star,
   Building2,
   WifiOff,
+  Copy,
 } from "lucide-react";
 import { libraryDocs, countries, languages, allTopics, types, type LibraryDocument } from "@/data/librarySeed";
 
 const Library = () => {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -115,6 +118,50 @@ const Library = () => {
   const handleBookmark = () => {
     // Soft gate - require login
     setLoginModalOpen(true);
+  };
+
+  const handleOpenLink = (url: string) => {
+    if (!isOnline) {
+      toast({
+        title: "You're offline",
+        description: "Links open on the web; requires internet.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (!newWindow) {
+        toast({
+          title: "Link blocked",
+          description: "Your browser blocked this link. Use Copy link or allowlist this site.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Link blocked",
+        description: "Your browser blocked this link. Use Copy link or allowlist this site.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Link copied",
+        description: "The link has been copied to your clipboard.",
+      });
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Could not copy link. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const clearFilters = () => {
@@ -292,12 +339,7 @@ const Library = () => {
         <Button
           size="sm"
           className="flex-1"
-          onClick={() => {
-            if (!isOnline) {
-              return;
-            }
-            window.open(doc.url, "_blank", "noopener,noreferrer");
-          }}
+          onClick={() => handleOpenLink(doc.url)}
           disabled={!isOnline}
         >
           <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
@@ -306,18 +348,25 @@ const Library = () => {
         <Button
           size="sm"
           variant="outline"
+          onClick={() => handleCopyLink(doc.url)}
+          title="Copy link"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handleBookmark}
+          title="Bookmark"
         >
           <Bookmark className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {!isOnline && (
-        <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-          <WifiOff className="h-3 w-3" />
-          Internet required to open
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+        <Globe className="h-3 w-3" />
+        Links open on the web; requires internet.
+      </p>
     </div>
   );
 
