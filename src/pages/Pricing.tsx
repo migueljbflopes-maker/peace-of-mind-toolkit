@@ -11,14 +11,18 @@ import {
   ClipboardList,
   ArrowRight,
   Check,
-  Wifi,
   WifiOff,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { useAuth } from "@/hooks/useAuth";
 
 const Pricing = () => {
+  const { isPremium, loading } = useEntitlements();
+  const { isAuthenticated } = useAuth();
   const benefits = [
     {
       icon: FileText,
@@ -60,6 +64,63 @@ const Pricing = () => {
     // TODO: Connect to Stripe payment flow
     console.log("Unlock Premium clicked - wire to payment flow");
   };
+
+  // Premium users see a different view
+  if (isAuthenticated && isPremium) {
+    const premiumFeatures = [
+      { icon: Lock, label: "Encrypted Vault", href: "/premium/vault" },
+      { icon: Map, label: "Plans A & B", href: "/premium/plans" },
+      { icon: FileText, label: "Red Folder PDF", href: "/premium/red-folder" },
+      { icon: Download, label: "Backup & Restore", href: "/premium/backup" },
+    ];
+
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-20">
+          <section className="py-16">
+            <div className="container mx-auto px-4">
+              <div className="max-w-md mx-auto text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="h-8 w-8 text-primary" />
+                </div>
+                <h1 className="text-2xl font-bold text-foreground mb-2">
+                  You're already Premium
+                </h1>
+                <p className="text-muted-foreground mb-8">
+                  Thank you for your support! Access all your premium features below.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 mb-8">
+                  {premiumFeatures.map((feature, index) => {
+                    const IconComponent = feature.icon;
+                    return (
+                      <Link
+                        key={index}
+                        to={feature.href}
+                        className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl hover:border-primary/50 transition-colors"
+                      >
+                        <IconComponent className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium text-foreground">{feature.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <Link to="/dashboard">
+                  <Button size="lg" className="gap-2">
+                    Go to Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </section>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

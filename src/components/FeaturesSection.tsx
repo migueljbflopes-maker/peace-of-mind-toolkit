@@ -12,8 +12,11 @@ import {
   Map,
   Cloud,
 } from "lucide-react";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 const FeaturesSection = () => {
+  const { isPremium } = useEntitlements();
+
   const tiers = [
     {
       name: "Free",
@@ -43,7 +46,9 @@ const FeaturesSection = () => {
         { icon: Map, label: "Plans A & B with maps" },
         { icon: Cloud, label: "Encrypted backup/restore" },
       ],
-      cta: { label: "Unlock Premium (€49)", href: "/pricing", variant: "cta" as const },
+      cta: isPremium 
+        ? { label: "Access Your Features", href: "/dashboard", variant: "cta" as const }
+        : { label: "Unlock Premium (€49)", href: "/pricing", variant: "cta" as const },
     },
   ];
 
