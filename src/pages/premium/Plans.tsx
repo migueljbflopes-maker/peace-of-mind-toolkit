@@ -119,13 +119,13 @@ export default function Plans() {
 
       // Log AI job (non-sensitive only)
       if (user) {
-        await supabase.from('ai_jobs').insert({
+        await supabase.from('ai_jobs').insert([{
           user_id: user.id,
           job_type: `plan_${planType.toLowerCase()}_draft`,
           status: 'done',
-          input_summary: createAIJobInputSummary(input),
-          output: draft,
-        });
+          input_summary: createAIJobInputSummary(input) as unknown as null,
+          output: draft as unknown as null,
+        }]);
       }
 
       toast.success(t.plans.draftGenerated);
