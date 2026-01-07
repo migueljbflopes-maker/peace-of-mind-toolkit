@@ -236,10 +236,15 @@ export const translations = {
     },
     // Red Folder page
     redFolder: {
-      title: 'Red Folder Export',
-      subtitle: 'Generate a printable PDF with all your essential information.',
+      title: 'Export your Resiliency Plan',
+      subtitle: 'Printable offline PDF (Red Folder format).',
       generatePdf: 'Generate PDF',
-      preview: 'Preview',
+      downloadPdf: 'Download PDF',
+      regenerate: 'Regenerate',
+      preview: 'Preview Sections',
+      generating: 'Generating PDF...',
+      pdfReady: 'PDF Ready',
+      pdfReadyDesc: 'Your Red Folder PDF is ready to download.',
       includes: 'Your Red Folder includes:',
       includesList: {
         contacts: 'Emergency contacts',
@@ -248,7 +253,16 @@ export const translations = {
         medical: 'Medical information',
         documents: 'Document references',
       },
-      comingNext: 'PDF generation coming next.',
+      dataReadiness: 'Data Readiness',
+      readiness: {
+        risk: 'Latest Risk Assessment',
+        supplies: '14-Day Supplies Plan',
+      },
+      found: 'Found',
+      notFound: 'Not found',
+      missingDataNote: 'Missing sections will show as "Not provided" in the PDF.',
+      offlineBanner: 'Offline: generating from local data.',
+      premiumNote: 'Included in Premium — Personalized Resiliency Plan (49€ one-time).',
     },
     // Backup page
     backup: {
@@ -521,10 +535,15 @@ export const translations = {
     },
     // Red Folder page
     redFolder: {
-      title: 'Export Red Folder',
-      subtitle: 'Gera um PDF imprimível com toda a tua informação essencial.',
+      title: 'Exportar o teu Plano de Resiliência',
+      subtitle: 'PDF offline imprimível (formato Red Folder).',
       generatePdf: 'Gerar PDF',
-      preview: 'Pré-visualização',
+      downloadPdf: 'Descarregar PDF',
+      regenerate: 'Regenerar',
+      preview: 'Pré-visualizar Secções',
+      generating: 'A gerar PDF...',
+      pdfReady: 'PDF Pronto',
+      pdfReadyDesc: 'O teu PDF Red Folder está pronto para descarregar.',
       includes: 'O teu Red Folder inclui:',
       includesList: {
         contacts: 'Contactos de emergência',
@@ -533,7 +552,16 @@ export const translations = {
         medical: 'Informação médica',
         documents: 'Referências de documentos',
       },
-      comingNext: 'Geração de PDF em breve.',
+      dataReadiness: 'Prontidão dos Dados',
+      readiness: {
+        risk: 'Última Avaliação de Risco',
+        supplies: 'Plano de Suprimentos 14 Dias',
+      },
+      found: 'Encontrado',
+      notFound: 'Não encontrado',
+      missingDataNote: 'Secções em falta aparecerão como "Não fornecido" no PDF.',
+      offlineBanner: 'Offline: a gerar a partir de dados locais.',
+      premiumNote: 'Incluído no Premium — Plano de Resiliência Personalizado (49€ único).',
     },
     // Backup page
     backup: {
