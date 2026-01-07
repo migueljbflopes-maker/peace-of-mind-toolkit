@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
+import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { supabase } from '@/integrations/supabase/client';
 import { PremiumBundleCard } from '@/components/PremiumBundleCard';
 import Navbar from '@/components/Navbar';
@@ -46,7 +47,7 @@ export default function Dashboard() {
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { isPremium, loading: entitlementsLoading, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
-
+  const { needsOnboarding, loading: onboardingLoading } = useOnboardingState();
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [plans, setPlans] = useState<SuppliesPlan[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -87,7 +88,7 @@ export default function Dashboard() {
     setLoadingData(false);
   };
 
-  if (authLoading || entitlementsLoading) {
+  if (authLoading || entitlementsLoading || onboardingLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

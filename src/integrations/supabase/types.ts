@@ -298,6 +298,27 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_state: {
+        Row: {
+          completed: boolean
+          step: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          step?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          step?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_items: {
         Row: {
           ciphertext: string
