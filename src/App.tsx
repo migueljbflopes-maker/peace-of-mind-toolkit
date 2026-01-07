@@ -14,6 +14,7 @@ import RiskCalculator from "./pages/RiskCalculator";
 import SuppliesPlanner from "./pages/SuppliesPlanner";
 import WeeklyBriefing from "./pages/WeeklyBriefing";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import Vault from "./pages/premium/Vault";
 import Plans from "./pages/premium/Plans";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/tools/supplies" element={<SuppliesPlanner />} />
             <Route path="/news/weekly" element={<WeeklyBriefing />} />
             <Route path="/login" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/premium/vault" element={<Vault />} />
             <Route path="/premium/plans" element={<Plans />} />

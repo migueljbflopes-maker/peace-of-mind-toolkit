@@ -16,6 +16,13 @@ export function useAuth() {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Handle profile upsert after sign-in (deferred to avoid deadlock)
+        if (event === 'SIGNED_IN' && session?.user) {
+          setTimeout(() => {
+            upsertUserProfile(session.user.id);
+          }, 0);
+        }
       }
     );
 
@@ -29,6 +36,55 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Upsert user profile with locale from localStorage fallback
+  const upsertUserProfile = async (userId: string) => {
+    const storedLocale = localStorage.getItem('resilient_locale') || 'en';
+    
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert(
+          { 
+            user_id: userId, 
+            locale: storedLocale,
+          },
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
+      
+      if (error && !error.message.includes('duplicate')) {
+        console.error('Failed to upsert user profile:', error);
+      }
+    } catch (e) {
+      console.error('Profile upsert error:', e);
+    }
+  };
+
+  // Magic Link sign-in
+  const signInWithMagicLink = useCallback(async (email: string, returnUrl?: string) => {
+    const baseUrl = window.location.origin;
+    const callbackUrl = returnUrl 
+      ? `${baseUrl}/auth/callback?return_url=${encodeURIComponent(returnUrl)}`
+      : `${baseUrl}/auth/callback`;
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: callbackUrl,
+      },
+    });
+    
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message,
+      });
+      return { error };
+    }
+    return { error: null };
+  }, [toast]);
+
+  // Legacy password sign-in (kept for compatibility)
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
@@ -42,6 +98,7 @@ export function useAuth() {
     return { error: null };
   }, [toast]);
 
+  // Legacy password sign-up (kept for compatibility)
   const signUp = useCallback(async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -83,6 +140,7 @@ export function useAuth() {
     isAuthenticated: !!user,
     signIn,
     signUp,
+    signInWithMagicLink,
     signOut,
   };
 }
