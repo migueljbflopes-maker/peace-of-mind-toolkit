@@ -25,7 +25,8 @@ import {
   Baby,
   Pill,
   ShoppingBag,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -36,6 +37,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LoginModal } from "@/components/modals/LoginModal";
 import { PaywallModal } from "@/components/modals/PaywallModal";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 // Types
 type HouseholdSize = "1" | "2" | "3-4" | "5-6" | "7+";
@@ -344,6 +349,8 @@ const defaultAnswers: WizardAnswers = {
 
 const SuppliesPlanner = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const totalWizardSteps = 12;
 
   // Wizard state
@@ -359,6 +366,7 @@ const SuppliesPlanner = () => {
   // Modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load draft on mount
   useEffect(() => {
@@ -489,6 +497,52 @@ const SuppliesPlanner = () => {
       ...prev,
       [itemId]: !prev[itemId],
     }));
+  };
+
+  const handleSavePlan = async () => {
+    if (!isAuthenticated || !user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // First check if a plan already exists
+      const { data: existing } = await supabase
+        .from("supplies_plans")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const planData = {
+        user_id: user.id,
+        days: answers.daysTarget,
+        household_size_bucket: answers.householdSize,
+        inputs: JSON.parse(JSON.stringify(answers)) as Json,
+        plan: JSON.parse(JSON.stringify({ checkedItems, checkedHardToSource })) as Json,
+        preparedness_pct: stats.overallPreparedness,
+      };
+
+      const { error } = existing
+        ? await supabase.from("supplies_plans").update(planData).eq("user_id", user.id)
+        : await supabase.from("supplies_plans").insert(planData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Plan saved!",
+        description: "Your supplies plan has been saved to your account.",
+      });
+    } catch (error) {
+      console.error("Error saving plan:", error);
+      toast({
+        title: "Save failed",
+        description: "Could not save your plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const togglePet = (pet: PetType) => {
@@ -938,11 +992,16 @@ const SuppliesPlanner = () => {
               </p>
               <div className="flex items-center justify-between text-xs">
                 <button
-                  onClick={() => setShowLoginModal(true)}
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                  onClick={handleSavePlan}
+                  disabled={isSaving}
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
                 >
-                  <Save className="h-3 w-3" />
-                  Save & continue later (free)
+                  {isSaving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Save className="h-3 w-3" />
+                  )}
+                  {isAuthenticated ? "Save progress" : "Log in to save (free)"}
                 </button>
                 <button
                   onClick={() => navigate("/library")}
