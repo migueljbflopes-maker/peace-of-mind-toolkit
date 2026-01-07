@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.ingest-headlines-googlenews]
 verify_jwt = false
+
+[functions.run-ai-job]
+verify_jwt = false

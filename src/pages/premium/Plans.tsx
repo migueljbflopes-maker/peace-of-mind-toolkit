@@ -10,9 +10,8 @@ import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { PlanCard } from '@/components/plans/PlanCard';
 import { PlanEditor } from '@/components/plans/PlanEditor';
 import { PlanData, PlanType } from '@/lib/plansStore';
-import { generatePlanDraft, AIPlanInput, createAIJobInputSummary } from '@/lib/aiPlanDraft';
+import { generatePlanDraft, AIPlanInput } from '@/lib/aiPlanDraft';
 import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
@@ -98,40 +97,34 @@ export default function Plans() {
   // Generate AI draft
   const handleGenerateDraft = useCallback(async (planType: PlanType) => {
     const passphrase = getPassphrase();
-    if (!passphrase) return;
+    if (!passphrase || !user) return;
 
     setIsGenerating(planType);
     try {
       // Non-sensitive input for AI
       const input: AIPlanInput = {
-        locale,
-        region: 'general',
+        locale: locale as 'en' | 'pt',
+        planType,
+        region: 'General',
         riskLevelBand: 'medium',
         householdSizeBucket: '2-3',
         hasPets: false,
         hasKids: false,
         mobilityLevel: 'high',
-        daysPreparedness: 14,
+        preparednessDays: 14,
       };
 
-      // Generate draft
-      const draft = await generatePlanDraft(planType, input);
+      // Generate draft via Edge Function
+      const { plan, usedAI } = await generatePlanDraft(planType, input, user.id);
 
-      // Log AI job (non-sensitive only)
-      if (user) {
-        await supabase.from('ai_jobs').insert([{
-          user_id: user.id,
-          job_type: `plan_${planType.toLowerCase()}_draft`,
-          status: 'done',
-          input_summary: createAIJobInputSummary(input) as unknown as null,
-          output: draft as unknown as null,
-        }]);
+      if (usedAI) {
+        toast.success(t.plans.draftGenerated);
+      } else {
+        toast.success(t.plans.draftGenerated + ' (offline template)');
       }
-
-      toast.success(t.plans.draftGenerated);
       
       // Open editor with draft
-      setEditingData(draft);
+      setEditingData(plan);
       setEditingPlan(planType);
     } catch {
       toast.error('Failed to generate draft');

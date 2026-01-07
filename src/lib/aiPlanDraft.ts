@@ -1,32 +1,64 @@
 /**
- * AI Plan Draft Generator (Stub)
+ * AI Plan Draft Generator
  * 
  * SECURITY:
- * - Only non-sensitive inputs are used
- * - No personal data is logged or sent to AI
+ * - Only non-sensitive inputs are sent to AI
+ * - OpenAI API key is server-side only (Edge Function)
+ * - No personal data is logged or sent
  * - Generated content is calm and practical
- * 
- * TODO: Replace stub with actual AI API call when ready
  */
 
 import { PlanData, PlanType } from './plansStore';
+import { supabase } from '@/integrations/supabase/client';
 
 // Non-sensitive input for AI draft generation
 export interface AIPlanInput {
   locale: 'en' | 'pt';
+  planType: PlanType;
   region: string;
+  country?: string;
   riskLevelBand: 'low' | 'medium' | 'high';
   householdSizeBucket: '1' | '2-3' | '4+';
   hasPets: boolean;
   hasKids: boolean;
   mobilityLevel: 'low' | 'medium' | 'high';
-  daysPreparedness: number;
+  preparednessDays: number;
+  constraints?: string[];
 }
 
-// Deterministic content templates
-const TEMPLATES = {
+// AI output structure (matches edge function schema)
+export interface AIPlanOutput {
+  planType: 'A' | 'B';
+  locale: 'en' | 'pt';
+  title: string;
+  summary: string;
+  triggers: string[];
+  objectives: string[];
+  meetingPoints: {
+    primary: string;
+    secondary: string;
+  };
+  communications: {
+    checkInRule: string;
+    outOfAreaContactRole: string;
+  };
+  mobility: {
+    constraints: string;
+    transport: string;
+    notes: string;
+  };
+  essentialsGrabList: string[];
+  stepsFirstHour: string[];
+  stepsFirstDay: string[];
+  notes: string;
+}
+
+// Local fallback templates (used when AI fails)
+const FALLBACK_TEMPLATES = {
   en: {
-    A: { // Shelter in place
+    A: {
+      title: 'Shelter in Place Plan',
+      summary: 'A practical plan for staying safe at home during emergencies.',
       triggers: [
         'Severe weather warning issued for your area',
         'Power outage lasting more than 2 hours',
@@ -41,14 +73,32 @@ const TEMPLATES = {
         'Account for all household members',
         'Establish communication with family contacts',
       ],
-      meetingPointPrimary: 'Living room or designated safe room',
-      meetingPointSecondary: 'Kitchen near emergency supplies',
+      meetingPoints: {
+        primary: 'Living room or designated safe room',
+        secondary: 'Kitchen near emergency supplies',
+      },
+      communications: {
+        checkInRule: 'Check in with family every 2 hours via text',
+        outOfAreaContactRole: 'Out-of-area contact receives status updates and relays info',
+      },
+      mobility: {
+        constraints: '',
+        transport: '',
+        notes: 'Plan accessible routes within home',
+      },
+      essentialsGrabList: [
+        'Phone and charger', 'Flashlight and batteries', 'First aid kit',
+        'Important documents folder', 'Cash and cards', 'Medications',
+        'Water bottles', 'Snacks and non-perishable food', 'Radio',
+        'Blanket',
+      ],
       stepsFirstHour: [
         'Check all doors and windows are secured',
         'Turn on radio or news for updates',
         'Gather family members in central location',
         'Locate flashlights and emergency kit',
         'Fill bathtub and containers with water',
+        'Charge all devices',
       ],
       stepsFirstDay: [
         'Ration food and water if needed',
@@ -58,19 +108,11 @@ const TEMPLATES = {
         'Document any damage for insurance',
         'Rest in shifts if situation continues',
       ],
-      grabList: [
-        'Phone and charger',
-        'Flashlight and batteries',
-        'First aid kit',
-        'Important documents folder',
-        'Cash and cards',
-        'Medications',
-        'Water bottles',
-        'Snacks and non-perishable food',
-      ],
-      mobilityNotes: 'Plan accessible routes within home',
+      notes: 'Always follow local authorities.',
     },
-    B: { // Leave / Relocate
+    B: {
+      title: 'Evacuation Plan',
+      summary: 'A clear plan for leaving your home safely when needed.',
       triggers: [
         'Mandatory evacuation order issued',
         'Fire or flooding approaching your area',
@@ -85,14 +127,33 @@ const TEMPLATES = {
         'Account for all family members and pets',
         'Notify emergency contacts of your status',
       ],
-      meetingPointPrimary: 'Front of building or main entrance',
-      meetingPointSecondary: 'Neighbor\'s house or nearby landmark',
+      meetingPoints: {
+        primary: 'Front of building or main entrance',
+        secondary: 'Neighbor\'s house or nearby landmark',
+      },
+      communications: {
+        checkInRule: 'Text family hourly during evacuation',
+        outOfAreaContactRole: 'Out-of-area contact coordinates information sharing',
+      },
+      mobility: {
+        constraints: '',
+        transport: '',
+        notes: 'Pre-plan accessible evacuation routes',
+      },
+      essentialsGrabList: [
+        'Go-bag with essentials', 'Important documents (IDs, insurance)',
+        'Cash and credit cards', 'Phone, charger, power bank',
+        'Medications for 7 days', 'Water (1L per person)',
+        'Non-perishable snacks', 'Pet carrier and pet food (if applicable)',
+        'Change of clothes', 'Blanket or sleeping bag',
+      ],
       stepsFirstHour: [
         'Grab pre-packed go-bag',
         'Secure home (turn off gas, lock doors)',
         'Load vehicle or prepare to leave on foot',
         'Confirm all family members are ready',
         'Text/call emergency contacts with plan',
+        'Check traffic and route conditions',
       ],
       stepsFirstDay: [
         'Follow designated evacuation routes',
@@ -102,23 +163,13 @@ const TEMPLATES = {
         'Register at evacuation center if applicable',
         'Document route and conditions',
       ],
-      grabList: [
-        'Go-bag with essentials',
-        'Important documents (IDs, insurance)',
-        'Cash and credit cards',
-        'Phone, charger, power bank',
-        'Medications for 7 days',
-        'Water (1L per person)',
-        'Non-perishable snacks',
-        'Pet carrier and pet food (if applicable)',
-        'Change of clothes',
-        'Blanket or sleeping bag',
-      ],
-      mobilityNotes: 'Pre-plan accessible evacuation routes',
+      notes: 'Always follow local authorities.',
     },
   },
   pt: {
-    A: { // Abrigo no local
+    A: {
+      title: 'Plano de Abrigo no Local',
+      summary: 'Um plano prático para ficar seguro em casa durante emergências.',
       triggers: [
         'Aviso de tempo severo emitido para a sua área',
         'Falha de energia com duração superior a 2 horas',
@@ -133,14 +184,32 @@ const TEMPLATES = {
         'Verificar presença de todos os membros da família',
         'Estabelecer comunicação com contactos familiares',
       ],
-      meetingPointPrimary: 'Sala de estar ou divisão segura designada',
-      meetingPointSecondary: 'Cozinha perto dos suprimentos de emergência',
+      meetingPoints: {
+        primary: 'Sala de estar ou divisão segura designada',
+        secondary: 'Cozinha perto dos suprimentos de emergência',
+      },
+      communications: {
+        checkInRule: 'Comunicar com família a cada 2 horas por mensagem',
+        outOfAreaContactRole: 'Contacto fora da área recebe atualizações e transmite informação',
+      },
+      mobility: {
+        constraints: '',
+        transport: '',
+        notes: 'Planear rotas acessíveis dentro de casa',
+      },
+      essentialsGrabList: [
+        'Telemóvel e carregador', 'Lanterna e pilhas', 'Kit de primeiros socorros',
+        'Pasta de documentos importantes', 'Dinheiro e cartões', 'Medicamentos',
+        'Garrafas de água', 'Snacks e alimentos não perecíveis', 'Rádio',
+        'Cobertor',
+      ],
       stepsFirstHour: [
         'Verificar se portas e janelas estão protegidas',
         'Ligar rádio ou notícias para atualizações',
         'Reunir membros da família em local central',
         'Localizar lanternas e kit de emergência',
         'Encher banheira e recipientes com água',
+        'Carregar todos os dispositivos',
       ],
       stepsFirstDay: [
         'Racionar comida e água se necessário',
@@ -150,19 +219,11 @@ const TEMPLATES = {
         'Documentar quaisquer danos para seguro',
         'Descansar por turnos se a situação continuar',
       ],
-      grabList: [
-        'Telemóvel e carregador',
-        'Lanterna e pilhas',
-        'Kit de primeiros socorros',
-        'Pasta de documentos importantes',
-        'Dinheiro e cartões',
-        'Medicamentos',
-        'Garrafas de água',
-        'Snacks e alimentos não perecíveis',
-      ],
-      mobilityNotes: 'Planear rotas acessíveis dentro de casa',
+      notes: 'Siga sempre as instruções das autoridades locais.',
     },
-    B: { // Sair / Relocalizar
+    B: {
+      title: 'Plano de Evacuação',
+      summary: 'Um plano claro para sair de casa em segurança quando necessário.',
       triggers: [
         'Ordem de evacuação obrigatória emitida',
         'Incêndio ou inundação a aproximar-se da sua área',
@@ -177,14 +238,33 @@ const TEMPLATES = {
         'Verificar todos os membros da família e animais',
         'Notificar contactos de emergência do seu estado',
       ],
-      meetingPointPrimary: 'Frente do edifício ou entrada principal',
-      meetingPointSecondary: 'Casa do vizinho ou ponto de referência próximo',
+      meetingPoints: {
+        primary: 'Frente do edifício ou entrada principal',
+        secondary: 'Casa do vizinho ou ponto de referência próximo',
+      },
+      communications: {
+        checkInRule: 'Enviar mensagem à família de hora a hora durante evacuação',
+        outOfAreaContactRole: 'Contacto fora da área coordena partilha de informação',
+      },
+      mobility: {
+        constraints: '',
+        transport: '',
+        notes: 'Pré-planear rotas de evacuação acessíveis',
+      },
+      essentialsGrabList: [
+        'Mochila de emergência com essenciais', 'Documentos importantes (IDs, seguros)',
+        'Dinheiro e cartões de crédito', 'Telemóvel, carregador, powerbank',
+        'Medicamentos para 7 dias', 'Água (1L por pessoa)',
+        'Snacks não perecíveis', 'Transportadora de animais e comida (se aplicável)',
+        'Muda de roupa', 'Cobertor ou saco-cama',
+      ],
       stepsFirstHour: [
         'Pegar na mochila de emergência pré-preparada',
         'Proteger casa (fechar gás, trancar portas)',
         'Carregar veículo ou preparar para sair a pé',
         'Confirmar que todos estão prontos',
         'Enviar mensagem/ligar contactos de emergência',
+        'Verificar trânsito e condições da rota',
       ],
       stepsFirstDay: [
         'Seguir rotas de evacuação designadas',
@@ -194,84 +274,61 @@ const TEMPLATES = {
         'Registar-se no centro de evacuação se aplicável',
         'Documentar rota e condições',
       ],
-      grabList: [
-        'Mochila de emergência com essenciais',
-        'Documentos importantes (IDs, seguros)',
-        'Dinheiro e cartões de crédito',
-        'Telemóvel, carregador, powerbank',
-        'Medicamentos para 7 dias',
-        'Água (1L por pessoa)',
-        'Snacks não perecíveis',
-        'Transportadora de animais e comida (se aplicável)',
-        'Muda de roupa',
-        'Cobertor ou saco-cama',
-      ],
-      mobilityNotes: 'Pré-planear rotas de evacuação acessíveis',
+      notes: 'Siga sempre as instruções das autoridades locais.',
     },
   },
 };
 
-// Adjust content based on input
-function adjustForInput(base: string[], input: AIPlanInput): string[] {
-  const result = [...base];
-  
-  // Add pet-specific items
-  if (input.hasPets && !result.some(item => item.toLowerCase().includes('pet'))) {
-    if (input.locale === 'pt') {
-      result.push('Preparar comida e água para animais de estimação');
-    } else {
-      result.push('Prepare food and water for pets');
-    }
-  }
-  
-  // Add kid-specific items
-  if (input.hasKids && !result.some(item => item.toLowerCase().includes('kid') || item.toLowerCase().includes('child'))) {
-    if (input.locale === 'pt') {
-      result.push('Preparar itens essenciais para crianças (fraldas, snacks, brinquedo reconfortante)');
-    } else {
-      result.push('Prepare essentials for children (diapers, snacks, comfort item)');
-    }
-  }
-  
-  return result;
+/**
+ * Convert AI output to PlanData format
+ */
+function aiOutputToPlanData(output: AIPlanOutput): PlanData {
+  return {
+    meta: {
+      planType: output.planType as PlanType,
+      locale: output.locale,
+      updatedAt: new Date().toISOString(),
+    },
+    triggers: output.triggers,
+    objectives: output.objectives,
+    meetingPoints: output.meetingPoints,
+    contacts: {
+      primary: '',
+      secondary: '',
+      outOfArea: '',
+    },
+    mobility: output.mobility,
+    essentialsGrabList: output.essentialsGrabList,
+    stepsFirstHour: output.stepsFirstHour,
+    stepsFirstDay: output.stepsFirstDay,
+    notes: output.notes,
+  };
 }
 
 /**
- * Generate a plan draft based on non-sensitive inputs
- * 
- * TODO: Replace this stub with actual AI API call:
- * - Use OpenAI or Google AI Studio
- * - Send only non-sensitive inputs
- * - Parse structured response
+ * Get fallback plan when AI fails
  */
-export async function generatePlanDraft(
-  planType: PlanType,
-  input: AIPlanInput
-): Promise<PlanData> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 800));
+function getFallbackPlan(planType: PlanType, input: AIPlanInput): PlanData {
+  const template = FALLBACK_TEMPLATES[input.locale][planType];
   
-  const template = TEMPLATES[input.locale][planType];
+  // Add pet/kid specific items if needed
+  const grabList = [...template.essentialsGrabList];
+  if (input.hasPets && !grabList.some(i => i.toLowerCase().includes('pet'))) {
+    grabList.push(input.locale === 'pt' ? 'Comida e água para animais' : 'Pet food and water');
+  }
+  if (input.hasKids && !grabList.some(i => i.toLowerCase().includes('child'))) {
+    grabList.push(input.locale === 'pt' ? 'Itens essenciais para crianças' : 'Essentials for children');
+  }
   
-  // TODO: Replace with AI API call
-  // const response = await fetch('AI_ENDPOINT', {
-  //   method: 'POST',
-  //   body: JSON.stringify({ planType, input }),
-  // });
-  // const aiOutput = await response.json();
-  
-  const plan: PlanData = {
+  return {
     meta: {
       planType,
       locale: input.locale,
       updatedAt: new Date().toISOString(),
     },
-    triggers: [...template.triggers],
-    objectives: [...template.objectives],
-    meetingPoints: {
-      primary: template.meetingPointPrimary,
-      secondary: template.meetingPointSecondary,
-    },
+    triggers: template.triggers,
+    objectives: template.objectives,
+    meetingPoints: template.meetingPoints,
     contacts: {
       primary: '',
       secondary: '',
@@ -282,15 +339,13 @@ export async function generatePlanDraft(
         ? (input.locale === 'pt' ? 'Considerar necessidades de mobilidade especiais' : 'Consider special mobility needs')
         : '',
       transport: '',
-      notes: template.mobilityNotes,
+      notes: template.mobility.notes,
     },
-    essentialsGrabList: adjustForInput(template.grabList, input),
-    stepsFirstHour: adjustForInput(template.stepsFirstHour, input),
-    stepsFirstDay: adjustForInput(template.stepsFirstDay, input),
-    notes: '',
+    essentialsGrabList: grabList,
+    stepsFirstHour: template.stepsFirstHour,
+    stepsFirstDay: template.stepsFirstDay,
+    notes: template.notes,
   };
-  
-  return plan;
 }
 
 /**
@@ -299,13 +354,89 @@ export async function generatePlanDraft(
 export function createAIJobInputSummary(input: AIPlanInput): Record<string, unknown> {
   return {
     locale: input.locale,
+    planType: input.planType,
     region: input.region,
+    country: input.country,
     riskLevelBand: input.riskLevelBand,
     householdSizeBucket: input.householdSizeBucket,
     hasPets: input.hasPets,
     hasKids: input.hasKids,
     mobilityLevel: input.mobilityLevel,
-    daysPreparedness: input.daysPreparedness,
+    preparednessDays: input.preparednessDays,
+    constraints: input.constraints,
     // NO sensitive data here
   };
+}
+
+/**
+ * Generate a plan draft using AI (via Edge Function)
+ * Falls back to local template if AI fails
+ */
+export async function generatePlanDraft(
+  planType: PlanType,
+  input: AIPlanInput,
+  userId: string
+): Promise<{ plan: PlanData; usedAI: boolean }> {
+  try {
+    // 1. Create AI job in 'queued' status
+    const inputSummary = createAIJobInputSummary({ ...input, planType });
+    
+    const { data: job, error: insertError } = await supabase
+      .from('ai_jobs')
+      .insert([{
+        user_id: userId,
+        job_type: `plan_${planType.toLowerCase()}_draft`,
+        status: 'queued',
+        input_summary: inputSummary as unknown as Record<string, never>,
+      }])
+      .select()
+      .single();
+
+    if (insertError || !job) {
+      console.error('Failed to create AI job:', insertError);
+      return { plan: getFallbackPlan(planType, input), usedAI: false };
+    }
+
+    console.log('Created AI job:', job.id);
+
+    // 2. Call Edge Function to run the job
+    const { data, error } = await supabase.functions.invoke('run-ai-job', {
+      body: { job_id: job.id },
+    });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      // Mark job as failed
+      await supabase
+        .from('ai_jobs')
+        .update({ status: 'failed', error: error.message })
+        .eq('id', job.id);
+      return { plan: getFallbackPlan(planType, input), usedAI: false };
+    }
+
+    if (!data?.ok || !data?.output) {
+      console.error('Invalid edge function response:', data);
+      return { plan: getFallbackPlan(planType, input), usedAI: false };
+    }
+
+    // 3. Convert AI output to PlanData
+    const planData = aiOutputToPlanData(data.output as AIPlanOutput);
+    return { plan: planData, usedAI: true };
+
+  } catch (error) {
+    console.error('AI plan generation error:', error);
+    return { plan: getFallbackPlan(planType, input), usedAI: false };
+  }
+}
+
+/**
+ * Legacy function for compatibility - now uses the new flow
+ * @deprecated Use generatePlanDraft with userId instead
+ */
+export async function generatePlanDraftLegacy(
+  planType: PlanType,
+  input: Omit<AIPlanInput, 'planType'>
+): Promise<PlanData> {
+  const fullInput: AIPlanInput = { ...input, planType };
+  return getFallbackPlan(planType, fullInput);
 }
