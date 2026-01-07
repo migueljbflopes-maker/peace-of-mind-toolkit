@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Shield, FileText, Lock, Map } from "lucide-react";
+import { Shield, FileText, Lock, Map, CheckCircle2 } from "lucide-react";
 
 interface PaywallModalProps {
   open: boolean;
@@ -31,29 +31,31 @@ export function PaywallModal({ open, onOpenChange }: PaywallModalProps) {
           </div>
           <DialogTitle className="text-xl">Unlock Premium</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Premium includes a printable Red Folder PDF and encrypted storage for important details.
+            Generate your Personalized Resiliency Plan: printable offline PDF, encrypted Vault, and Plans A & B.
           </DialogDescription>
         </DialogHeader>
 
         {/* Features */}
-        <div className="my-4 space-y-3">
+        <div className="my-4 space-y-2.5">
           <div className="flex items-center gap-3 text-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <FileText className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-foreground">Red Folder PDF</span>
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-foreground">Printable offline 'Red Folder' PDF</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Lock className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-foreground">Encrypted Vault</span>
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-foreground">Encrypted Vault (IDs, contacts, medical)</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Map className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-foreground">Plans A & B</span>
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-foreground">Plans A & B (exit + emergency)</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-foreground">Encrypted backup & restore</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-foreground">Premium insights & next steps</span>
           </div>
         </div>
 
