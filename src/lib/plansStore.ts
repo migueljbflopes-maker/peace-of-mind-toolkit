@@ -22,8 +22,18 @@ export interface PlanData {
     locale: 'en' | 'pt';
     updatedAt: string;
   };
+  // Rich tailored fields
+  whyThisFitsYou?: string;
+  topPrioritiesThisWeek?: string[];
   triggers: string[];
   objectives: string[];
+  homeSetup?: {
+    power: string[];
+    water: string[];
+    cooking: string[];
+    communicationsBackup: string[];
+    documentsHandling: string[];
+  };
   meetingPoints: {
     primary: string;
     secondary: string;
@@ -33,14 +43,29 @@ export interface PlanData {
     secondary: string;
     outOfArea: string;
   };
+  communications?: {
+    checkInRule: string;
+    outOfAreaContactRole: string;
+    familyMeetingRule?: string;
+  };
   mobility: {
     constraints: string;
     transport: string;
     notes: string;
   };
+  routeNotes?: string[];
+  pets?: {
+    hasPets: boolean;
+    petCareChecklist: string[];
+  };
   essentialsGrabList: string[];
   stepsFirstHour: string[];
   stepsFirstDay: string[];
+  checklists?: {
+    beforeDisruption: string[];
+    duringDisruption: string[];
+    afterDisruption: string[];
+  };
   notes: string;
 }
 
