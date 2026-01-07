@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
   ChevronRight,
   MapPin,
   Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
@@ -26,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PremiumBundleCard } from '@/components/PremiumBundleCard';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { toast } from 'sonner';
 
 interface RiskAssessment {
   id: string;
@@ -45,13 +47,33 @@ interface SuppliesPlan {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { isPremium, loading: entitlementsLoading, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
+  const { isPremium, loading: entitlementsLoading, refetch, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
   const { needsOnboarding, loading: onboardingLoading } = useOnboardingState();
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [plans, setPlans] = useState<SuppliesPlan[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+
+  // Handle successful purchase redirect
+  useEffect(() => {
+    const purchaseStatus = searchParams.get('purchase');
+    if (purchaseStatus === 'success') {
+      setShowPurchaseSuccess(true);
+      // Refetch entitlements to get the new premium status
+      refetch();
+      // Clear the URL param after a short delay
+      setTimeout(() => {
+        setSearchParams({}, { replace: true });
+      }, 100);
+      // Show toast
+      toast.success("Welcome to Premium!", {
+        description: "Your purchase was successful. Enjoy your new features!",
+      });
+    }
+  }, [searchParams, refetch, setSearchParams]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

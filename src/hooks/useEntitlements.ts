@@ -61,12 +61,11 @@ export function useEntitlements() {
     try {
       const { data, error } = await supabase
         .from('premium_entitlements')
-        .select('is_premium, plan_name, price_eur')
+        .select('is_premium, plan_name, price_eur, granted_at')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no rows found, which is fine
+      if (error) {
         console.error('Error fetching entitlements:', error);
       }
 
