@@ -29,7 +29,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLocale } from "@/i18n/useLocale";
 
 const Navbar = forwardRef<HTMLElement>((_, ref) => {

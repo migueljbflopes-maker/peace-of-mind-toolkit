@@ -17,7 +17,7 @@ import {
   ChevronRight,
   MapPin,
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { supabase } from '@/integrations/supabase/client';

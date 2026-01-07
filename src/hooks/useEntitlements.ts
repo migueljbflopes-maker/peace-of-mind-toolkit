@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
