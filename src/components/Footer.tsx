@@ -1,11 +1,12 @@
+import { forwardRef } from "react";
 import { Link } from "react-router-dom";
 import { Shield } from "lucide-react";
 
-const Footer = () => {
+const Footer = forwardRef<HTMLElement>((_, ref) => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border bg-background">
+    <footer ref={ref} className="border-t border-border bg-background">
       <div className="container-wide section-padding py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
@@ -83,6 +84,8 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
+
+Footer.displayName = "Footer";
 
 export default Footer;
