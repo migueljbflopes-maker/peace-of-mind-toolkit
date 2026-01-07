@@ -84,6 +84,7 @@ serve(async (req) => {
         },
       ],
       mode: "payment", // One-time payment, not subscription
+      allow_promotion_codes: true, // Enable promo/coupon codes at checkout
       success_url: `${appUrl}/dashboard?purchase=success`,
       cancel_url: `${appUrl}/pricing?purchase=cancel`,
     });
