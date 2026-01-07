@@ -8,6 +8,7 @@ import BePrepared from "./pages/BePrepared";
 import Products from "./pages/Products";
 import Pricing from "./pages/Pricing";
 import Library from "./pages/Library";
+import Tips from "./pages/Tips";
 import RiskCalculator from "./pages/RiskCalculator";
 import SuppliesPlanner from "./pages/SuppliesPlanner";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/products" element={<Products />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/library" element={<Library />} />
+          <Route path="/tips" element={<Tips />} />
           <Route path="/tools/risk" element={<RiskCalculator />} />
           <Route path="/tools/supplies" element={<SuppliesPlanner />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
