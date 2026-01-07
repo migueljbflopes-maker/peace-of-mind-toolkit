@@ -101,24 +101,28 @@ export default function WeeklyBriefing() {
     kind: "all",
   });
 
-  // Load cached briefing from localStorage
+  // Load cached briefing from localStorage - but always fetch fresh data after
   useEffect(() => {
     const cached = localStorage.getItem("resilient_weekly_briefing_last");
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (parsed.items && parsed.timestamp) {
+        if (parsed.items && parsed.items.length > 0 && parsed.timestamp) {
           const cacheAge = Date.now() - parsed.timestamp;
-          // Use cache if less than 1 hour old
-          if (cacheAge < 3600000) {
+          // Use cache only if less than 10 minutes old
+          if (cacheAge < 600000) {
             setNewsItems(parsed.items);
             setLastUpdated(new Date(parsed.lastUpdated));
+            setLoading(false);
+            return; // Skip fetch only if valid recent cache
           }
         }
       } catch (e) {
-        console.error("Failed to parse cached briefing");
+        localStorage.removeItem("resilient_weekly_briefing_last");
       }
     }
+    // Always fetch if no valid cache
+    fetchNewsItems();
   }, []);
 
   // Check auth state
@@ -203,9 +207,10 @@ export default function WeeklyBriefing() {
     }
   };
 
+  // Re-fetch when filters change
   useEffect(() => {
     fetchNewsItems();
-  }, []);
+  }, [filters.region, filters.topics.length, filters.timeRange, filters.majorOnly, filters.kind]);
 
   const handleGenerateBriefing = async () => {
     setGenerating(true);
