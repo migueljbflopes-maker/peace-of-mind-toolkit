@@ -28,22 +28,27 @@ export default function OnboardingStep3Plans({ onNext, onBack }: Props) {
   const [generatingB, setGeneratingB] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const defaultInput: AIPlanInput = {
+  const getDefaultInput = (planType: PlanType): AIPlanInput => ({
     locale: locale as 'en' | 'pt',
+    planType,
     region: 'General',
     riskLevelBand: 'medium',
     householdSizeBucket: '2-3',
     hasPets: false,
     hasKids: false,
     mobilityLevel: 'high',
-    daysPreparedness: 14,
-  };
+    preparednessDays: 14,
+  });
 
   const handleGeneratePlanA = async () => {
+    if (!user) {
+      toast.error('Login required');
+      return;
+    }
     setGeneratingA(true);
     try {
-      const draft = await generatePlanDraft('A', defaultInput);
-      setPlanA(draft);
+      const { plan } = await generatePlanDraft('A', getDefaultInput('A'), user.id);
+      setPlanA(plan);
       toast.success(t.plans.draftGenerated);
     } catch (err) {
       console.error('Error generating Plan A:', err);
@@ -54,10 +59,14 @@ export default function OnboardingStep3Plans({ onNext, onBack }: Props) {
   };
 
   const handleGeneratePlanB = async () => {
+    if (!user) {
+      toast.error('Login required');
+      return;
+    }
     setGeneratingB(true);
     try {
-      const draft = await generatePlanDraft('B', defaultInput);
-      setPlanB(draft);
+      const { plan } = await generatePlanDraft('B', getDefaultInput('B'), user.id);
+      setPlanB(plan);
       toast.success(t.plans.draftGenerated);
     } catch (err) {
       console.error('Error generating Plan B:', err);
