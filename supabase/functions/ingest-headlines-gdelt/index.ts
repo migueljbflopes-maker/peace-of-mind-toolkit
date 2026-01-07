@@ -86,7 +86,14 @@ async function fetchGDELTHeadlines(topic: string, keywords: string, allowedDomai
       return [];
     }
     
-    const data = await response.json();
+    // GDELT returns plain text error messages, not JSON - validate first
+    const text = await response.text();
+    if (!text.startsWith("{") && !text.startsWith("[")) {
+      console.error(`GDELT query rejected for ${topic}: ${text.substring(0, 80)}`);
+      return [];
+    }
+    
+    const data = JSON.parse(text);
     const items: NewsItem[] = [];
     
     for (const article of data.articles || []) {
