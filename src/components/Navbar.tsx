@@ -12,6 +12,7 @@ import {
   Lightbulb,
   Newspaper,
   CreditCard,
+  LayoutGrid,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,6 +38,7 @@ const Navbar = () => {
   ];
 
   const bePreparedLinks = [
+    { label: "Calculators Hub", href: "/be-prepared", icon: LayoutGrid },
     { label: "Risk Calculator", href: "/tools/risk", icon: AlertTriangle },
     { label: "14-Day Supplies Planner", href: "/tools/supplies", icon: Package },
     { label: "Products", href: "#products", icon: Package },
