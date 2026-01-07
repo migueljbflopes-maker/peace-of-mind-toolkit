@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_jobs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          input_summary: Json
+          job_type: string
+          output: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_summary?: Json
+          job_type: string
+          output?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_summary?: Json
+          job_type?: string
+          output?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       alert_preferences: {
         Row: {
           created_at: string | null
@@ -55,6 +91,87 @@ export type Database = {
             | null
           topics?: string[] | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      backups: {
+        Row: {
+          ciphertext_bundle: string
+          created_at: string
+          id: string
+          iv: string
+          salt: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          ciphertext_bundle: string
+          created_at?: string
+          id?: string
+          iv: string
+          salt: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          ciphertext_bundle?: string
+          created_at?: string
+          id?: string
+          iv?: string
+          salt?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          ref_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          ref_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          ref_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exports: {
+        Row: {
+          created_at: string
+          export_type: string
+          id: string
+          locale: string
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          export_type: string
+          id?: string
+          locale?: string
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          export_type?: string
+          id?: string
+          locale?: string
+          storage_path?: string | null
           user_id?: string
         }
         Relationships: []
@@ -178,6 +295,204 @@ export type Database = {
           topics?: string[] | null
           trust_level?: string
           type?: Database["public"]["Enums"]["news_source_type"]
+        }
+        Relationships: []
+      }
+      plan_items: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          id: string
+          iv: string
+          plan_type: string
+          salt: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          id?: string
+          iv: string
+          plan_type: string
+          salt: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          id?: string
+          iv?: string
+          plan_type?: string
+          salt?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      premium_entitlements: {
+        Row: {
+          is_premium: boolean
+          plan_name: string
+          price_eur: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_premium?: boolean
+          plan_name?: string
+          price_eur?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_premium?: boolean
+          plan_name?: string
+          price_eur?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      risk_assessments: {
+        Row: {
+          breakdown: Json
+          city: string | null
+          country: string | null
+          created_at: string
+          id: string
+          inputs: Json
+          risk_level: string | null
+          score: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          breakdown?: Json
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          inputs?: Json
+          risk_level?: string | null
+          score?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          breakdown?: Json
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          inputs?: Json
+          risk_level?: string | null
+          score?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      supplies_plans: {
+        Row: {
+          created_at: string
+          days: number
+          household_size_bucket: string | null
+          id: string
+          inputs: Json
+          plan: Json
+          preparedness_pct: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days?: number
+          household_size_bucket?: string | null
+          id?: string
+          inputs?: Json
+          plan?: Json
+          preparedness_pct?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          household_size_bucket?: string | null
+          id?: string
+          inputs?: Json
+          plan?: Json
+          preparedness_pct?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          country: string | null
+          created_at: string
+          locale: string
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          locale?: string
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          locale?: string
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vault_items: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          id: string
+          iv: string
+          salt: string
+          section: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          id?: string
+          iv: string
+          salt: string
+          section: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          id?: string
+          iv?: string
+          salt?: string
+          section?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
         }
         Relationships: []
       }
