@@ -59,9 +59,10 @@ export function useEntitlements() {
     }
 
     try {
+      // Only select non-sensitive fields (no Stripe IDs)
       const { data, error } = await supabase
         .from('premium_entitlements')
-        .select('is_premium, plan_name, price_eur, granted_at')
+        .select('is_premium, plan_name, price_eur')
         .eq('user_id', user.id)
         .maybeSingle();
 
