@@ -19,6 +19,7 @@ export type Database = {
           created_at: string | null
           enabled: boolean | null
           frequency: Database["public"]["Enums"]["alert_frequency"] | null
+          last_seen_at: string | null
           quiet_hours: Json | null
           regions: string[] | null
           severity_threshold:
@@ -32,6 +33,7 @@ export type Database = {
           created_at?: string | null
           enabled?: boolean | null
           frequency?: Database["public"]["Enums"]["alert_frequency"] | null
+          last_seen_at?: string | null
           quiet_hours?: Json | null
           regions?: string[] | null
           severity_threshold?:
@@ -45,6 +47,7 @@ export type Database = {
           created_at?: string | null
           enabled?: boolean | null
           frequency?: Database["public"]["Enums"]["alert_frequency"] | null
+          last_seen_at?: string | null
           quiet_hours?: Json | null
           regions?: string[] | null
           severity_threshold?:
@@ -56,15 +59,39 @@ export type Database = {
         }
         Relationships: []
       }
+      news_domain_allowlist: {
+        Row: {
+          domain: string
+          enabled: boolean
+          label: string | null
+          region_scope: string
+        }
+        Insert: {
+          domain: string
+          enabled?: boolean
+          label?: string | null
+          region_scope?: string
+        }
+        Update: {
+          domain?: string
+          enabled?: boolean
+          label?: string | null
+          region_scope?: string
+        }
+        Relationships: []
+      }
       news_items: {
         Row: {
           created_at: string | null
           dedupe_key: string
+          domain: string | null
           fetched_at: string | null
           id: string
+          kind: string
+          language: string | null
           published_at: string | null
           region: string | null
-          severity: Database["public"]["Enums"]["news_severity"] | null
+          severity: string | null
           source_id: string | null
           summary: string | null
           title: string
@@ -74,11 +101,14 @@ export type Database = {
         Insert: {
           created_at?: string | null
           dedupe_key: string
+          domain?: string | null
           fetched_at?: string | null
           id?: string
+          kind?: string
+          language?: string | null
           published_at?: string | null
           region?: string | null
-          severity?: Database["public"]["Enums"]["news_severity"] | null
+          severity?: string | null
           source_id?: string | null
           summary?: string | null
           title: string
@@ -88,11 +118,14 @@ export type Database = {
         Update: {
           created_at?: string | null
           dedupe_key?: string
+          domain?: string | null
           fetched_at?: string | null
           id?: string
+          kind?: string
+          language?: string | null
           published_at?: string | null
           region?: string | null
-          severity?: Database["public"]["Enums"]["news_severity"] | null
+          severity?: string | null
           source_id?: string | null
           summary?: string | null
           title?: string
@@ -115,9 +148,11 @@ export type Database = {
           created_at: string | null
           enabled: boolean | null
           id: string
+          kind: string
           name: string
           region_scope: string | null
           topics: string[] | null
+          trust_level: string
           type: Database["public"]["Enums"]["news_source_type"]
         }
         Insert: {
@@ -125,9 +160,11 @@ export type Database = {
           created_at?: string | null
           enabled?: boolean | null
           id: string
+          kind?: string
           name: string
           region_scope?: string | null
           topics?: string[] | null
+          trust_level?: string
           type: Database["public"]["Enums"]["news_source_type"]
         }
         Update: {
@@ -135,9 +172,11 @@ export type Database = {
           created_at?: string | null
           enabled?: boolean | null
           id?: string
+          kind?: string
           name?: string
           region_scope?: string | null
           topics?: string[] | null
+          trust_level?: string
           type?: Database["public"]["Enums"]["news_source_type"]
         }
         Relationships: []
@@ -148,6 +187,7 @@ export type Database = {
           filters: Json | null
           id: string
           item_ids: string[] | null
+          last_updated_at: string | null
           rendered_summary: string | null
           user_id: string | null
         }
@@ -156,6 +196,7 @@ export type Database = {
           filters?: Json | null
           id?: string
           item_ids?: string[] | null
+          last_updated_at?: string | null
           rendered_summary?: string | null
           user_id?: string | null
         }
@@ -164,6 +205,7 @@ export type Database = {
           filters?: Json | null
           id?: string
           item_ids?: string[] | null
+          last_updated_at?: string | null
           rendered_summary?: string | null
           user_id?: string | null
         }
