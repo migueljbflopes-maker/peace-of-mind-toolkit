@@ -6,52 +6,145 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Plan draft JSON schema for structured output
+// Rich plan draft JSON schema for structured output (tailored plans)
 const PLAN_SCHEMA = {
   type: "object",
-  required: ["planType", "locale", "title", "summary", "triggers", "objectives", "meetingPoints", "communications", "mobility", "essentialsGrabList", "stepsFirstHour", "stepsFirstDay", "notes"],
+  required: [
+    "planType", "locale", "title", "whyThisFitsYou", "topPrioritiesThisWeek",
+    "triggers", "objectives", "homeSetup", "communications", "mobility",
+    "pets", "essentialsGrabList", "stepsFirstHour", "stepsFirstDay", "checklists", "notes"
+  ],
   properties: {
     planType: { type: "string", enum: ["A", "B"] },
     locale: { type: "string", enum: ["en", "pt"] },
     title: { type: "string" },
-    summary: { type: "string" },
-    triggers: { type: "array", items: { type: "string" }, minItems: 5, maxItems: 10 },
-    objectives: { type: "array", items: { type: "string" }, minItems: 5, maxItems: 10 },
-    meetingPoints: {
+    whyThisFitsYou: { type: "string" },
+    topPrioritiesThisWeek: { type: "array", items: { type: "string" }, minItems: 5, maxItems: 5 },
+    triggers: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 10 },
+    objectives: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 10 },
+    homeSetup: {
       type: "object",
-      required: ["primary", "secondary"],
+      required: ["power", "water", "cooking", "communicationsBackup", "documentsHandling"],
       properties: {
-        primary: { type: "string" },
-        secondary: { type: "string" }
+        power: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 8 },
+        water: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 8 },
+        cooking: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 7 },
+        communicationsBackup: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 },
+        documentsHandling: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 }
       },
       additionalProperties: false
     },
     communications: {
       type: "object",
-      required: ["checkInRule", "outOfAreaContactRole"],
+      required: ["checkInRule", "outOfAreaContactRole", "familyMeetingRule"],
       properties: {
         checkInRule: { type: "string" },
-        outOfAreaContactRole: { type: "string" }
+        outOfAreaContactRole: { type: "string" },
+        familyMeetingRule: { type: "string" }
       },
       additionalProperties: false
     },
     mobility: {
       type: "object",
-      required: ["constraints", "transport", "notes"],
+      required: ["constraints", "transport", "meetingPoints", "routeNotes"],
       properties: {
         constraints: { type: "string" },
         transport: { type: "string" },
-        notes: { type: "string" }
+        meetingPoints: {
+          type: "object",
+          required: ["primary", "secondary"],
+          properties: {
+            primary: { type: "string" },
+            secondary: { type: "string" }
+          },
+          additionalProperties: false
+        },
+        routeNotes: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 }
       },
       additionalProperties: false
     },
-    essentialsGrabList: { type: "array", items: { type: "string" }, minItems: 10, maxItems: 18 },
-    stepsFirstHour: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 12 },
-    stepsFirstDay: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 12 },
+    pets: {
+      type: "object",
+      required: ["hasPets", "petCareChecklist"],
+      properties: {
+        hasPets: { type: "boolean" },
+        petCareChecklist: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 8 }
+      },
+      additionalProperties: false
+    },
+    essentialsGrabList: { type: "array", items: { type: "string" }, minItems: 12, maxItems: 18 },
+    stepsFirstHour: { type: "array", items: { type: "string" }, minItems: 8, maxItems: 12 },
+    stepsFirstDay: { type: "array", items: { type: "string" }, minItems: 8, maxItems: 12 },
+    checklists: {
+      type: "object",
+      required: ["beforeDisruption", "duringDisruption", "afterDisruption"],
+      properties: {
+        beforeDisruption: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 10 },
+        duringDisruption: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 10 },
+        afterDisruption: { type: "array", items: { type: "string" }, minItems: 6, maxItems: 10 }
+      },
+      additionalProperties: false
+    },
     notes: { type: "string" }
   },
   additionalProperties: false
 };
+
+// Input schema type for plan generation
+interface PlanGenerationInput {
+  locale: 'en' | 'pt';
+  planType: 'A' | 'B';
+  location?: {
+    country?: string;
+    city?: string;
+    postalCode?: string;
+    dwellingType?: 'apartment' | 'house';
+    floorLevel?: 'ground' | '1-3' | '4+';
+    hasElevator?: boolean;
+    hasGarden?: boolean;
+  };
+  household?: {
+    adults?: number;
+    kids?: number;
+    pets?: number;
+    petTypes?: string[];
+    mobilityConstraints?: string[];
+    primaryLanguage?: string;
+  };
+  homeReality?: {
+    internetReliance?: 'low' | 'medium' | 'high';
+    powerOutagePreparedness?: 'low' | 'medium' | 'high';
+    waterStorage?: 'none' | 'some' | 'good';
+    cookingOptions?: string[];
+    heatingType?: 'district' | 'gas' | 'electric' | 'none';
+    vehicleAccess?: 'none' | 'car' | 'bike_only' | 'multiple';
+    cashOnHandLevel?: 'none' | 'some' | 'good';
+  };
+  riskContext?: {
+    riskLevelBand?: 'low' | 'medium' | 'high';
+    topDrivers?: string[];
+    notes?: string;
+  };
+  suppliesContext?: {
+    preparednessDaysEstimate?: number;
+    gapsTop3?: string[];
+  };
+  preferences?: {
+    calmTone?: boolean;
+    avoidFearLanguage?: boolean;
+    mobilityPlanPreference?: 'stay_first' | 'leave_first' | 'balanced';
+  };
+  // Legacy fields for backwards compatibility
+  region?: string;
+  country?: string;
+  riskLevelBand?: string;
+  householdSizeBucket?: string;
+  hasKids?: boolean;
+  hasPets?: boolean;
+  mobilityLevel?: string;
+  preparednessDays?: number;
+  constraints?: string[];
+}
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -131,45 +224,87 @@ serve(async (req) => {
       .eq('id', job_id);
 
     // 4. Build prompt from input_summary (non-sensitive only)
-    const input = job.input_summary as {
-      locale?: string;
-      planType?: string;
-      region?: string;
-      country?: string;
-      riskLevelBand?: string;
-      householdSizeBucket?: string;
-      hasKids?: boolean;
-      hasPets?: boolean;
-      mobilityLevel?: string;
-      preparednessDays?: number;
-      constraints?: string[];
-    };
+    const input = job.input_summary as PlanGenerationInput;
 
     const locale = input.locale || 'en';
     const planType = input.planType || 'A';
     const isPortuguese = locale === 'pt';
 
-    const systemPrompt = `You are a calm, practical emergency preparedness advisor for ${isPortuguese ? 'Portuguese' : 'English'}-speaking users. 
-You help families create actionable emergency plans. Your tone is reassuring, not alarmist.
-IMPORTANT: 
-- Output ONLY in ${isPortuguese ? 'Portuguese (European/Brazilian)' : 'English'}.
-- Keep advice practical and generic (no legal or medical claims).
-- Always end notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}"
-- Generate content appropriate for: ${planType === 'A' ? 'Shelter in Place' : 'Evacuation/Relocation'} plan.`;
+    // Build rich context from input
+    const location = input.location || {};
+    const household = input.household || {};
+    const homeReality = input.homeReality || {};
+    const riskContext = input.riskContext || {};
+    const suppliesContext = input.suppliesContext || {};
+    const preferences = input.preferences || { calmTone: true, avoidFearLanguage: true };
 
-    const userPrompt = `Generate an emergency ${planType === 'A' ? 'Shelter in Place' : 'Evacuation/Leave'} plan with the following context:
-- Region: ${input.region || 'Global'}${input.country ? ` (${input.country})` : ''}
-- Risk level: ${input.riskLevelBand || 'medium'}
-- Household size: ${input.householdSizeBucket || '2-3'} people
-- Has children: ${input.hasKids ? 'Yes' : 'No'}
-- Has pets: ${input.hasPets ? 'Yes' : 'No'}
-- Mobility level: ${input.mobilityLevel || 'high'}
-- Preparedness target: ${input.preparednessDays || 14} days
-${input.constraints?.length ? `- Special considerations: ${input.constraints.join(', ')}` : ''}
+    // Derive household size for backwards compatibility
+    const householdSize = (household.adults || 2) + (household.kids || 0);
+    const hasPets = (household.pets || 0) > 0 || input.hasPets;
+    const hasKids = (household.kids || 0) > 0 || input.hasKids;
+    const petTypes = household.petTypes || [];
 
-Return a complete, practical plan for this household.`;
+    const systemPrompt = `You are Resilient.app's crisis-preparedness planner. Your job is to produce calm, practical, offline-first emergency plans tailored to the user's situation. Do not use fear language. Do not provide instructions for wrongdoing, weapons, or violence. Keep it safe, legal, and focused on preparedness and resilience. Always encourage following local authorities and official guidance.`;
 
-    console.log('Calling OpenAI API...');
+    const developerPrompt = `Generate a tailored plan draft in the requested locale (${isPortuguese ? 'Portuguese' : 'English'}). Use the provided city/postalCode and home reality signals to make the plan feel specific (e.g., apartment vs house, elevator, vehicle access), but never request or output personal identifiers such as full names, exact address, IDs, bank details, or medical diagnoses. Do not include operationally sensitive details beyond general preparedness.
+
+Return ONLY valid JSON matching the schema. No markdown.
+Tone: calm, reassuring, action-oriented.`;
+
+    // Build detailed user prompt
+    const locationDesc = location.city 
+      ? `${location.city}${location.postalCode ? ', ' + location.postalCode : ''}${location.country ? ', ' + location.country : ''}`
+      : input.region || 'General location';
+
+    const dwellingDesc = location.dwellingType 
+      ? `${location.dwellingType}${location.floorLevel ? ' (floor: ' + location.floorLevel + ')' : ''}${location.hasElevator ? ' with elevator' : ''}${location.hasGarden ? ' with garden' : ''}`
+      : 'standard dwelling';
+
+    const householdDesc = `${householdSize} people (${household.adults || 2} adults${hasKids ? ', ' + (household.kids || 0) + ' children' : ''})${hasPets ? ', ' + (household.pets || 1) + ' pets (' + petTypes.join(', ') + ')' : ''}`;
+
+    const mobilityDesc = household.mobilityConstraints?.length 
+      ? `Mobility: ${household.mobilityConstraints.join(', ')}`
+      : input.mobilityLevel ? `Mobility level: ${input.mobilityLevel}` : '';
+
+    const homeRealityDesc = [
+      homeReality.vehicleAccess ? `Vehicle: ${homeReality.vehicleAccess}` : '',
+      homeReality.powerOutagePreparedness ? `Power prep: ${homeReality.powerOutagePreparedness}` : '',
+      homeReality.waterStorage ? `Water storage: ${homeReality.waterStorage}` : '',
+      homeReality.heatingType ? `Heating: ${homeReality.heatingType}` : '',
+      homeReality.cookingOptions?.length ? `Cooking: ${homeReality.cookingOptions.join(', ')}` : '',
+      homeReality.cashOnHandLevel ? `Cash reserve: ${homeReality.cashOnHandLevel}` : '',
+    ].filter(Boolean).join('; ');
+
+    const riskDesc = [
+      riskContext.riskLevelBand || input.riskLevelBand || 'medium',
+      riskContext.topDrivers?.length ? `Top concerns: ${riskContext.topDrivers.join(', ')}` : '',
+    ].filter(Boolean).join(' - ');
+
+    const suppliesDesc = suppliesContext.preparednessDaysEstimate || input.preparednessDays
+      ? `Preparedness target: ${suppliesContext.preparednessDaysEstimate || input.preparednessDays} days${suppliesContext.gapsTop3?.length ? ', gaps: ' + suppliesContext.gapsTop3.join(', ') : ''}`
+      : '';
+
+    const userPrompt = `Create a ${planType === 'A' ? 'Shelter in Place (Plan A)' : 'Evacuation/Leave (Plan B)'} plan draft for a household in ${locationDesc}.
+
+Dwelling: ${dwellingDesc}
+Household: ${householdDesc}
+${mobilityDesc}
+${homeRealityDesc ? 'Home reality: ' + homeRealityDesc : ''}
+Risk context: ${riskDesc}
+${suppliesDesc}
+${riskContext.notes ? 'User notes: ' + riskContext.notes : ''}
+${input.constraints?.length ? 'Additional constraints: ' + input.constraints.join(', ') : ''}
+
+Important:
+- Plans must be actionable and specific to the user's home reality and household.
+- Include a short "whyThisFitsYou" explanation (2-3 sentences, 40-280 chars) referencing household and home reality (apartment/house, mobility, pets, outage reliance, etc.).
+- Include "topPrioritiesThisWeek" list (exactly 5 items) derived from the biggest gaps.
+- Output in ${isPortuguese ? 'Portuguese' : 'English'} only.
+- Do not mention Premium, pricing, or product marketing.
+- Do not reference external URLs.
+- End notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}".`;
+
+    console.log('Calling OpenAI API with rich context...');
 
     // 5. Call OpenAI API with tool calling for structured output
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -195,18 +330,19 @@ Return a complete, practical plan for this household.`;
         model: 'gpt-4.1-mini-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
+          { role: 'developer', content: developerPrompt },
           { role: 'user', content: userPrompt }
         ],
         tools: [{
           type: 'function',
           function: {
             name: 'generate_emergency_plan',
-            description: 'Generate a structured emergency preparedness plan',
+            description: 'Generate a structured, tailored emergency preparedness plan',
             parameters: PLAN_SCHEMA
           }
         }],
         tool_choice: { type: 'function', function: { name: 'generate_emergency_plan' } },
-        max_completion_tokens: 900,
+        max_completion_tokens: 1200,
       }),
     });
 
