@@ -21,7 +21,8 @@ class VaultSession {
   private lastActivity: number = Date.now();
 
   isUnlocked(): boolean {
-    return this.derivedKey !== null && this.passphrase !== null;
+    // For first-time users, derivedKey will be null but passphrase will be set
+    return this.passphrase !== null;
   }
 
   async unlock(passphrase: string, testSalt?: string): Promise<boolean> {
