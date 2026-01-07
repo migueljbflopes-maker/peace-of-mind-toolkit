@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -13,16 +14,23 @@ import {
   Check,
   WifiOff,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useAuth } from "@/hooks/useAuth";
+import { LoginModal } from "@/components/modals/LoginModal";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Pricing = () => {
   const { isPremium, loading } = useEntitlements();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   const benefits = [
     {
       icon: FileText,
@@ -59,10 +67,35 @@ const Pricing = () => {
     { icon: Map, label: "Plans A/B" },
   ];
 
-  const handleUnlockPremium = () => {
-    // Placeholder for Stripe integration
-    // TODO: Connect to Stripe payment flow
-    console.log("Unlock Premium clicked - wire to payment flow");
+  const handleUnlockPremium = async () => {
+    // If not logged in, show login modal (soft gate)
+    if (!isAuthenticated || !user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session");
+      
+      if (error) {
+        console.error("Checkout error:", error);
+        toast.error("Failed to start checkout. Please try again.");
+        return;
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        toast.error("No checkout URL received. Please try again.");
+      }
+    } catch (err) {
+      console.error("Checkout exception:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   // Premium users see a different view
@@ -153,9 +186,23 @@ const Pricing = () => {
               </p>
 
               {/* Primary CTA */}
-              <Button size="lg" onClick={handleUnlockPremium} className="gap-2 mb-6">
-                Unlock Premium (€49)
-                <ArrowRight className="h-4 w-4" />
+              <Button 
+                size="lg" 
+                onClick={handleUnlockPremium} 
+                disabled={checkoutLoading}
+                className="gap-2 mb-6"
+              >
+                {checkoutLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Starting checkout...
+                  </>
+                ) : (
+                  <>
+                    Unlock Premium (€49)
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
 
               {/* Reassurance */}
@@ -242,9 +289,23 @@ const Pricing = () => {
             <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
               Your personalized plan, encrypted and always accessible — even offline.
             </p>
-            <Button size="lg" onClick={handleUnlockPremium} className="gap-2 mb-4">
-              Unlock Premium (€49)
-              <ArrowRight className="h-4 w-4" />
+            <Button 
+              size="lg" 
+              onClick={handleUnlockPremium} 
+              disabled={checkoutLoading}
+              className="gap-2 mb-4"
+            >
+              {checkoutLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Starting checkout...
+                </>
+              ) : (
+                <>
+                  Unlock Premium (€49)
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
             <p className="text-xs text-muted-foreground">
               One-time purchase. No subscription.
@@ -301,6 +362,13 @@ const Pricing = () => {
       </main>
 
       <Footer />
+
+      {/* Login Modal for soft gate */}
+      <LoginModal 
+        open={showLoginModal} 
+        onOpenChange={setShowLoginModal}
+        returnUrl="/pricing"
+      />
     </div>
   );
 };

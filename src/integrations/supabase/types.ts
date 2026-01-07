@@ -357,23 +357,38 @@ export type Database = {
       }
       premium_entitlements: {
         Row: {
+          granted_at: string | null
           is_premium: boolean
           plan_name: string
           price_eur: number
+          revoked_at: string | null
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          granted_at?: string | null
           is_premium?: boolean
           plan_name?: string
           price_eur?: number
+          revoked_at?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          granted_at?: string | null
           is_premium?: boolean
           plan_name?: string
           price_eur?: number
+          revoked_at?: string | null
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -415,6 +430,21 @@ export type Database = {
           score?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_events: {
+        Row: {
+          event_id: string
+          processed_at: string | null
+        }
+        Insert: {
+          event_id: string
+          processed_at?: string | null
+        }
+        Update: {
+          event_id?: string
+          processed_at?: string | null
         }
         Relationships: []
       }
