@@ -9,6 +9,7 @@ import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { VaultSectionCard } from '@/components/vault/VaultSectionCard';
 import { VaultSyncStatus } from '@/components/vault/VaultSyncStatus';
 import { VaultSectionEditor, VaultSectionData } from '@/components/vault/VaultSectionEditor';
+import { VaultWizard } from '@/components/vault/VaultWizard';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { useVaultSync, VaultSection, VAULT_SECTIONS } from '@/hooks/useVaultSync';
 import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
@@ -35,6 +36,17 @@ export default function Vault() {
   const [sectionData, setSectionData] = useState<VaultSectionData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingSection, setIsLoadingSection] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+
+  // Check if user has any vault data (first-time detection)
+  useEffect(() => {
+    if (isUnlocked && sectionStatuses.length > 0) {
+      const hasAnyData = sectionStatuses.some(s => s.hasData);
+      setIsFirstTimeUser(!hasAnyData);
+      setShowWizard(!hasAnyData);
+    }
+  }, [isUnlocked, sectionStatuses]);
 
   // Format time until lock
   const formatTimeUntilLock = (ms: number) => {
@@ -147,10 +159,20 @@ export default function Vault() {
           <div className="container-wide section-padding py-8">
             <VaultUnlockForm onUnlock={() => refresh()} />
           </div>
+        ) : showWizard ? (
+          <VaultWizard
+            onSaveSection={handleSaveSection}
+            onComplete={() => {
+              setShowWizard(false);
+              setIsFirstTimeUser(false);
+              refresh();
+            }}
+            isSaving={isSaving}
+          />
         ) : (
           <div className="container-wide section-padding py-8">
             {/* Header */}
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 rounded-lg bg-primary/10">
@@ -161,7 +183,7 @@ export default function Vault() {
                 <p className="text-muted-foreground">{t.vault.subtitle}</p>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 {/* Auto-lock timer */}
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
