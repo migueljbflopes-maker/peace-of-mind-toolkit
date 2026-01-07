@@ -2,12 +2,10 @@ import { Link } from "react-router-dom";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import QuickEntryStrip from "@/components/QuickEntryStrip";
-import ValueSection from "@/components/ValueSection";
+import BugInOutSection from "@/components/BugInOutSection";
 import HowItWorks from "@/components/HowItWorks";
-import FeaturesSection from "@/components/FeaturesSection";
-import TipsPreview from "@/components/TipsPreview";
-import PricingTeaser from "@/components/PricingTeaser";
+import OfflineReassurance from "@/components/OfflineReassurance";
+import PremiumLockedCards from "@/components/PremiumLockedCards";
 import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
@@ -19,21 +17,21 @@ const Index = () => {
       <Navbar />
       <main>
         <Hero />
-        <QuickEntryStrip />
-        <ValueSection />
+        <BugInOutSection />
         <HowItWorks />
-        <FeaturesSection />
-        <TipsPreview />
+        <OfflineReassurance />
         
         {/* Products Teaser */}
-        <section id="products" className="bg-section-light py-12">
+        <section id="products" className="bg-section py-12">
           <div className="container mx-auto px-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <ShoppingBag className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold text-foreground">
-                Recommended products
-              </h2>
+              <div className="p-2 rounded-lg bg-amber-100">
+                <ShoppingBag className="h-5 w-5 text-amber-600" />
+              </div>
             </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">
+              Recommended products
+            </h2>
             <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
               Practical, no-hype items that support your preparedness plan.
             </p>
@@ -46,7 +44,7 @@ const Index = () => {
           </div>
         </section>
         
-        <PricingTeaser />
+        <PremiumLockedCards />
         <FAQ />
         <FinalCTA />
       </main>

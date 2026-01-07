@@ -9,16 +9,26 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // Default: Navy solid
         default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft hover:shadow-soft-lg active:scale-[0.98]",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-soft",
         outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-soft",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft-lg hover:shadow-xl active:scale-[0.98] font-semibold",
+        
+        // CTA: Amber solid - primary action buttons
+        cta: "bg-cta text-cta-foreground hover:bg-cta-hover shadow-soft-lg hover:shadow-xl active:scale-[0.98] font-semibold",
+        
+        // Hero variants
+        hero: "bg-cta text-cta-foreground hover:bg-cta-hover shadow-soft-lg hover:shadow-xl active:scale-[0.98] font-semibold",
         "hero-outline": "border-2 border-primary text-primary bg-background hover:bg-primary/5 font-semibold",
-        premium: "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-soft-lg hover:shadow-xl active:scale-[0.98] font-semibold",
-        "nav-primary": "bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-soft",
+        
+        // Premium badge button
+        premium: "bg-cta text-cta-foreground shadow-soft-lg hover:shadow-xl active:scale-[0.98] font-semibold",
+        
+        // Nav variants
+        "nav-primary": "bg-cta text-cta-foreground hover:bg-cta-hover font-medium shadow-soft",
         "nav-outline": "border border-primary/30 text-primary hover:bg-primary/5 font-medium",
       },
       size: {
