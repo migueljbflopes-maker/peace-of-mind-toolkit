@@ -100,34 +100,34 @@ const STATE_KEY = "resilient_supplies_state";
 // Product recommendations map
 const productRecommendations: Record<string, ProductRecommendation[]> = {
   "water-container": [
-    { title: "Collapsible water container", reason: "Easy to store when empty", href: "/be-prepared#products?q=water+container" },
+    { title: "Collapsible water container", reason: "Easy to store when empty", href: "/products?q=water+container" },
   ],
   "water-purification": [
-    { title: "Water purification tablets", reason: "Lightweight backup option", href: "/be-prepared#products?q=water+purification" },
+    { title: "Water purification tablets", reason: "Lightweight backup option", href: "/products?q=water+purification" },
   ],
   "power-bank": [
-    { title: "High-capacity power bank", reason: "Keep devices charged for days", href: "/be-prepared#products?q=power+bank" },
+    { title: "High-capacity power bank", reason: "Keep devices charged for days", href: "/products?q=power+bank" },
   ],
   "flashlight": [
-    { title: "LED headlamp", reason: "Hands-free lighting", href: "/be-prepared#products?q=headlamp" },
+    { title: "LED headlamp", reason: "Hands-free lighting", href: "/products?q=headlamp" },
   ],
   "solar-charger": [
-    { title: "Portable solar charger", reason: "Renewable power source", href: "/be-prepared#products?q=solar+charger" },
+    { title: "Portable solar charger", reason: "Renewable power source", href: "/products?q=solar+charger" },
   ],
   "radio": [
-    { title: "Emergency crank radio", reason: "No batteries needed", href: "/be-prepared#products?q=emergency+radio" },
+    { title: "Emergency crank radio", reason: "No batteries needed", href: "/products?q=emergency+radio" },
   ],
   "first-aid-kit": [
-    { title: "Comprehensive first aid kit", reason: "All essentials in one", href: "/be-prepared#products?q=first+aid+kit" },
+    { title: "Comprehensive first aid kit", reason: "All essentials in one", href: "/products?q=first+aid+kit" },
   ],
   "multi-tool": [
-    { title: "Quality multi-tool", reason: "Dozens of uses in one tool", href: "/be-prepared#products?q=multi+tool" },
+    { title: "Quality multi-tool", reason: "Dozens of uses in one tool", href: "/products?q=multi+tool" },
   ],
   "batteries": [
-    { title: "Battery variety pack", reason: "For all your devices", href: "/be-prepared#products?q=batteries" },
+    { title: "Battery variety pack", reason: "For all your devices", href: "/products?q=batteries" },
   ],
   "camping-stove": [
-    { title: "Portable camping stove", reason: "Reliable cooking backup", href: "/be-prepared#products?q=camping+stove" },
+    { title: "Portable camping stove", reason: "Reliable cooking backup", href: "/products?q=camping+stove" },
   ],
 };
 

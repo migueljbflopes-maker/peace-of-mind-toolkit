@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import AmazonProductsSection from "@/components/AmazonProductsSection";
 
 const BePrepared = () => {
   const featuredTools = [
@@ -147,9 +146,6 @@ const BePrepared = () => {
             </div>
           </div>
         </section>
-
-        {/* Products Section */}
-        <AmazonProductsSection />
 
         {/* Premium Teaser - Prominent but calm */}
         <section className="py-5">
