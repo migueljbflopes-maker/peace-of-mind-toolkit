@@ -27,17 +27,22 @@ import {
 } from "lucide-react";
 
 // Types
+type NewsKind = "signals" | "context" | "headline";
+
 interface NewsItem {
   id: string;
   source_id: string;
+  kind: NewsKind;
   published_at: string | null;
   fetched_at: string;
   title: string;
   summary: string | null;
   url: string | null;
+  domain: string | null;
   region: string | null;
   topics: string[];
   severity: "major" | "moderate";
+  language: string;
 }
 
 interface BriefingFilters {
@@ -45,6 +50,7 @@ interface BriefingFilters {
   topics: string[];
   timeRange: number;
   majorOnly: boolean;
+  kind: NewsKind | "all";
 }
 
 const REGIONS = [
@@ -91,7 +97,8 @@ export default function WeeklyBriefing() {
     region: "Global",
     topics: [],
     timeRange: 7,
-    majorOnly: true,
+    majorOnly: false,
+    kind: "all",
   });
 
   // Load cached briefing from localStorage
@@ -154,6 +161,10 @@ export default function WeeklyBriefing() {
 
       if (filters.topics.length > 0) {
         query = query.overlaps("topics", filters.topics);
+      }
+
+      if (filters.kind !== "all") {
+        query = query.eq("kind", filters.kind);
       }
 
       const { data, error } = await query;
@@ -327,6 +338,31 @@ export default function WeeklyBriefing() {
                 </div>
               </div>
 
+              {/* Kind filter */}
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Source Type
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "all", label: "All" },
+                    { value: "signals", label: "Signals" },
+                    { value: "context", label: "Context" },
+                    { value: "headline", label: "Headlines" },
+                  ].map((item) => (
+                    <Button
+                      key={item.value}
+                      variant={filters.kind === item.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFilters((prev) => ({ ...prev, kind: item.value as NewsKind | "all" }))}
+                      className="rounded-full"
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               {/* Time & Major toggle */}
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -352,7 +388,7 @@ export default function WeeklyBriefing() {
                     }
                     className="rounded border-gray-300"
                   />
-                  <span className="text-sm font-medium">Major signals only</span>
+                  <span className="text-sm font-medium">Major only</span>
                 </label>
               </div>
 
@@ -423,12 +459,18 @@ export default function WeeklyBriefing() {
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <Badge
                                   variant={item.severity === "major" ? "destructive" : "secondary"}
                                   className="text-xs"
                                 >
                                   {item.severity}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs capitalize"
+                                >
+                                  {item.kind}
                                 </Badge>
                                 {item.topics.slice(0, 2).map((topic) => (
                                   <Badge key={topic} variant="outline" className="text-xs">
@@ -449,6 +491,7 @@ export default function WeeklyBriefing() {
                                   ? new Date(item.published_at).toLocaleDateString()
                                   : "Date unknown"}{" "}
                                 • {item.region || "Global"}
+                                {item.domain && <span className="ml-1">• {item.domain}</span>}
                               </p>
                             </div>
                             {item.url && (

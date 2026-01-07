@@ -7,14 +7,27 @@ const corsHeaders = {
 
 interface NewsItem {
   source_id: string;
+  kind: "signals" | "context" | "headline";
   published_at: string | null;
   title: string;
   summary: string;
   url: string;
+  domain: string | null;
   region: string;
   topics: string[];
   severity: "major" | "moderate";
+  language: string;
   dedupe_key: string;
+}
+
+// Extract domain from URL
+function extractDomain(url: string): string | null {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
 
 // Simple hash function for deduplication
@@ -29,7 +42,7 @@ function generateDedupeKey(title: string, url: string, date: string): string {
   return Math.abs(hash).toString(36);
 }
 
-// Fetch USGS Earthquake data
+// Fetch USGS Earthquake data (signals)
 async function fetchUSGS(): Promise<NewsItem[]> {
   console.log("Fetching USGS earthquake data...");
   try {
@@ -50,13 +63,16 @@ async function fetchUSGS(): Promise<NewsItem[]> {
       
       items.push({
         source_id: "usgs-earthquake",
+        kind: "signals",
         published_at: time,
         title: `M${mag.toFixed(1)} Earthquake - ${place}`,
         summary: `A magnitude ${mag.toFixed(1)} earthquake occurred ${place}. Depth: ${(feature.geometry.coordinates[2] || 0).toFixed(1)} km.`,
         url,
+        domain: extractDomain(url),
         region: "Global",
         topics: ["Natural Hazards"],
         severity: mag >= 6.0 ? "major" : "moderate",
+        language: "en",
         dedupe_key: generateDedupeKey(`M${mag}-${place}`, url, time.split("T")[0]),
       });
     }
@@ -69,7 +85,7 @@ async function fetchUSGS(): Promise<NewsItem[]> {
   }
 }
 
-// Fetch ReliefWeb reports
+// Fetch ReliefWeb reports (context)
 async function fetchReliefWeb(): Promise<NewsItem[]> {
   console.log("Fetching ReliefWeb data...");
   try {
@@ -104,13 +120,16 @@ async function fetchReliefWeb(): Promise<NewsItem[]> {
       
       items.push({
         source_id: "reliefweb",
+        kind: "context",
         published_at: published,
         title: title.length > 200 ? title.substring(0, 197) + "..." : title,
         summary: `Report from ${fields.source?.shortname || "ReliefWeb"} regarding ${country}.`,
         url,
+        domain: extractDomain(url),
         region: country,
         topics,
         severity: "moderate",
+        language: "en",
         dedupe_key: generateDedupeKey(title, url, published.split("T")[0]),
       });
     }
@@ -123,7 +142,7 @@ async function fetchReliefWeb(): Promise<NewsItem[]> {
   }
 }
 
-// Fetch GDACS RSS (simplified XML parsing)
+// Fetch GDACS RSS (signals)
 async function fetchGDACS(): Promise<NewsItem[]> {
   console.log("Fetching GDACS data...");
   try {
@@ -163,13 +182,16 @@ async function fetchGDACS(): Promise<NewsItem[]> {
       
       items.push({
         source_id: "gdacs",
+        kind: "signals",
         published_at: pubDate,
         title: title.length > 200 ? title.substring(0, 197) + "..." : title,
         summary: description.replace(/<[^>]*>/g, "").substring(0, 300),
         url,
+        domain: extractDomain(url),
         region: "Global",
         topics: ["Natural Hazards"],
         severity,
+        language: "en",
         dedupe_key: generateDedupeKey(title, url, pubDate.split("T")[0]),
       });
       count++;
