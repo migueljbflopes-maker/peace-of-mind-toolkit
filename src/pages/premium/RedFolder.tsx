@@ -1,23 +1,118 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Download, Eye, Users, MapPin, Package, Heart, File, CheckCircle2 } from 'lucide-react';
+import { FileText, Download, Eye, Loader2, CheckCircle2, WifiOff, Info } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
+import { useVaultSession } from '@/hooks/useVaultSession';
+import { useRedFolderData, DataReadiness } from '@/hooks/useRedFolderData';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
+import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
+import { DataReadinessPanel } from '@/components/redFolder/DataReadinessPanel';
+import { buildRedFolderPdf } from '@/lib/pdf/redFolderPdf';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function RedFolder() {
   const { isPremium, loading } = useEntitlements();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const { isUnlocked } = useVaultSession();
+  const { user } = useAuth();
+  const { isLoading: isLoadingData, readiness, checkReadiness, loadAllData } = useRedFolderData();
+  
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
-  const includesList = [
-    { icon: Users, label: t.redFolder.includesList.contacts },
-    { icon: MapPin, label: t.redFolder.includesList.plans },
-    { icon: Package, label: t.redFolder.includesList.supplies },
-    { icon: Heart, label: t.redFolder.includesList.medical },
-    { icon: File, label: t.redFolder.includesList.documents },
-  ];
+  // Track online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Check data readiness when vault is unlocked
+  useEffect(() => {
+    if (isUnlocked && isPremium) {
+      checkReadiness();
+    }
+  }, [isUnlocked, isPremium, checkReadiness]);
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
+
+  const handleGeneratePdf = async () => {
+    setIsGenerating(true);
+    try {
+      const data = await loadAllData();
+      if (!data) {
+        toast.error('Failed to load data for PDF');
+        return;
+      }
+
+      const blob = await buildRedFolderPdf(data);
+      setPdfBlob(blob);
+      
+      // Create object URL for download
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+
+      // Log export metadata (no PDF content)
+      if (user) {
+        await supabase.from('exports').insert([{
+          user_id: user.id,
+          export_type: 'red_folder_pdf',
+          locale,
+        }]);
+      }
+
+      toast.success(t.redFolder.pdfReady);
+    } catch (error) {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!pdfUrl) return;
+    
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = `resiliency-plan-${locale}-${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleRegenerate = () => {
+    setPdfBlob(null);
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(null);
+    }
+    handleGeneratePdf();
+  };
 
   if (loading) {
     return (
@@ -51,54 +146,123 @@ export default function RedFolder() {
               <p className="text-muted-foreground">{t.redFolder.subtitle}</p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl">
-              {/* Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button className="w-full gap-2" size="lg">
-                    <Download className="h-4 w-4" />
-                    {t.redFolder.generatePdf}
-                  </Button>
-                  <Button variant="outline" className="w-full gap-2">
-                    <Eye className="h-4 w-4" />
-                    {t.redFolder.preview}
-                  </Button>
-                </CardContent>
-              </Card>
+            {/* Offline Banner */}
+            {!isOnline && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+                <WifiOff className="h-5 w-5 text-amber-600" />
+                <span className="text-sm text-amber-800">{t.redFolder.offlineBanner}</span>
+              </div>
+            )}
 
-              {/* What's Included */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{t.redFolder.includes}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {includesList.map((item, i) => (
-                      <li key={i} className="flex items-center gap-3">
-                        <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span className="text-sm">{item.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Vault Unlock Required */}
+            {!isUnlocked ? (
+              <div className="max-w-md mx-auto">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">{t.vault.unlockVault}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {t.vault.lockedExplainer}
+                    </p>
+                    <VaultUnlockForm onUnlock={() => checkReadiness()} />
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-8 max-w-4xl">
+                {/* Data Readiness Panel */}
+                <DataReadinessPanel readiness={readiness} />
 
-            {/* Preview Placeholder */}
-            <Card className="mt-8 max-w-4xl">
-              <CardContent className="py-16 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                  <FileText className="h-8 w-8 text-red-600" />
+                {/* Actions Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {pdfBlob ? t.redFolder.pdfReady : 'Actions'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {pdfBlob ? (
+                      <>
+                        {/* Success State */}
+                        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <span className="text-sm text-green-800">{t.redFolder.pdfReadyDesc}</span>
+                        </div>
+                        
+                        <Button 
+                          className="w-full gap-2" 
+                          size="lg"
+                          onClick={handleDownload}
+                        >
+                          <Download className="h-4 w-4" />
+                          {t.redFolder.downloadPdf}
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={handleRegenerate}
+                          disabled={isGenerating}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              {t.redFolder.generating}
+                            </>
+                          ) : (
+                            t.redFolder.regenerate
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Initial State */}
+                        <Button 
+                          className="w-full gap-2" 
+                          size="lg"
+                          onClick={handleGeneratePdf}
+                          disabled={isGenerating || isLoadingData}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              {t.redFolder.generating}
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4" />
+                              {t.redFolder.generatePdf}
+                            </>
+                          )}
+                        </Button>
+
+                        <Button 
+                          variant="outline" 
+                          className="w-full gap-2"
+                          onClick={() => checkReadiness()}
+                        >
+                          <Eye className="h-4 w-4" />
+                          {t.redFolder.preview}
+                        </Button>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Premium Note */}
+            {isUnlocked && (
+              <div className="mt-8 max-w-4xl">
+                <div className="flex items-start gap-2 p-4 bg-muted/50 rounded-lg">
+                  <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    {t.redFolder.premiumNote}
+                  </p>
                 </div>
-                <h3 className="text-lg font-medium mb-2">Red Folder Preview</h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  {t.redFolder.comingNext}
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </div>
         )}
       </main>
