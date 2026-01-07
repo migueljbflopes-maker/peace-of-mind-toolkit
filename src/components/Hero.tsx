@@ -8,8 +8,8 @@ const Hero = () => {
       className="relative min-h-[60vh] md:min-h-[75vh] flex items-center justify-center bg-cover bg-center"
       style={{ backgroundImage: `url(${heroSplitBg})` }}
     >
-      {/* Dark overlay for text readability */}
-      <div className="absolute inset-0 bg-black/30" />
+      {/* Gradient overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
       
       {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
