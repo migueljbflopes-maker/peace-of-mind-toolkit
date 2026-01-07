@@ -1,5 +1,5 @@
 import { useState, forwardRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
@@ -37,6 +37,17 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [bePreparedOpen, setBePreparedOpen] = useState(false);
   const { user, isAuthenticated, signOut, loading } = useAuth();
   const { t } = useLocale();
+  const location = useLocation();
+
+  // Build login URL with current path as return_url
+  const getLoginUrl = () => {
+    const currentPath = location.pathname + location.search;
+    // Don't add return_url for auth-related pages
+    if (currentPath === '/login' || currentPath.startsWith('/auth')) {
+      return '/login';
+    }
+    return `/login?return_url=${encodeURIComponent(currentPath)}`;
+  };
 
   const navLinks = [
     { label: t.nav.library, href: "/library", icon: Library },
@@ -154,7 +165,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 </DropdownMenu>
               ) : (
                 <>
-                  <Link to="/login">
+                  <Link to={getLoginUrl()}>
                     <Button variant="ghost" size="sm">
                       {t.nav.login}
                     </Button>
@@ -283,7 +294,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 </>
               ) : (
                 <>
-                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to={getLoginUrl()} onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="outline" className="w-full">
                       {t.nav.login}
                     </Button>
