@@ -11,6 +11,7 @@ import Library from "./pages/Library";
 import Tips from "./pages/Tips";
 import RiskCalculator from "./pages/RiskCalculator";
 import SuppliesPlanner from "./pages/SuppliesPlanner";
+import WeeklyBriefing from "./pages/WeeklyBriefing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/tips" element={<Tips />} />
           <Route path="/tools/risk" element={<RiskCalculator />} />
           <Route path="/tools/supplies" element={<SuppliesPlanner />} />
+          <Route path="/news/weekly" element={<WeeklyBriefing />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
