@@ -42,9 +42,9 @@ const Hero = () => {
                   Start Free
                 </Button>
               </Link>
-              <Link to="/library">
+              <Link to="/tools/risk">
                 <Button variant="hero-outline" size="xl">
-                  Explore Library
+                  Create my plan now
                 </Button>
               </Link>
             </div>
