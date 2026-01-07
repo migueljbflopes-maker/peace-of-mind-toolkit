@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -26,55 +26,7 @@ import {
   Building2,
   WifiOff,
 } from "lucide-react";
-
-// Seed data for the library
-const libraryDocs = [
-  // Netherlands
-  { id: "nl-1", title: "NL Alert – Emergency Alerts System", publisher: "Rijksoverheid", country: "NL", language: "NL", type: "Web", topics: ["Alerts", "Communication"], url: "https://www.nl-alert.nl/", featured: true },
-  { id: "nl-2", title: "Crisis Preparation Guide", publisher: "Rijksoverheid", country: "NL", language: "NL", type: "Web", topics: ["General Preparedness"], url: "https://www.rijksoverheid.nl/onderwerpen/crisis-en-rampen", featured: true },
-  { id: "nl-3", title: "Red Cross Emergency Checklist", publisher: "Rode Kruis", country: "NL", language: "NL", type: "PDF", topics: ["Supplies", "Checklist"], url: "https://www.rodekruis.nl/hulp-in-nederland/ehbo-cursus/ehbo-in-noodsituaties/", featured: false },
-  
-  // Germany
-  { id: "de-1", title: "BBK Ratgeber für Notfallvorsorge", publisher: "Bundesamt für Bevölkerungsschutz", country: "DE", language: "DE", type: "PDF", topics: ["General Preparedness", "Supplies"], url: "https://www.bbk.bund.de/DE/Warnung-Vorsorge/Vorsorge/vorsorge_node.html", featured: true },
-  { id: "de-2", title: "NINA Warning App", publisher: "BBK", country: "DE", language: "DE", type: "Web", topics: ["Alerts", "Communication"], url: "https://www.bbk.bund.de/DE/Warnung-Vorsorge/Warn-App-NINA/warn-app-nina_node.html", featured: true },
-  { id: "de-3", title: "Checkliste für den Notfall", publisher: "Bundesamt für Bevölkerungsschutz", country: "DE", language: "DE", type: "PDF", topics: ["Checklist", "Supplies"], url: "https://www.bbk.bund.de/SharedDocs/Downloads/DE/Mediathek/Publikationen/Buergerinformationen/Ratgeber/ratgeber-notfallvorsorge.html", featured: false },
-  { id: "de-4", title: "Stromausfall Vorsorge", publisher: "BBK", country: "DE", language: "DE", type: "PDF", topics: ["Power Outage", "General Preparedness"], url: "https://www.bbk.bund.de/DE/Warnung-Vorsorge/Vorsorge/Stromausfall/stromausfall_node.html", featured: false },
-  
-  // UK
-  { id: "uk-1", title: "Preparing for Emergencies Guide", publisher: "UK Government", country: "UK", language: "EN", type: "PDF", topics: ["General Preparedness"], url: "https://www.gov.uk/government/publications/preparing-for-emergencies", featured: true },
-  { id: "uk-2", title: "National Risk Register", publisher: "Cabinet Office", country: "UK", language: "EN", type: "PDF", topics: ["Risk Assessment"], url: "https://www.gov.uk/government/publications/national-risk-register-2023", featured: false },
-  { id: "uk-3", title: "Flood Preparation Guide", publisher: "Environment Agency", country: "UK", language: "EN", type: "Web", topics: ["Flooding", "General Preparedness"], url: "https://www.gov.uk/prepare-for-flooding", featured: false },
-  { id: "uk-4", title: "Emergency Alerts UK", publisher: "UK Government", country: "UK", language: "EN", type: "Web", topics: ["Alerts", "Communication"], url: "https://www.gov.uk/alerts", featured: true },
-  
-  // USA
-  { id: "us-1", title: "Ready.gov Emergency Preparedness", publisher: "FEMA", country: "US", language: "EN", type: "Web", topics: ["General Preparedness"], url: "https://www.ready.gov/", featured: true },
-  { id: "us-2", title: "Build A Kit Guide", publisher: "FEMA", country: "US", language: "EN", type: "PDF", topics: ["Supplies", "Checklist"], url: "https://www.ready.gov/kit", featured: true },
-  { id: "us-3", title: "Make A Plan Guide", publisher: "FEMA", country: "US", language: "EN", type: "Web", topics: ["Planning", "Family"], url: "https://www.ready.gov/plan", featured: false },
-  { id: "us-4", title: "Wireless Emergency Alerts", publisher: "FCC", country: "US", language: "EN", type: "Web", topics: ["Alerts", "Communication"], url: "https://www.fcc.gov/consumers/guides/wireless-emergency-alerts-wea", featured: false },
-  { id: "us-5", title: "FEMA App", publisher: "FEMA", country: "US", language: "EN", type: "Web", topics: ["Alerts", "General Preparedness"], url: "https://www.fema.gov/about/news-multimedia/mobile-app-text-messages", featured: false },
-  
-  // Portugal
-  { id: "pt-1", title: "ANEPC Proteção Civil", publisher: "Autoridade Nacional de Emergência", country: "PT", language: "PT", type: "Web", topics: ["General Preparedness"], url: "https://www.prociv.gov.pt/", featured: true },
-  { id: "pt-2", title: "Guia de Preparação para Emergências", publisher: "ANEPC", country: "PT", language: "PT", type: "PDF", topics: ["General Preparedness", "Checklist"], url: "https://www.prociv.gov.pt/pt/cidadao/saiba-o-que-fazer/", featured: false },
-  { id: "pt-3", title: "Incêndios Rurais - Prevenção", publisher: "ANEPC", country: "PT", language: "PT", type: "Web", topics: ["Fire", "Prevention"], url: "https://www.prociv.gov.pt/pt/cidadao/incendios-rurais/", featured: false },
-  
-  // EU / International
-  { id: "eu-1", title: "EU Civil Protection Mechanism", publisher: "European Commission", country: "EU", language: "EN", type: "Web", topics: ["General Preparedness", "International"], url: "https://civil-protection-humanitarian-aid.ec.europa.eu/what/civil-protection_en", featured: true },
-  { id: "eu-2", title: "European Flood Awareness System", publisher: "Copernicus", country: "EU", language: "EN", type: "Web", topics: ["Flooding", "Alerts"], url: "https://www.efas.eu/", featured: false },
-  
-  // Global / Cross-border
-  { id: "gl-1", title: "IFRC Disaster Preparedness", publisher: "International Red Cross", country: "Global", language: "EN", type: "Web", topics: ["General Preparedness"], url: "https://www.ifrc.org/our-work/disasters-climate-and-crises/disaster-preparedness", featured: true },
-  { id: "gl-2", title: "WHO Health Emergencies", publisher: "World Health Organization", country: "Global", language: "EN", type: "Web", topics: ["Health", "Pandemics"], url: "https://www.who.int/emergencies", featured: false },
-  { id: "gl-3", title: "UNDRR Sendai Framework", publisher: "United Nations", country: "Global", language: "EN", type: "PDF", topics: ["Risk Assessment", "International"], url: "https://www.undrr.org/implementing-sendai-framework/what-sendai-framework", featured: false },
-  { id: "gl-4", title: "72 Hours Emergency Kit", publisher: "Canadian Red Cross", country: "Global", language: "EN", type: "PDF", topics: ["Supplies", "Checklist"], url: "https://www.redcross.ca/how-we-help/emergencies-and-disasters-in-canada/be-ready-emergency-preparedness-and-recovery/get-an-emergency-kit", featured: false },
-  { id: "gl-5", title: "First Aid Basics", publisher: "IFRC", country: "Global", language: "EN", type: "Web", topics: ["First Aid", "Health"], url: "https://www.ifrc.org/first-aid", featured: false },
-  { id: "gl-6", title: "Climate Adaptation Guide", publisher: "IPCC", country: "Global", language: "EN", type: "PDF", topics: ["Climate", "Long-term Planning"], url: "https://www.ipcc.ch/report/ar6/wg2/", featured: false },
-];
-
-const countries = ["NL", "DE", "UK", "US", "PT", "EU", "Global"];
-const languages = ["EN", "NL", "DE", "PT"];
-const allTopics = [...new Set(libraryDocs.flatMap(d => d.topics))].sort();
-const types = ["PDF", "Web"];
+import { libraryDocs, countries, languages, allTopics, types, type LibraryDocument } from "@/data/librarySeed";
 
 const Library = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,7 +39,7 @@ const Library = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Listen for online/offline status
-  useState(() => {
+  useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
@@ -96,7 +48,7 @@ const Library = () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  });
+  }, []);
 
   const toggleFilter = (
     value: string,
@@ -302,7 +254,7 @@ const Library = () => {
     </div>
   );
 
-  const DocumentCard = ({ doc }: { doc: typeof libraryDocs[0] }) => (
+  const DocumentCard = ({ doc }: { doc: LibraryDocument }) => (
     <div className="bg-background rounded-xl border border-border p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
