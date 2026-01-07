@@ -454,6 +454,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_cursors: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          id: string
+          last_synced_at: string | null
+          table_name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          id?: string
+          last_synced_at?: string | null
+          table_name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          id?: string
+          last_synced_at?: string | null
+          table_name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_devices: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          device_name: string | null
+          id: string
+          last_seen_at: string | null
+          platform: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          device_name?: string | null
+          id?: string
+          last_seen_at?: string | null
+          platform?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          device_name?: string | null
+          id?: string
+          last_seen_at?: string | null
+          platform?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           country: string | null
@@ -555,7 +615,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       alert_frequency: "immediate" | "daily" | "weekly"
