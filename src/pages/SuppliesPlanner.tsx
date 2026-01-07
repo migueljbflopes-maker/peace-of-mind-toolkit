@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   ArrowRight, 
-  Check, 
   Droplets, 
   UtensilsCrossed, 
   Flame, 
@@ -20,7 +19,13 @@ import {
   Download,
   Save,
   BookOpen,
-  AlertCircle
+  AlertCircle,
+  Dog,
+  Cat,
+  Baby,
+  Pill,
+  ShoppingBag,
+  ExternalLink
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -35,12 +40,29 @@ import { cn } from "@/lib/utils";
 // Types
 type HouseholdSize = "1" | "2" | "3-4" | "5-6" | "7+";
 type DaysTarget = 7 | 14 | 21;
-type SpecialNeeds = "none" | "baby" | "medical" | "pets";
+type PetType = "none" | "dog" | "cat" | "other";
+type MedicalNeed = "none" | "prescriptions" | "devices";
+type DietPref = "none" | "vegetarian" | "allergies";
+type CookingLevel = "full" | "limited" | "none";
+type WaterContext = "easy" | "limited" | "portable";
+type PowerLevel = "none" | "basic" | "some" | "strong";
+type CommLevel = "phone" | "powerbank" | "radio";
+type CashLevel = "none" | "small" | "moderate" | "comfortable";
+type DocsLevel = "none" | "some" | "organized";
 
 interface WizardAnswers {
   householdSize: HouseholdSize | null;
   daysTarget: DaysTarget;
-  specialNeeds: SpecialNeeds[];
+  pets: PetType[];
+  hasKids: boolean;
+  medicalNeeds: MedicalNeed;
+  dietPref: DietPref;
+  cookingLevel: CookingLevel;
+  waterContext: WaterContext;
+  powerLevel: PowerLevel;
+  commLevel: CommLevel;
+  cashLevel: CashLevel;
+  docsLevel: DocsLevel;
 }
 
 interface SupplyItem {
@@ -50,6 +72,7 @@ interface SupplyItem {
   unit: string;
   perPerson?: boolean;
   perDay?: boolean;
+  hasRecommendation?: boolean;
 }
 
 interface SupplyCategory {
@@ -57,15 +80,71 @@ interface SupplyCategory {
   name: string;
   icon: typeof Droplets;
   items: SupplyItem[];
+  conditional?: "pets" | "baby";
 }
 
 interface CheckedState {
   [itemId: string]: boolean;
 }
 
+interface ProductRecommendation {
+  title: string;
+  reason: string;
+  href: string;
+}
+
 // Storage keys
-const DRAFT_KEY = "resilient_supplies_draft";
+const DRAFT_KEY = "resilient_supplies_quiz_draft";
 const STATE_KEY = "resilient_supplies_state";
+
+// Product recommendations map
+const productRecommendations: Record<string, ProductRecommendation[]> = {
+  "water-container": [
+    { title: "Collapsible water container", reason: "Easy to store when empty", href: "/be-prepared#products?q=water+container" },
+  ],
+  "water-purification": [
+    { title: "Water purification tablets", reason: "Lightweight backup option", href: "/be-prepared#products?q=water+purification" },
+  ],
+  "power-bank": [
+    { title: "High-capacity power bank", reason: "Keep devices charged for days", href: "/be-prepared#products?q=power+bank" },
+  ],
+  "flashlight": [
+    { title: "LED headlamp", reason: "Hands-free lighting", href: "/be-prepared#products?q=headlamp" },
+  ],
+  "solar-charger": [
+    { title: "Portable solar charger", reason: "Renewable power source", href: "/be-prepared#products?q=solar+charger" },
+  ],
+  "radio": [
+    { title: "Emergency crank radio", reason: "No batteries needed", href: "/be-prepared#products?q=emergency+radio" },
+  ],
+  "first-aid-kit": [
+    { title: "Comprehensive first aid kit", reason: "All essentials in one", href: "/be-prepared#products?q=first+aid+kit" },
+  ],
+  "multi-tool": [
+    { title: "Quality multi-tool", reason: "Dozens of uses in one tool", href: "/be-prepared#products?q=multi+tool" },
+  ],
+  "batteries": [
+    { title: "Battery variety pack", reason: "For all your devices", href: "/be-prepared#products?q=batteries" },
+  ],
+  "camping-stove": [
+    { title: "Portable camping stove", reason: "Reliable cooking backup", href: "/be-prepared#products?q=camping+stove" },
+  ],
+};
+
+// Hard-to-source items
+const hardToSourceItems = [
+  { id: "hts-water-container", name: "Water storage containers", hasRecommendation: true, recKey: "water-container" },
+  { id: "hts-water-filter", name: "Water filter / purification", hasRecommendation: true, recKey: "water-purification" },
+  { id: "hts-power-bank", name: "Power bank (high capacity)", hasRecommendation: true, recKey: "power-bank" },
+  { id: "hts-headlamp", name: "Headlamp / lantern", hasRecommendation: true, recKey: "flashlight" },
+  { id: "hts-batteries", name: "Battery charger + spare batteries", hasRecommendation: true, recKey: "batteries" },
+  { id: "hts-radio", name: "Emergency radio", hasRecommendation: true, recKey: "radio" },
+  { id: "hts-first-aid", name: "First aid kit + add-ons", hasRecommendation: true, recKey: "first-aid-kit" },
+  { id: "hts-cash", name: "Cash envelope (organizer)", hasRecommendation: false },
+  { id: "hts-doc-pouch", name: "Waterproof document pouch", hasRecommendation: false },
+  { id: "hts-toolkit", name: "Basic tool kit", hasRecommendation: true, recKey: "multi-tool" },
+  { id: "hts-pet-carrier", name: "Pet supplies container / carrier", hasRecommendation: false, conditional: "pets" },
+];
 
 // Supply categories data
 const supplyCategories: SupplyCategory[] = [
@@ -75,8 +154,8 @@ const supplyCategories: SupplyCategory[] = [
     icon: Droplets,
     items: [
       { id: "water-bottles", name: "Bottled water", baseQuantity: 3, unit: "liters", perPerson: true, perDay: true },
-      { id: "water-purification", name: "Water purification tablets", baseQuantity: 1, unit: "pack" },
-      { id: "water-container", name: "Water storage container", baseQuantity: 1, unit: "container" },
+      { id: "water-purification", name: "Water purification tablets", baseQuantity: 1, unit: "pack", hasRecommendation: true },
+      { id: "water-container", name: "Water storage container", baseQuantity: 1, unit: "container", hasRecommendation: true },
     ],
   },
   {
@@ -97,7 +176,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "Cooking & Utilities",
     icon: Flame,
     items: [
-      { id: "camping-stove", name: "Camping stove or portable burner", baseQuantity: 1, unit: "unit" },
+      { id: "camping-stove", name: "Camping stove or portable burner", baseQuantity: 1, unit: "unit", hasRecommendation: true },
       { id: "fuel", name: "Fuel canisters", baseQuantity: 2, unit: "canisters" },
       { id: "matches", name: "Matches/lighter (waterproof)", baseQuantity: 2, unit: "packs" },
       { id: "can-opener", name: "Manual can opener", baseQuantity: 1, unit: "unit" },
@@ -122,7 +201,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "First Aid & Medical Basics",
     icon: Heart,
     items: [
-      { id: "first-aid-kit", name: "First aid kit", baseQuantity: 1, unit: "kit" },
+      { id: "first-aid-kit", name: "First aid kit", baseQuantity: 1, unit: "kit", hasRecommendation: true },
       { id: "pain-relievers", name: "Pain relievers (ibuprofen/paracetamol)", baseQuantity: 1, unit: "box" },
       { id: "bandages", name: "Bandages & gauze", baseQuantity: 1, unit: "pack" },
       { id: "antiseptic", name: "Antiseptic wipes/spray", baseQuantity: 1, unit: "bottle" },
@@ -135,11 +214,11 @@ const supplyCategories: SupplyCategory[] = [
     name: "Power & Lighting",
     icon: Zap,
     items: [
-      { id: "flashlight", name: "Flashlight/headlamp", baseQuantity: 1, unit: "unit", perPerson: true },
-      { id: "batteries", name: "Extra batteries", baseQuantity: 8, unit: "batteries" },
-      { id: "power-bank", name: "Power bank (charged)", baseQuantity: 1, unit: "unit" },
+      { id: "flashlight", name: "Flashlight/headlamp", baseQuantity: 1, unit: "unit", perPerson: true, hasRecommendation: true },
+      { id: "batteries", name: "Extra batteries", baseQuantity: 8, unit: "batteries", hasRecommendation: true },
+      { id: "power-bank", name: "Power bank (charged)", baseQuantity: 1, unit: "unit", hasRecommendation: true },
       { id: "candles", name: "Candles", baseQuantity: 6, unit: "candles" },
-      { id: "solar-charger", name: "Solar charger (optional)", baseQuantity: 1, unit: "unit" },
+      { id: "solar-charger", name: "Solar charger (optional)", baseQuantity: 1, unit: "unit", hasRecommendation: true },
     ],
   },
   {
@@ -147,7 +226,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "Communication",
     icon: Radio,
     items: [
-      { id: "radio", name: "Battery/crank radio", baseQuantity: 1, unit: "unit" },
+      { id: "radio", name: "Battery/crank radio", baseQuantity: 1, unit: "unit", hasRecommendation: true },
       { id: "whistle", name: "Emergency whistle", baseQuantity: 1, unit: "unit", perPerson: true },
       { id: "contacts-list", name: "Printed emergency contacts", baseQuantity: 1, unit: "list" },
       { id: "phone-charger", name: "Phone charger cable", baseQuantity: 1, unit: "cable" },
@@ -181,11 +260,37 @@ const supplyCategories: SupplyCategory[] = [
     name: "Tools & Repair",
     icon: Wrench,
     items: [
-      { id: "multi-tool", name: "Multi-tool/Swiss army knife", baseQuantity: 1, unit: "unit" },
+      { id: "multi-tool", name: "Multi-tool/Swiss army knife", baseQuantity: 1, unit: "unit", hasRecommendation: true },
       { id: "duct-tape", name: "Duct tape", baseQuantity: 1, unit: "roll" },
       { id: "rope", name: "Rope/paracord (10m)", baseQuantity: 1, unit: "length" },
       { id: "work-gloves", name: "Work gloves", baseQuantity: 1, unit: "pair" },
       { id: "plastic-sheeting", name: "Plastic sheeting", baseQuantity: 1, unit: "sheet" },
+    ],
+  },
+  {
+    id: "pets",
+    name: "Pet Supplies",
+    icon: Dog,
+    conditional: "pets",
+    items: [
+      { id: "pet-food", name: "Pet food", baseQuantity: 0.5, unit: "kg", perDay: true },
+      { id: "pet-water-bowl", name: "Collapsible water bowl", baseQuantity: 1, unit: "unit" },
+      { id: "pet-carrier", name: "Pet carrier/crate", baseQuantity: 1, unit: "unit" },
+      { id: "pet-meds", name: "Pet medications", baseQuantity: 14, unit: "days" },
+      { id: "pet-leash", name: "Leash & collar with ID", baseQuantity: 1, unit: "set" },
+    ],
+  },
+  {
+    id: "baby",
+    name: "Baby Items",
+    icon: Baby,
+    conditional: "baby",
+    items: [
+      { id: "diapers", name: "Diapers", baseQuantity: 8, unit: "diapers", perDay: true },
+      { id: "baby-wipes", name: "Baby wipes", baseQuantity: 1, unit: "pack" },
+      { id: "formula", name: "Formula/baby food", baseQuantity: 1, unit: "container", perDay: true },
+      { id: "bottles", name: "Bottles", baseQuantity: 3, unit: "bottles" },
+      { id: "baby-clothes", name: "Extra baby clothes", baseQuantity: 3, unit: "sets" },
     ],
   },
 ];
@@ -222,21 +327,33 @@ const calculateQuantity = (
   return Math.ceil(quantity);
 };
 
+const defaultAnswers: WizardAnswers = {
+  householdSize: null,
+  daysTarget: 14,
+  pets: [],
+  hasKids: false,
+  medicalNeeds: "none",
+  dietPref: "none",
+  cookingLevel: "full",
+  waterContext: "easy",
+  powerLevel: "none",
+  commLevel: "phone",
+  cashLevel: "none",
+  docsLevel: "none",
+};
+
 const SuppliesPlanner = () => {
   const navigate = useNavigate();
-  const totalWizardSteps = 3;
+  const totalWizardSteps = 12;
 
   // Wizard state
-  const [currentStep, setCurrentStep] = useState(0); // 0 = wizard step 1, etc.
+  const [currentStep, setCurrentStep] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [answers, setAnswers] = useState<WizardAnswers>({
-    householdSize: null,
-    daysTarget: 14,
-    specialNeeds: [],
-  });
+  const [answers, setAnswers] = useState<WizardAnswers>(defaultAnswers);
 
   // Checklist state
   const [checkedItems, setCheckedItems] = useState<CheckedState>({});
+  const [checkedHardToSource, setCheckedHardToSource] = useState<CheckedState>({});
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["water"]);
 
   // Modal state
@@ -249,7 +366,7 @@ const SuppliesPlanner = () => {
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
-        if (draft.answers) setAnswers(draft.answers);
+        if (draft.answers) setAnswers({ ...defaultAnswers, ...draft.answers });
         if (typeof draft.currentStep === "number") setCurrentStep(draft.currentStep);
         if (draft.showResults) setShowResults(true);
       } catch {}
@@ -260,6 +377,7 @@ const SuppliesPlanner = () => {
       try {
         const state = JSON.parse(savedState);
         if (state.checkedItems) setCheckedItems(state.checkedItems);
+        if (state.checkedHardToSource) setCheckedHardToSource(state.checkedHardToSource);
       } catch {}
     }
   }, []);
@@ -273,24 +391,48 @@ const SuppliesPlanner = () => {
     }));
   }, [answers, currentStep, showResults]);
 
+  // Get filtered categories based on answers
+  const filteredCategories = useMemo(() => {
+    return supplyCategories.filter((cat) => {
+      if (cat.conditional === "pets") {
+        return answers.pets.length > 0 && !answers.pets.includes("none");
+      }
+      if (cat.conditional === "baby") {
+        return answers.hasKids;
+      }
+      return true;
+    });
+  }, [answers.pets, answers.hasKids]);
+
+  // Get filtered hard-to-source items
+  const filteredHardToSource = useMemo(() => {
+    return hardToSourceItems.filter((item) => {
+      if (item.conditional === "pets") {
+        return answers.pets.length > 0 && !answers.pets.includes("none");
+      }
+      return true;
+    });
+  }, [answers.pets]);
+
   // Save checked state
   useEffect(() => {
     if (showResults) {
-      const totalItems = supplyCategories.reduce((acc, cat) => acc + cat.items.length, 0);
+      const totalItems = filteredCategories.reduce((acc, cat) => acc + cat.items.length, 0);
       const checkedCount = Object.values(checkedItems).filter(Boolean).length;
       const preparedness = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
       
       localStorage.setItem(STATE_KEY, JSON.stringify({
         checkedItems,
+        checkedHardToSource,
         preparedness,
         updatedAt: new Date().toISOString(),
       }));
     }
-  }, [checkedItems, showResults]);
+  }, [checkedItems, checkedHardToSource, showResults, filteredCategories]);
 
   // Compute preparedness stats
   const stats = useMemo(() => {
-    const categoryStats = supplyCategories.map((cat) => {
+    const categoryStats = filteredCategories.map((cat) => {
       const total = cat.items.length;
       const checked = cat.items.filter((item) => checkedItems[item.id]).length;
       return {
@@ -302,7 +444,7 @@ const SuppliesPlanner = () => {
       };
     });
 
-    const totalItems = supplyCategories.reduce((acc, cat) => acc + cat.items.length, 0);
+    const totalItems = filteredCategories.reduce((acc, cat) => acc + cat.items.length, 0);
     const totalChecked = Object.values(checkedItems).filter(Boolean).length;
     const overallPreparedness = totalItems > 0 ? Math.round((totalChecked / totalItems) * 100) : 0;
 
@@ -311,7 +453,7 @@ const SuppliesPlanner = () => {
       .slice(0, 3);
 
     return { categoryStats, overallPreparedness, topGaps };
-  }, [checkedItems]);
+  }, [checkedItems, filteredCategories]);
 
   const handleNext = () => {
     if (currentStep < totalWizardSteps - 1) {
@@ -342,17 +484,23 @@ const SuppliesPlanner = () => {
     }));
   };
 
-  const toggleSpecialNeed = (need: SpecialNeeds) => {
+  const toggleHardToSource = (itemId: string) => {
+    setCheckedHardToSource((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  const togglePet = (pet: PetType) => {
     setAnswers((prev) => {
-      const current = prev.specialNeeds;
-      if (need === "none") {
-        return { ...prev, specialNeeds: current.includes("none") ? [] : ["none"] };
+      if (pet === "none") {
+        return { ...prev, pets: prev.pets.includes("none") ? [] : ["none"] };
       }
-      const withoutNone = current.filter((n) => n !== "none");
-      if (withoutNone.includes(need)) {
-        return { ...prev, specialNeeds: withoutNone.filter((n) => n !== need) };
+      const withoutNone = prev.pets.filter((p) => p !== "none");
+      if (withoutNone.includes(pet)) {
+        return { ...prev, pets: withoutNone.filter((p) => p !== pet) };
       }
-      return { ...prev, specialNeeds: [...withoutNone, need] };
+      return { ...prev, pets: [...withoutNone, pet] };
     });
   };
 
@@ -360,6 +508,32 @@ const SuppliesPlanner = () => {
     if (currentStep === 0) return answers.householdSize !== null;
     return true;
   };
+
+  // Chip button component
+  const ChipButton = ({ 
+    selected, 
+    onClick, 
+    children, 
+    className = "" 
+  }: { 
+    selected: boolean; 
+    onClick: () => void; 
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all",
+        selected
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border bg-card hover:border-primary/50 text-foreground",
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
 
   // Wizard steps
   const renderWizardStep = () => {
@@ -372,18 +546,14 @@ const SuppliesPlanner = () => {
             </h2>
             <div className="grid grid-cols-5 gap-2">
               {(["1", "2", "3-4", "5-6", "7+"] as HouseholdSize[]).map((size) => (
-                <button
+                <ChipButton
                   key={size}
+                  selected={answers.householdSize === size}
                   onClick={() => setAnswers({ ...answers, householdSize: size })}
-                  className={cn(
-                    "py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all",
-                    answers.householdSize === size
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card hover:border-primary/50 text-foreground"
-                  )}
+                  className="px-2"
                 >
                   {size}
-                </button>
+                </ChipButton>
               ))}
             </div>
           </div>
@@ -393,7 +563,7 @@ const SuppliesPlanner = () => {
         return (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-foreground text-center">
-              How many days to prepare for?
+              How many days to plan for?
             </h2>
             <div className="grid grid-cols-3 gap-3">
               {([7, 14, 21] as DaysTarget[]).map((days) => (
@@ -422,30 +592,247 @@ const SuppliesPlanner = () => {
         return (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-foreground text-center">
-              Any special needs?
+              Any pets?
             </h2>
-            <p className="text-sm text-muted-foreground text-center">
-              Select all that apply
-            </p>
+            <p className="text-sm text-muted-foreground text-center">Select all that apply</p>
             <div className="flex flex-wrap justify-center gap-2">
               {[
-                { value: "none" as SpecialNeeds, label: "None" },
-                { value: "baby" as SpecialNeeds, label: "Baby items" },
-                { value: "medical" as SpecialNeeds, label: "Medical needs" },
-                { value: "pets" as SpecialNeeds, label: "Pets" },
+                { value: "none" as PetType, label: "None", icon: null },
+                { value: "dog" as PetType, label: "Dog", icon: Dog },
+                { value: "cat" as PetType, label: "Cat", icon: Cat },
+                { value: "other" as PetType, label: "Other", icon: null },
               ].map((option) => (
-                <button
+                <ChipButton
                   key={option.value}
-                  onClick={() => toggleSpecialNeed(option.value)}
-                  className={cn(
-                    "py-2 px-4 rounded-full border-2 text-sm font-medium transition-all",
-                    answers.specialNeeds.includes(option.value)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card hover:border-primary/50 text-foreground"
-                  )}
+                  selected={answers.pets.includes(option.value)}
+                  onClick={() => togglePet(option.value)}
+                  className="flex items-center gap-2"
+                >
+                  {option.icon && <option.icon className="h-4 w-4" />}
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Kids or baby items needed?
+            </h2>
+            <div className="flex justify-center gap-3">
+              <ChipButton
+                selected={!answers.hasKids}
+                onClick={() => setAnswers({ ...answers, hasKids: false })}
+                className="flex items-center gap-2 px-6"
+              >
+                No
+              </ChipButton>
+              <ChipButton
+                selected={answers.hasKids}
+                onClick={() => setAnswers({ ...answers, hasKids: true })}
+                className="flex items-center gap-2 px-6"
+              >
+                <Baby className="h-4 w-4" />
+                Yes
+              </ChipButton>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Medical needs?
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { value: "none" as MedicalNeed, label: "None" },
+                { value: "prescriptions" as MedicalNeed, label: "Regular prescriptions" },
+                { value: "devices" as MedicalNeed, label: "Medical devices" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.medicalNeeds === option.value}
+                  onClick={() => setAnswers({ ...answers, medicalNeeds: option.value })}
+                  className="flex items-center gap-2"
+                >
+                  {option.value !== "none" && <Pill className="h-4 w-4" />}
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Diet preference?
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { value: "none" as DietPref, label: "No restrictions" },
+                { value: "vegetarian" as DietPref, label: "Vegetarian" },
+                { value: "allergies" as DietPref, label: "Allergies" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.dietPref === option.value}
+                  onClick={() => setAnswers({ ...answers, dietPref: option.value })}
                 >
                   {option.label}
-                </button>
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Cooking availability?
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { value: "full" as CookingLevel, label: "Full kitchen" },
+                { value: "limited" as CookingLevel, label: "Limited (microwave)" },
+                { value: "none" as CookingLevel, label: "No cooking" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.cookingLevel === option.value}
+                  onClick={() => setAnswers({ ...answers, cookingLevel: option.value })}
+                >
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 7:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Water storage context?
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { value: "easy" as WaterContext, label: "Easy access" },
+                { value: "limited" as WaterContext, label: "Limited storage" },
+                { value: "portable" as WaterContext, label: "Need portable options" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.waterContext === option.value}
+                  onClick={() => setAnswers({ ...answers, waterContext: option.value })}
+                >
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 8:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Power backup level today?
+            </h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "none" as PowerLevel, label: "None" },
+                { value: "basic" as PowerLevel, label: "Basic (flashlights)" },
+                { value: "some" as PowerLevel, label: "Some (power bank)" },
+                { value: "strong" as PowerLevel, label: "Strong (generator)" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.powerLevel === option.value}
+                  onClick={() => setAnswers({ ...answers, powerLevel: option.value })}
+                >
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 9:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Communication setup?
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { value: "phone" as CommLevel, label: "Phone only" },
+                { value: "powerbank" as CommLevel, label: "Phone + power bank" },
+                { value: "radio" as CommLevel, label: "Radio available" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.commLevel === option.value}
+                  onClick={() => setAnswers({ ...answers, commLevel: option.value })}
+                >
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 10:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Cash on hand?
+            </h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "none" as CashLevel, label: "None" },
+                { value: "small" as CashLevel, label: "Small (€)" },
+                { value: "moderate" as CashLevel, label: "Moderate (€€)" },
+                { value: "comfortable" as CashLevel, label: "Comfortable (€€€)" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.cashLevel === option.value}
+                  onClick={() => setAnswers({ ...answers, cashLevel: option.value })}
+                >
+                  {option.label}
+                </ChipButton>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 11:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground text-center">
+              Documents readiness?
+            </h2>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { value: "none" as DocsLevel, label: "Not organized" },
+                { value: "some" as DocsLevel, label: "Some ready" },
+                { value: "organized" as DocsLevel, label: "Organized" },
+              ].map((option) => (
+                <ChipButton
+                  key={option.value}
+                  selected={answers.docsLevel === option.value}
+                  onClick={() => setAnswers({ ...answers, docsLevel: option.value })}
+                >
+                  {option.label}
+                </ChipButton>
               ))}
             </div>
           </div>
@@ -454,6 +841,22 @@ const SuppliesPlanner = () => {
       default:
         return null;
     }
+  };
+
+  // Product recommendation link
+  const ProductLink = ({ itemId }: { itemId: string }) => {
+    const recs = productRecommendations[itemId];
+    if (!recs || recs.length === 0) return null;
+    
+    return (
+      <button
+        onClick={() => navigate(recs[0].href)}
+        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
+      >
+        <ShoppingBag className="h-3 w-3" />
+        <span>Products</span>
+      </button>
+    );
   };
 
   // Wizard screen
@@ -493,7 +896,7 @@ const SuppliesPlanner = () => {
                 disabled={!canProceed()}
                 className="flex-1"
               >
-                {currentStep === totalWizardSteps - 1 ? "Generate List" : "Next"}
+                {currentStep === totalWizardSteps - 1 ? "Generate Plan" : "Next"}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
@@ -513,7 +916,7 @@ const SuppliesPlanner = () => {
           {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-xl font-semibold text-foreground mb-1">
-              Your {answers.daysTarget}-Day Supplies List
+              Your {answers.daysTarget}-Day Supplies Plan
             </h1>
             <p className="text-sm text-muted-foreground">
               For {answers.householdSize} {parseInt(answers.householdSize || "1") === 1 ? "person" : "people"} • Check items as you gather them
@@ -528,8 +931,11 @@ const SuppliesPlanner = () => {
                 className="w-full gap-2"
               >
                 <Download className="h-4 w-4" />
-                Export my Printable Plan (Premium)
+                Get my Personalized Resiliency Plan (€49)
               </Button>
+              <p className="text-[10px] text-center text-muted-foreground">
+                Printable offline PDF + Vault + Plans A & B. No subscription.
+              </p>
               <div className="flex items-center justify-between text-xs">
                 <button
                   onClick={() => setShowLoginModal(true)}
@@ -574,17 +980,60 @@ const SuppliesPlanner = () => {
             <Progress value={stats.overallPreparedness} className="h-2" />
           </Card>
 
-          {/* Premium Microcopy */}
-          <div className="text-center mb-4 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Lock className="h-3 w-3" />
-              Printable offline plan (PDF) • 49€ one-time
-            </span>
-          </div>
+          {/* Hard to Source Section */}
+          <Card className="p-4 mb-4 border-amber-200 bg-amber-50/50">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Harder to get last-minute</h3>
+                <p className="text-xs text-muted-foreground">
+                  These items are easier to arrange ahead of time. Consider prioritizing them.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {filteredHardToSource.map((item) => {
+                const isChecked = checkedHardToSource[item.id] || false;
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center justify-between gap-3 p-2 rounded-lg transition-colors",
+                      isChecked ? "bg-primary/5" : "hover:bg-amber-100/50"
+                    )}
+                  >
+                    <label className="flex items-center gap-3 flex-1 cursor-pointer">
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleHardToSource(item.id)}
+                      />
+                      <span className={cn(
+                        "text-sm",
+                        isChecked ? "text-muted-foreground line-through" : "text-foreground"
+                      )}>
+                        {item.name}
+                      </span>
+                    </label>
+                    {item.hasRecommendation && item.recKey && (
+                      <button
+                        onClick={() => navigate(`/be-prepared#products?q=${encodeURIComponent(item.name)}`)}
+                        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors flex-shrink-0"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span>Products</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
 
           {/* Categories Accordion */}
           <div className="space-y-2">
-            {supplyCategories.map((category) => {
+            {filteredCategories.map((category) => {
               const Icon = category.icon;
               const isExpanded = expandedCategories.includes(category.id);
               const catStats = stats.categoryStats.find((s) => s.id === category.id);
@@ -635,29 +1084,34 @@ const SuppliesPlanner = () => {
                         const isChecked = checkedItems[item.id] || false;
 
                         return (
-                          <label
+                          <div
                             key={item.id}
                             className={cn(
-                              "flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/20 transition-colors",
+                              "flex items-center gap-3 p-3 transition-colors",
                               isChecked && "bg-primary/5"
                             )}
                           >
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={() => toggleItem(item.id)}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className={cn(
-                                "text-sm",
-                                isChecked ? "text-muted-foreground line-through" : "text-foreground"
-                              )}>
-                                {item.name}
+                            <label className="flex items-center gap-3 flex-1 cursor-pointer">
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={() => toggleItem(item.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className={cn(
+                                  "text-sm",
+                                  isChecked ? "text-muted-foreground line-through" : "text-foreground"
+                                )}>
+                                  {item.name}
+                                </div>
+                              </div>
+                            </label>
+                            <div className="flex items-center gap-2">
+                              {item.hasRecommendation && <ProductLink itemId={item.id} />}
+                              <div className="text-xs text-muted-foreground whitespace-nowrap">
+                                {quantity} {item.unit}
                               </div>
                             </div>
-                            <div className="text-xs text-muted-foreground whitespace-nowrap">
-                              {quantity} {item.unit}
-                            </div>
-                          </label>
+                          </div>
                         );
                       })}
                     </div>
@@ -675,14 +1129,21 @@ const SuppliesPlanner = () => {
                 Premium
               </div>
               <h3 className="text-base font-semibold text-foreground mb-1">
-                Export your Printable Plan
+                Get your Personalized Resiliency Plan
               </h3>
               <p className="text-xs text-muted-foreground mb-3">
-                Get a printable offline PDF in Red Folder format, plus encrypted Vault access.
+                Printable offline 'Red Folder' PDF + encrypted Vault + Plans A & B.
               </p>
+              <ul className="text-xs text-muted-foreground mb-4 space-y-1">
+                <li>✓ Printable offline PDF (Red Folder format)</li>
+                <li>✓ Encrypted Vault (IDs, contacts, medical)</li>
+                <li>✓ Plans A & B (exit + emergency)</li>
+                <li>✓ Encrypted backup & restore</li>
+                <li>✓ Premium insights & next steps</li>
+              </ul>
               <Button onClick={() => setShowPaywallModal(true)} className="gap-2">
                 <Download className="h-4 w-4" />
-                Export Plan (€49)
+                Generate my Plan (€49)
               </Button>
               <p className="text-[10px] text-muted-foreground mt-2">
                 One-time purchase. No subscription.
