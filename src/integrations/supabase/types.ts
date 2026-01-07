@@ -522,6 +522,7 @@ export type Database = {
           created_at: string | null
           filters: Json | null
           id: string
+          is_public: boolean
           item_ids: string[] | null
           last_updated_at: string | null
           rendered_summary: string | null
@@ -531,6 +532,7 @@ export type Database = {
           created_at?: string | null
           filters?: Json | null
           id?: string
+          is_public?: boolean
           item_ids?: string[] | null
           last_updated_at?: string | null
           rendered_summary?: string | null
@@ -540,6 +542,7 @@ export type Database = {
           created_at?: string | null
           filters?: Json | null
           id?: string
+          is_public?: boolean
           item_ids?: string[] | null
           last_updated_at?: string | null
           rendered_summary?: string | null
