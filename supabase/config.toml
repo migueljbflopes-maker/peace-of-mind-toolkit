@@ -1,1 +1,16 @@
 project_id = "ynqxkcdrfgnhmoqczkcd"
+
+[functions.ingest-news]
+verify_jwt = false
+
+[functions.ingest-signals-usgs]
+verify_jwt = false
+
+[functions.ingest-signals-gdacs]
+verify_jwt = false
+
+[functions.ingest-context-reliefweb]
+verify_jwt = false
+
+[functions.ingest-headlines-gdelt]
+verify_jwt = false
