@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import {
   Loader2,
   ChevronRight,
   MapPin,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
@@ -262,6 +263,27 @@ export default function Dashboard() {
 
             {/* Right Column: Premium */}
             <div className="space-y-6">
+              {/* Onboarding CTA for Premium users */}
+              {isPremium && needsOnboarding && (
+                <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-base">{t.onboarding.finishSetup}</CardTitle>
+                    </div>
+                    <CardDescription>{t.onboarding.finishSetupDesc}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link to="/premium/onboarding">
+                      <Button className="w-full">
+                        {t.common.continue}
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">{t.dashboard.premiumSection}</CardTitle>
