@@ -9,6 +9,7 @@ import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { PlanCard } from '@/components/plans/PlanCard';
 import { PlanEditor } from '@/components/plans/PlanEditor';
+import { PlanContextWizard } from '@/components/plans/PlanContextWizard';
 import { PlanData, PlanType } from '@/lib/plansStore';
 import { generatePlanDraft, AIPlanInput } from '@/lib/aiPlanDraft';
 import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
@@ -35,6 +36,7 @@ export default function Plans() {
   const [editingData, setEditingData] = useState<PlanData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState<PlanType | null>(null);
+  const [showContextWizard, setShowContextWizard] = useState<PlanType | null>(null);
 
   // Sync on mount
   useEffect(() => {
@@ -94,28 +96,22 @@ export default function Plans() {
     }
   }, [getPassphrase, savePlan, refresh, t]);
 
-  // Generate AI draft
-  const handleGenerateDraft = useCallback(async (planType: PlanType) => {
+  // Start context wizard before generating draft
+  const handleStartGenerateDraft = useCallback((planType: PlanType) => {
+    setShowContextWizard(planType);
+  }, []);
+
+  // Generate AI draft with collected context
+  const handleGenerateDraft = useCallback(async (context: AIPlanInput) => {
     const passphrase = getPassphrase();
-    if (!passphrase || !user) return;
+    if (!passphrase || !user || !showContextWizard) return;
 
+    const planType = showContextWizard;
     setIsGenerating(planType);
+    
     try {
-      // Non-sensitive input for AI
-      const input: AIPlanInput = {
-        locale: locale as 'en' | 'pt',
-        planType,
-        region: 'General',
-        riskLevelBand: 'medium',
-        householdSizeBucket: '2-3',
-        hasPets: false,
-        hasKids: false,
-        mobilityLevel: 'high',
-        preparednessDays: 14,
-      };
-
-      // Generate draft via Edge Function
-      const { plan, usedAI } = await generatePlanDraft(planType, input, user.id);
+      // Generate draft via Edge Function with rich context
+      const { plan, usedAI } = await generatePlanDraft(planType, context, user.id);
 
       if (usedAI) {
         toast.success(t.plans.draftGenerated);
@@ -123,7 +119,8 @@ export default function Plans() {
         toast.success(t.plans.draftGenerated + ' (offline template)');
       }
       
-      // Open editor with draft
+      // Close wizard and open editor with draft
+      setShowContextWizard(null);
       setEditingData(plan);
       setEditingPlan(planType);
     } catch {
@@ -131,7 +128,7 @@ export default function Plans() {
     } finally {
       setIsGenerating(null);
     }
-  }, [getPassphrase, locale, user, t]);
+  }, [getPassphrase, user, showContextWizard, t]);
 
   if (loading) {
     return (
@@ -139,6 +136,24 @@ export default function Plans() {
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show context wizard if collecting context
+  if (showContextWizard) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 container-wide section-padding py-8">
+          <PlanContextWizard
+            planType={showContextWizard}
+            onComplete={handleGenerateDraft}
+            onCancel={() => setShowContextWizard(null)}
+            isGenerating={isGenerating === showContextWizard}
+          />
         </main>
         <Footer />
       </div>
@@ -216,7 +231,7 @@ export default function Plans() {
                     planType={planType}
                     status={status}
                     onEdit={handleEditPlan}
-                    onGenerateDraft={handleGenerateDraft}
+                    onGenerateDraft={handleStartGenerateDraft}
                     isGenerating={isGenerating === planType}
                   />
                 );
