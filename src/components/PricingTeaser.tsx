@@ -1,8 +1,16 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Check, FileText, Lock, Map, Shield, ArrowRight } from "lucide-react";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 const PricingTeaser = () => {
+  const { isPremium } = useEntitlements();
+
+  // Don't show purchase prompts to premium users
+  if (isPremium) {
+    return null;
+  }
+
   const features = [
     { icon: FileText, label: "Red Folder PDF — your emergency document bundle" },
     { icon: Lock, label: "Encrypted Vault for sensitive documents" },
