@@ -19,7 +19,13 @@ import {
   Mountain,
   Sparkles,
   WifiOff,
-  FileText
+  FileText,
+  Lock,
+  Shield,
+  ClipboardList,
+  Contact,
+  Stethoscope,
+  Route
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoginModal } from "@/components/modals/LoginModal";
@@ -285,18 +291,23 @@ export default function RiskCalculator() {
   };
 
   // Generate default explanation based on top drivers
-  const generateDefaultExplanation = (breakdown: Breakdown): string => {
+  const generateDefaultExplanation = (breakdown: Breakdown): { explanation: string; priorities: string[] } => {
     const drivers = [
-      { key: "location_context", label: "location context", value: breakdown.location_context },
-      { key: "household_complexity", label: "household complexity", value: breakdown.household_complexity },
-      { key: "mobility_constraints", label: "mobility situation", value: breakdown.mobility_constraints },
-      { key: "preparedness_autonomy", label: "self-reliance needs", value: breakdown.preparedness_autonomy },
+      { key: "location_context", label: "location context", value: breakdown.location_context, priority: "Review local emergency resources and alert systems." },
+      { key: "household_complexity", label: "household complexity", value: breakdown.household_complexity, priority: "Create a household communication plan with clear roles." },
+      { key: "mobility_constraints", label: "mobility situation", value: breakdown.mobility_constraints, priority: "Identify accessible evacuation routes and backup transport options." },
+      { key: "preparedness_autonomy", label: "self-reliance needs", value: breakdown.preparedness_autonomy, priority: "Build a 14-day supplies reserve tailored to your household." },
     ].sort((a, b) => b.value - a.value);
 
     const top1 = drivers[0];
     const top2 = drivers[1];
+    const top3 = drivers[2];
 
-    return `Your assessment highlights ${top1.label} and ${top2.label} as key factors to consider. A practical preparedness plan can help you feel confident and ready, no matter the situation.`;
+    const explanation = `Your assessment highlights ${top1.label} and ${top2.label} as key factors to consider. A practical preparedness plan can help you feel confident and ready, no matter the situation.`;
+    
+    const priorities = [top1.priority, top2.priority, top3.priority];
+
+    return { explanation, priorities };
   };
 
   const handleNext = () => {
@@ -379,13 +390,21 @@ export default function RiskCalculator() {
     const riskLevel = getRiskLevel(score);
     const breakdown = calculateBreakdown();
     const scoreStyle = getScoreStyle(riskLevel);
-    const defaultExplanation = generateDefaultExplanation(breakdown);
+    const { explanation, priorities } = generateDefaultExplanation(breakdown);
 
     const breakdownItems = [
       { key: "location_context", label: "Location context", value: breakdown.location_context },
       { key: "household_complexity", label: "Household complexity", value: breakdown.household_complexity },
       { key: "mobility_constraints", label: "Mobility constraints", value: breakdown.mobility_constraints },
       { key: "preparedness_autonomy", label: "Preparedness autonomy", value: breakdown.preparedness_autonomy },
+    ];
+
+    const premiumPreviewItems = [
+      { icon: ClipboardList, label: "Plan Summary" },
+      { icon: Contact, label: "Contacts" },
+      { icon: Stethoscope, label: "Medical" },
+      { icon: CheckCircle2, label: "Essentials Checklist" },
+      { icon: Route, label: "Plans A/B" },
     ];
 
     return (
@@ -429,112 +448,131 @@ export default function RiskCalculator() {
             </div>
           </Card>
 
-          {/* Default Explanation */}
-          <Card className="p-4 mb-5 bg-background border-border/50">
-            <p className="text-sm text-foreground leading-relaxed">
-              {defaultExplanation}
+          {/* What This Means */}
+          <Card className="p-4 mb-4 bg-background border-border/50">
+            <h3 className="text-sm font-semibold text-foreground mb-2">What this means</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {explanation}
             </p>
           </Card>
 
-          {/* AI Insights Card */}
-          <Card className="p-4 mb-5 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          {/* Top Priorities */}
+          <Card className="p-4 mb-5 bg-background border-border/50">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Top priorities</h3>
+            <ul className="space-y-2">
+              {priorities.map((priority, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>{priority}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          {/* Premium Conversion Block - Centerpiece */}
+          <Card className="p-5 mb-5 border-primary/30 bg-gradient-to-br from-primary/5 via-primary/8 to-primary/5 shadow-md">
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">AI Insights (optional)</span>
+              <Shield className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold text-foreground">Personalized Resiliency Plan</h3>
+              <span className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
+                Premium
+              </span>
             </div>
             
-            {!aiInsights ? (
-              <div>
-                {!isOnline ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <WifiOff className="h-4 w-4" />
-                    <span>Unavailable offline</span>
-                  </div>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleFetchAiInsights}
-                    disabled={aiLoading}
-                    className="w-full"
-                  >
-                    {aiLoading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="h-4 w-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                        Analyzing...
-                      </span>
-                    ) : (
-                      "Explain my result"
-                    )}
-                  </Button>
-                )}
+            <p className="text-sm text-muted-foreground mb-4">
+              Printable offline PDF + encrypted Vault + Plans A & B.
+            </p>
+
+            {/* Price badges */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-primary text-primary-foreground">
+                €49 one-time
+              </span>
+              <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-muted text-muted-foreground">
+                No subscription
+              </span>
+            </div>
+
+            {/* Feature list */}
+            <ul className="space-y-2 mb-4">
+              {[
+                "Printable offline 'Red Folder' PDF",
+                "Encrypted Vault (IDs, contacts, medical basics)",
+                "Plans A & B (exit + emergency)",
+                "Encrypted backup & restore",
+                "Premium insights (personalized explanation + next steps)",
+              ].map((feature, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Preview grid */}
+            <div className="grid grid-cols-5 gap-2 mb-5">
+              {premiumPreviewItems.map((item, i) => (
+                <div key={i} className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/50">
+                  <item.icon className="h-5 w-5 text-primary/70 mb-1" />
+                  <span className="text-[10px] text-muted-foreground text-center leading-tight">{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Insights as Premium feature */}
+            <div className="p-3 rounded-lg bg-background/50 border border-primary/10 mb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">Included: Personalized explanation & next steps</span>
+                <span className="ml-auto flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary">
+                  <Lock className="h-3 w-3" />
+                  Premium
+                </span>
               </div>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <p className="text-foreground">{aiInsights.summary}</p>
-                
-                {aiInsights.dimension_notes.length > 0 && (
-                  <div>
-                    <p className="text-muted-foreground font-medium mb-1">Key observations:</p>
-                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                      {aiInsights.dimension_notes.map((note, i) => (
-                        <li key={i}>{note}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                {aiInsights.next_steps.length > 0 && (
-                  <div>
-                    <p className="text-muted-foreground font-medium mb-1">Suggested next steps:</p>
-                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                      {aiInsights.next_steps.map((step, i) => (
-                        <li key={i}>{step}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+              {!isOnline && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                  <WifiOff className="h-3 w-3" />
+                  <span>Unavailable offline</span>
+                </div>
+              )}
+            </div>
+
+            {/* Primary CTA */}
+            <Button 
+              className="w-full mb-2" 
+              size="lg"
+              onClick={() => setShowPaywallModal(true)}
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Generate my Resiliency Plan (€49)
+            </Button>
+
+            {/* Secondary link */}
+            <button 
+              onClick={() => navigate("/tools/supplies")}
+              className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-2 transition-colors"
+            >
+              Not now
+            </button>
           </Card>
 
           {/* Disclaimer */}
-          <p className="text-xs text-muted-foreground text-center mb-5">
+          <p className="text-xs text-muted-foreground text-center mb-4">
             This is a planning aid — always follow local authorities' guidance.
           </p>
 
-          {/* CTAs */}
-          <div className="space-y-3">
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={() => navigate("/tools/supplies")}
-            >
-              Continue: 14-day essentials
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full"
+          {/* Save link (low prominence) */}
+          <div className="text-center">
+            <button 
               onClick={() => setShowLoginModal(true)}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
             >
-              Save this assessment
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full text-muted-foreground"
-              onClick={() => setShowPaywallModal(true)}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Generate Personal Resilience Plan (Premium)
-            </Button>
-          </div>
-
-          {/* Reset link */}
-          <div className="text-center mt-5">
+              Save & continue later
+            </button>
+            <span className="mx-2 text-muted-foreground/50">•</span>
             <button 
               onClick={resetQuiz}
-              className="text-sm text-muted-foreground hover:text-foreground underline"
+              className="text-xs text-muted-foreground hover:text-foreground underline"
             >
               Start over
             </button>
