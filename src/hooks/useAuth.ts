@@ -72,6 +72,10 @@ export function useAuth() {
         title: 'Error',
         description: error.message,
       });
+    } else {
+      // Explicit state cleanup as fallback
+      setUser(null);
+      setSession(null);
     }
     return { error };
   }, [toast]);
