@@ -6,68 +6,68 @@ const HowItWorks = () => {
       number: "01",
       icon: ClipboardCheck,
       title: "Assess",
-      description: "Complete a quick risk assessment to understand your household's specific needs and vulnerabilities.",
-      color: "bg-amber-50 text-amber-600",
+      description: "Know your risks in 2 minutes",
+      color: "bg-amber-100 text-amber-600",
     },
     {
       number: "02",
       icon: Package,
       title: "Prepare",
-      description: "Get a personalized 14-day supplies plan based on your family size, location, and dietary needs.",
-      color: "bg-emerald-50 text-emerald-600",
+      description: "Build your 14-day supplies plan",
+      color: "bg-emerald-100 text-emerald-600",
     },
     {
       number: "03",
       icon: Lock,
       title: "Secure",
-      description: "Premium: Store critical documents in your encrypted Vault, generate your Red Folder PDF, and create backup plans.",
+      description: "Store critical info, access offline",
       color: "bg-primary/10 text-primary",
       isPremium: true,
     },
   ];
 
   return (
-    <section className="container-wide section-padding py-16 sm:py-20">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+    <section className="container-wide section-padding py-12 sm:py-16">
+      <div className="text-center mb-10">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
           How it works
         </h2>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-muted-foreground">
           Three simple steps to complete preparedness.
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         {steps.map((step, index) => (
           <div key={index} className="relative">
-            {/* Connector line */}
+            {/* Connector line - desktop only */}
             {index < steps.length - 1 && (
-              <div className="hidden md:block absolute top-16 left-full w-full">
-                <ArrowRight className="h-6 w-6 text-border -translate-x-1/2" />
+              <div className="hidden md:flex absolute top-14 left-full w-full items-center justify-center -translate-x-1/2 z-0">
+                <ArrowRight className="h-5 w-5 text-border" />
               </div>
             )}
 
-            <div className="group text-center p-6">
+            <div className="relative z-10 text-center p-6 rounded-2xl bg-card border border-border/50 shadow-soft transition-all duration-300 hover:shadow-soft-lg">
               {/* Step number */}
-              <span className="inline-block text-sm font-medium text-muted-foreground mb-4">
-                {step.number}
+              <span className="inline-block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Step {step.number}
               </span>
 
               {/* Icon */}
-              <div className={`inline-flex p-4 rounded-2xl ${step.color} mb-5 transition-transform group-hover:scale-110`}>
-                <step.icon className="h-8 w-8" />
+              <div className={`inline-flex p-4 rounded-2xl ${step.color} mb-4`}>
+                <step.icon className="h-7 w-7" />
               </div>
 
               {/* Content */}
-              <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center justify-center gap-2">
+              <h3 className="text-lg font-bold text-foreground mb-2 flex items-center justify-center gap-2">
                 {step.title}
                 {step.isPremium && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
                     Premium
                   </span>
                 )}
               </h3>
-              <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+              <p className="text-sm text-muted-foreground">{step.description}</p>
             </div>
           </div>
         ))}

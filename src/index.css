@@ -6,59 +6,73 @@
 
 @layer base {
   :root {
+    /* Light-first palette: clean whites with navy/amber accents */
     --background: 0 0% 100%;
-    --foreground: 215 25% 15%;
+    --foreground: 222 47% 11%;
 
-    --card: 210 40% 98%;
-    --card-foreground: 215 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 199 89% 40%;
+    /* Navy for primary (headings, links, selected states) */
+    --primary: 222 47% 20%;
     --primary-foreground: 0 0% 100%;
 
+    /* Amber for CTAs and action highlights */
+    --cta: 38 92% 50%;
+    --cta-foreground: 222 47% 11%;
+    --cta-hover: 32 95% 44%;
+
     --secondary: 210 40% 96%;
-    --secondary-foreground: 215 25% 27%;
+    --secondary-foreground: 222 47% 20%;
 
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 199 89% 95%;
-    --accent-foreground: 199 89% 30%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 20%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 199 89% 40%;
+    --ring: 222 47% 20%;
 
     --radius: 0.75rem;
 
-    /* Custom tokens for Resilient */
-    --section-bg: 210 40% 98%;
+    /* Custom tokens for Resilient - Light first */
+    --section-bg: 210 20% 98%;
+    --section-alt: 220 14% 96%;
     --surface: 0 0% 100%;
     --surface-elevated: 0 0% 100%;
     
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.03);
-    --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.05), 0 2px 4px -2px hsl(215 25% 15% / 0.03);
-    --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.06), 0 4px 6px -4px hsl(215 25% 15% / 0.04);
-    --shadow-xl: 0 20px 25px -5px hsl(215 25% 15% / 0.08), 0 8px 10px -6px hsl(215 25% 15% / 0.04);
+    /* Navy for dark panels (limited use) */
+    --navy: 222 47% 11%;
+    --navy-light: 222 47% 20%;
+    --steel: 217 19% 35%;
     
-    /* Gradient */
-    --gradient-primary: linear-gradient(135deg, hsl(199 89% 40%), hsl(199 89% 50%));
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 98%));
+    /* Shadows - softer for light theme */
+    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.04);
+    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.06), 0 2px 4px -2px hsl(222 47% 11% / 0.04);
+    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.08), 0 4px 6px -4px hsl(222 47% 11% / 0.05);
+    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.10), 0 8px 10px -6px hsl(222 47% 11% / 0.06);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(222 47% 20%), hsl(222 47% 30%));
+    --gradient-cta: linear-gradient(135deg, hsl(38 92% 50%), hsl(32 95% 44%));
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 98%));
 
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 222 47% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 20%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 222 47% 20%;
   }
 
   .dark {
@@ -71,8 +85,12 @@
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 222 47% 11%;
+
+    --cta: 38 92% 50%;
+    --cta-foreground: 222 47% 11%;
+    --cta-hover: 32 95% 44%;
 
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
@@ -88,20 +106,25 @@
 
     --border: 217 33% 17%;
     --input: 217 33% 17%;
-    --ring: 212 27% 84%;
+    --ring: 38 92% 50%;
     
     --section-bg: 222 47% 9%;
+    --section-alt: 222 47% 13%;
     --surface: 222 47% 13%;
     --surface-elevated: 222 47% 15%;
     
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --navy: 222 47% 11%;
+    --navy-light: 222 47% 20%;
+    --steel: 217 19% 55%;
+    
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 38 92% 50%;
   }
 }
 
@@ -152,8 +175,18 @@
     background: var(--gradient-primary);
   }
 
+  .gradient-cta {
+    background: var(--gradient-cta);
+  }
+
   .gradient-subtle {
     background: var(--gradient-subtle);
+  }
+  
+  /* Navy panel - for limited dark sections */
+  .bg-navy-panel {
+    background: hsl(var(--navy));
+    color: hsl(210 40% 98%);
   }
 }
 
@@ -172,11 +205,26 @@
   }
 
   .link-underline::after {
-    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
+    @apply absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300;
+    background: hsl(var(--cta));
     content: '';
   }
 
   .link-underline:hover::after {
     @apply w-full;
+  }
+  
+  /* Premium badge styling */
+  .badge-premium {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full;
+    background: hsl(var(--cta) / 0.15);
+    color: hsl(var(--cta-hover));
+  }
+  
+  /* Coming soon badge */
+  .badge-coming-soon {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
   }
 }
