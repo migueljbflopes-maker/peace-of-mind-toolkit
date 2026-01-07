@@ -33,21 +33,24 @@ export function useEntitlements() {
   });
   const [loading, setLoading] = useState(true);
 
-  // Dev-only premium simulation
+  // Dev/preview premium simulation - works in DEV mode and Lovable preview
+  const isDevMode = import.meta.env.DEV || 
+    (typeof window !== 'undefined' && window.location.hostname.includes('lovableproject.com'));
+
   const [devPremiumOverride, setDevPremiumOverride] = useState(() => {
-    if (import.meta.env.DEV) {
+    if (isDevMode) {
       return localStorage.getItem(DEV_PREMIUM_KEY) === 'true';
     }
     return false;
   });
 
   const toggleDevPremium = useCallback(() => {
-    if (!import.meta.env.DEV) return;
+    if (!isDevMode) return;
     
     const newValue = !devPremiumOverride;
     setDevPremiumOverride(newValue);
     localStorage.setItem(DEV_PREMIUM_KEY, String(newValue));
-  }, [devPremiumOverride]);
+  }, [devPremiumOverride, isDevMode]);
 
   // Fetch entitlements from database
   const fetchEntitlements = useCallback(async () => {
@@ -94,7 +97,7 @@ export function useEntitlements() {
   }, [authLoading, fetchEntitlements]);
 
   // Effective premium status (considering dev override)
-  const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
+  const isPremium = isDevMode && devPremiumOverride ? true : entitlements.isPremium;
 
   return {
     ...entitlements,
@@ -104,6 +107,6 @@ export function useEntitlements() {
     // Dev-only
     devPremiumOverride,
     toggleDevPremium,
-    isDevMode: import.meta.env.DEV,
+    isDevMode,
   };
 }
