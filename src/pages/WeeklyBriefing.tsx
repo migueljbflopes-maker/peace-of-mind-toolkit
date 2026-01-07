@@ -97,8 +97,8 @@ export default function WeeklyBriefing() {
     region: "Global",
     topics: [],
     timeRange: 7,
-    majorOnly: false,
-    kind: "all",
+    majorOnly: true,      // Show only major signals by default
+    kind: "headline",     // Headlines first, not signals
   });
 
   // Load cached briefing from localStorage - but always fetch fresh data after
@@ -155,8 +155,9 @@ export default function WeeklyBriefing() {
         .order("published_at", { ascending: false })
         .limit(50);
 
-      if (filters.majorOnly) {
-        query = query.eq("severity", "major");
+      // majorOnly applies only to signals - headlines always show
+      if (filters.majorOnly && filters.kind !== "headline") {
+        query = query.or("severity.eq.major,kind.eq.headline");
       }
 
       if (filters.region !== "Global") {

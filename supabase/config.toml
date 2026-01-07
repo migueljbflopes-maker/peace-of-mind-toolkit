@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ingest-headlines-gdelt]
 verify_jwt = false
+
+[functions.ingest-headlines-googlenews]
+verify_jwt = false
