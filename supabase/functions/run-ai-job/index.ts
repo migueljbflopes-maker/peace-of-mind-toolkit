@@ -90,6 +90,18 @@ const PLAN_SCHEMA = {
   additionalProperties: false
 };
 
+// Premium Insights schema for risk assessment explanations
+const INSIGHTS_SCHEMA = {
+  type: "object",
+  required: ["explanation", "top_priorities", "watchlist"],
+  properties: {
+    explanation: { type: "string" },
+    top_priorities: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
+    watchlist: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 }
+  },
+  additionalProperties: false
+};
+
 // Input schema type for plan generation
 interface PlanGenerationInput {
   locale: 'en' | 'pt';
@@ -144,6 +156,92 @@ interface PlanGenerationInput {
   mobilityLevel?: string;
   preparednessDays?: number;
   constraints?: string[];
+}
+
+// Risk insights input
+interface RiskInsightsInput {
+  locale: 'en' | 'pt';
+  location?: {
+    country?: string;
+    city?: string;
+    postalCode?: string;
+  };
+  household?: {
+    adults?: number;
+    kids?: number;
+    pets?: number;
+    mobilityLevel?: string;
+    vehicleAccess?: string;
+  };
+  risk: {
+    score: number;
+    level: 'low' | 'medium' | 'high';
+    drivers: Array<{ key: string; weight: number }>;
+  };
+}
+
+// System prompt shared across plan types
+const PLAN_SYSTEM_PROMPT = `You are Resilient.app's crisis-preparedness planner. Produce calm, practical, offline-first guidance tailored to the user's situation. Avoid fear language. Do not include instructions for wrongdoing, weapons, violence, or illegal actions. Encourage following local authorities and official guidance.`;
+
+// Developer prompt for Plan A (Shelter in Place)
+function getPlanADeveloperPrompt(isPortuguese: boolean): string {
+  const locale = isPortuguese ? 'Portuguese' : 'English';
+  return `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
+The plan must be tailored using city/postalCode and home signals (apartment/house, elevator, vehicle access, cooking/heating options, internet reliance, pets/kids, mobility constraints).
+Do NOT output personal identifiers (full names, exact address, IDs, bank details) or highly sensitive medical details. Keep details high-level and actionable.
+Plan A is "shelter in place": focus on staying safely at home during disruptions (power/internet outage, supply shock, local unrest, severe weather).
+Include:
+- whyThisFitsYou (2–3 sentences, calm)
+- topPrioritiesThisWeek (exactly 5 bullets)
+- strong homeSetup section (power/water/cooking/comms/documents)
+- stepsFirstHour and stepsFirstDay that reflect the home reality
+Locale must be ${locale}. Output all text in ${locale}.
+End notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}".`;
+}
+
+// Developer prompt for Plan B (Leave / Relocate)
+function getPlanBDeveloperPrompt(isPortuguese: boolean): string {
+  const locale = isPortuguese ? 'Portuguese' : 'English';
+  return `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
+
+Plan B must be clearly different from Plan A:
+- It is "Leave / Relocate" focused.
+- It must include decision logic: clear triggers, readiness checks, and a simple go/no-go checklist.
+- It must emphasize mobility, transport constraints, alternatives, and route planning principles WITHOUT giving operationally sensitive details.
+- Use city/postalCode and home signals to tailor: apartment/house, elevator, floor, car/no car, pets/kids, mobility constraints.
+
+Include these Plan B-specific requirements in the JSON fields:
+- mobility.meetingPoints: primary/secondary (describe as categories, e.g., "nearby safe public landmark", not exact addresses)
+- mobility.routeNotes: 3–6 items that cover:
+  - primary route vs alternate route concept
+  - avoiding bottlenecks
+  - fuel/charging considerations if vehicle access
+  - walking-only fallback if no car
+  - accessibility considerations if limited mobility / stairs/elevator
+  - pet transport considerations if hasPets
+- stepsFirstHour and stepsFirstDay must reflect "leave" actions and coordination rules, not "stay home".
+- topPrioritiesThisWeek (exactly 5) must focus on enabling mobility and rendezvous readiness.
+- communications must include a simple check-in rule and out-of-area contact role.
+Do NOT output: exact route turn-by-turn directions, exact home address, exact safehouse address, or anything that could be used for harm.
+Locale must be ${locale}. Output all text in ${locale}.
+End notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}".`;
+}
+
+// Insights system prompt
+const INSIGHTS_SYSTEM_PROMPT = `You are Resilient.app's calm preparedness advisor. Explain risk results in a reassuring, practical way. Avoid fear language. Do not speculate beyond the provided drivers. Encourage following local authorities and official guidance.`;
+
+// Insights developer prompt
+function getInsightsDeveloperPrompt(isPortuguese: boolean): string {
+  const locale = isPortuguese ? 'Portuguese' : 'English';
+  return `Return ONLY valid JSON. No markdown.
+
+Input will include a risk score, risk level, and top drivers with weights (e.g., power_outage, flood, civil_unrest, cyber_outage, supply_disruption).
+You must output:
+- explanation: 2–3 sentences max, calm tone, tailored to location + household + mobility at a high level
+- top_priorities: exactly 3 bullets derived directly from the top drivers
+- watchlist: exactly 3 short "watch signals" items (neutral, non-alarmist) that users can monitor (e.g., official alerts, weather warnings, outage notices)
+Do NOT mention pricing or Premium. Do NOT mention "Red Folder". This is an insight block, not marketing.
+Locale must be ${locale}. Output all text in ${locale}.`;
 }
 
 serve(async (req) => {
@@ -223,88 +321,55 @@ serve(async (req) => {
       .update({ status: 'running', updated_at: new Date().toISOString() })
       .eq('id', job_id);
 
-    // 4. Build prompt from input_summary (non-sensitive only)
-    const input = job.input_summary as PlanGenerationInput;
+    // Determine job type and route accordingly
+    const jobType = job.job_type as string;
+    const isInsightsJob = jobType === 'risk_insights';
+    const isPlanJob = jobType.startsWith('plan_');
 
-    const locale = input.locale || 'en';
-    const planType = input.planType || 'A';
-    const isPortuguese = locale === 'pt';
+    let systemPrompt: string;
+    let developerPrompt: string;
+    let userPrompt: string;
+    let schema: object;
 
-    // Build rich context from input
-    const location = input.location || {};
-    const household = input.household || {};
-    const homeReality = input.homeReality || {};
-    const riskContext = input.riskContext || {};
-    const suppliesContext = input.suppliesContext || {};
-    const preferences = input.preferences || { calmTone: true, avoidFearLanguage: true };
+    if (isInsightsJob) {
+      // Handle risk insights job
+      const input = job.input_summary as RiskInsightsInput;
+      const isPortuguese = input.locale === 'pt';
 
-    // Derive household size for backwards compatibility
-    const householdSize = (household.adults || 2) + (household.kids || 0);
-    const hasPets = (household.pets || 0) > 0 || input.hasPets;
-    const hasKids = (household.kids || 0) > 0 || input.hasKids;
-    const petTypes = household.petTypes || [];
+      systemPrompt = INSIGHTS_SYSTEM_PROMPT;
+      developerPrompt = getInsightsDeveloperPrompt(isPortuguese);
+      userPrompt = `Create Premium Insights for this risk assessment. Use only this JSON input:\n\n${JSON.stringify(input, null, 2)}`;
+      schema = INSIGHTS_SCHEMA;
 
-    const systemPrompt = `You are Resilient.app's crisis-preparedness planner. Your job is to produce calm, practical, offline-first emergency plans tailored to the user's situation. Do not use fear language. Do not provide instructions for wrongdoing, weapons, or violence. Keep it safe, legal, and focused on preparedness and resilience. Always encourage following local authorities and official guidance.`;
+      console.log('Processing risk insights job');
+    } else if (isPlanJob) {
+      // Handle plan generation job
+      const input = job.input_summary as PlanGenerationInput;
+      const locale = input.locale || 'en';
+      const planType = input.planType || 'A';
+      const isPortuguese = locale === 'pt';
 
-    const developerPrompt = `Generate a tailored plan draft in the requested locale (${isPortuguese ? 'Portuguese' : 'English'}). Use the provided city/postalCode and home reality signals to make the plan feel specific (e.g., apartment vs house, elevator, vehicle access), but never request or output personal identifiers such as full names, exact address, IDs, bank details, or medical diagnoses. Do not include operationally sensitive details beyond general preparedness.
+      systemPrompt = PLAN_SYSTEM_PROMPT;
+      developerPrompt = planType === 'A' 
+        ? getPlanADeveloperPrompt(isPortuguese)
+        : getPlanBDeveloperPrompt(isPortuguese);
+      
+      // Build user prompt with full input
+      userPrompt = `Generate Plan ${planType} (${planType === 'A' ? 'Shelter in place' : 'Leave / Relocate'}) for this user context. Use the following JSON as the only input:\n\n${JSON.stringify(input, null, 2)}\n\nOutput must match the schema exactly and be realistic for the user's location and household.`;
+      schema = PLAN_SCHEMA;
 
-Return ONLY valid JSON matching the schema. No markdown.
-Tone: calm, reassuring, action-oriented.`;
-
-    // Build detailed user prompt
-    const locationDesc = location.city 
-      ? `${location.city}${location.postalCode ? ', ' + location.postalCode : ''}${location.country ? ', ' + location.country : ''}`
-      : input.region || 'General location';
-
-    const dwellingDesc = location.dwellingType 
-      ? `${location.dwellingType}${location.floorLevel ? ' (floor: ' + location.floorLevel + ')' : ''}${location.hasElevator ? ' with elevator' : ''}${location.hasGarden ? ' with garden' : ''}`
-      : 'standard dwelling';
-
-    const householdDesc = `${householdSize} people (${household.adults || 2} adults${hasKids ? ', ' + (household.kids || 0) + ' children' : ''})${hasPets ? ', ' + (household.pets || 1) + ' pets (' + petTypes.join(', ') + ')' : ''}`;
-
-    const mobilityDesc = household.mobilityConstraints?.length 
-      ? `Mobility: ${household.mobilityConstraints.join(', ')}`
-      : input.mobilityLevel ? `Mobility level: ${input.mobilityLevel}` : '';
-
-    const homeRealityDesc = [
-      homeReality.vehicleAccess ? `Vehicle: ${homeReality.vehicleAccess}` : '',
-      homeReality.powerOutagePreparedness ? `Power prep: ${homeReality.powerOutagePreparedness}` : '',
-      homeReality.waterStorage ? `Water storage: ${homeReality.waterStorage}` : '',
-      homeReality.heatingType ? `Heating: ${homeReality.heatingType}` : '',
-      homeReality.cookingOptions?.length ? `Cooking: ${homeReality.cookingOptions.join(', ')}` : '',
-      homeReality.cashOnHandLevel ? `Cash reserve: ${homeReality.cashOnHandLevel}` : '',
-    ].filter(Boolean).join('; ');
-
-    const riskDesc = [
-      riskContext.riskLevelBand || input.riskLevelBand || 'medium',
-      riskContext.topDrivers?.length ? `Top concerns: ${riskContext.topDrivers.join(', ')}` : '',
-    ].filter(Boolean).join(' - ');
-
-    const suppliesDesc = suppliesContext.preparednessDaysEstimate || input.preparednessDays
-      ? `Preparedness target: ${suppliesContext.preparednessDaysEstimate || input.preparednessDays} days${suppliesContext.gapsTop3?.length ? ', gaps: ' + suppliesContext.gapsTop3.join(', ') : ''}`
-      : '';
-
-    const userPrompt = `Create a ${planType === 'A' ? 'Shelter in Place (Plan A)' : 'Evacuation/Leave (Plan B)'} plan draft for a household in ${locationDesc}.
-
-Dwelling: ${dwellingDesc}
-Household: ${householdDesc}
-${mobilityDesc}
-${homeRealityDesc ? 'Home reality: ' + homeRealityDesc : ''}
-Risk context: ${riskDesc}
-${suppliesDesc}
-${riskContext.notes ? 'User notes: ' + riskContext.notes : ''}
-${input.constraints?.length ? 'Additional constraints: ' + input.constraints.join(', ') : ''}
-
-Important:
-- Plans must be actionable and specific to the user's home reality and household.
-- Include a short "whyThisFitsYou" explanation (2-3 sentences, 40-280 chars) referencing household and home reality (apartment/house, mobility, pets, outage reliance, etc.).
-- Include "topPrioritiesThisWeek" list (exactly 5 items) derived from the biggest gaps.
-- Output in ${isPortuguese ? 'Portuguese' : 'English'} only.
-- Do not mention Premium, pricing, or product marketing.
-- Do not reference external URLs.
-- End notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}".`;
-
-    console.log('Calling OpenAI API with rich context...');
+      console.log(`Processing plan ${planType} job with rich context`);
+    } else {
+      console.error('Unknown job type:', jobType);
+      await supabase
+        .from('ai_jobs')
+        .update({ status: 'failed', error: 'Unknown job type', updated_at: new Date().toISOString() })
+        .eq('id', job_id);
+      return new Response(JSON.stringify({ error: 'Unknown job type' }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
 
     // 5. Call OpenAI API with tool calling for structured output
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -319,6 +384,13 @@ Important:
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
+
+    const functionName = isInsightsJob ? 'generate_risk_insights' : 'generate_emergency_plan';
+    const functionDescription = isInsightsJob 
+      ? 'Generate calm, practical risk insights with priorities and watchlist'
+      : 'Generate a structured, tailored emergency preparedness plan';
+
+    console.log('Calling OpenAI API...');
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -336,13 +408,13 @@ Important:
         tools: [{
           type: 'function',
           function: {
-            name: 'generate_emergency_plan',
-            description: 'Generate a structured, tailored emergency preparedness plan',
-            parameters: PLAN_SCHEMA
+            name: functionName,
+            description: functionDescription,
+            parameters: schema
           }
         }],
-        tool_choice: { type: 'function', function: { name: 'generate_emergency_plan' } },
-        max_completion_tokens: 1200,
+        tool_choice: { type: 'function', function: { name: functionName } },
+        max_completion_tokens: isInsightsJob ? 400 : 1400,
       }),
     });
 
@@ -376,9 +448,9 @@ Important:
       });
     }
 
-    let planOutput;
+    let output;
     try {
-      planOutput = JSON.parse(toolCall.function.arguments);
+      output = JSON.parse(toolCall.function.arguments);
     } catch (parseError) {
       console.error('Failed to parse tool call arguments:', parseError);
       await supabase
@@ -391,24 +463,28 @@ Important:
       });
     }
 
-    // Ensure safety line in notes
-    const safetyLine = isPortuguese 
-      ? 'Siga sempre as instruções das autoridades locais.' 
-      : 'Always follow local authorities.';
-    if (!planOutput.notes?.includes(safetyLine)) {
-      planOutput.notes = planOutput.notes 
-        ? `${planOutput.notes} ${safetyLine}` 
-        : safetyLine;
+    // For plan jobs, ensure safety line in notes
+    if (isPlanJob && output.notes !== undefined) {
+      const input = job.input_summary as PlanGenerationInput;
+      const isPortuguese = input.locale === 'pt';
+      const safetyLine = isPortuguese 
+        ? 'Siga sempre as instruções das autoridades locais.' 
+        : 'Always follow local authorities.';
+      if (!output.notes?.includes(safetyLine)) {
+        output.notes = output.notes 
+          ? `${output.notes} ${safetyLine}` 
+          : safetyLine;
+      }
     }
 
-    console.log('Plan generated successfully');
+    console.log(`${isInsightsJob ? 'Insights' : 'Plan'} generated successfully`);
 
     // 6. Save result to ai_jobs
     const { error: updateError } = await supabase
       .from('ai_jobs')
       .update({ 
         status: 'done', 
-        output: planOutput, 
+        output: output, 
         updated_at: new Date().toISOString() 
       })
       .eq('id', job_id);
@@ -421,7 +497,7 @@ Important:
       ok: true, 
       job_id, 
       status: 'done', 
-      output: planOutput 
+      output: output 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
