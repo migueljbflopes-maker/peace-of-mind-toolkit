@@ -52,10 +52,10 @@ export default function Dashboard() {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !entitlementsLoading && !isAuthenticated) {
       navigate(`/login?return_url=/dashboard`);
     }
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [authLoading, entitlementsLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (user) {
