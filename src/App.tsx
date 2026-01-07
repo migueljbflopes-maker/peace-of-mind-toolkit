@@ -19,6 +19,7 @@ import Vault from "./pages/premium/Vault";
 import Plans from "./pages/premium/Plans";
 import RedFolder from "./pages/premium/RedFolder";
 import Backup from "./pages/premium/Backup";
+import Onboarding from "./pages/premium/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/premium/plans" element={<Plans />} />
             <Route path="/premium/red-folder" element={<RedFolder />} />
             <Route path="/premium/backup" element={<Backup />} />
+            <Route path="/premium/onboarding" element={<Onboarding />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
