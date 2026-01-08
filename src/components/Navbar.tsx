@@ -145,44 +145,42 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
           <div className="hidden lg:flex items-center gap-2">
             <LanguageSwitcher />
             
-            {!loading && (
-              isAuthenticated ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <User className="h-4 w-4" />
-                      <span className="max-w-[120px] truncate text-sm">
-                        {user?.email?.split('@')[0]}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard" className="cursor-pointer">
-                        {t.nav.dashboard}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      {t.nav.logout}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <>
-                  <Link to={getLoginUrl()}>
-                    <Button variant="ghost" size="sm">
-                      {t.nav.login}
-                    </Button>
-                  </Link>
-                  <Link to="/pricing">
-                    <Button variant="nav-outline" size="sm">
-                      {t.nav.unlockPremium}
-                    </Button>
-                  </Link>
-                </>
-              )
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="max-w-[120px] truncate text-sm">
+                      {user?.email?.split('@')[0]}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">
+                      {t.nav.dashboard}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {t.nav.logout}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link to={getLoginUrl()}>
+                  <Button variant="ghost" size="sm">
+                    {t.nav.login}
+                  </Button>
+                </Link>
+                <Link to="/pricing">
+                  <Button variant="nav-outline" size="sm">
+                    {t.nav.unlockPremium}
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
 
