@@ -29,3 +29,12 @@ verify_jwt = false
 
 [functions.stripe-verify-session]
 verify_jwt = false
+
+[functions.panic-trigger]
+verify_jwt = false
+
+[functions.panic-cancel]
+verify_jwt = false
+
+[functions.panic-confirm]
+verify_jwt = false
