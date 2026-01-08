@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertCircle, CheckCircle, Shield, ArrowLeft, XCircle } from "lucide-react";
+import { Link, Navigate } from "react-router-dom";
+import { AlertCircle, CheckCircle, Shield, ArrowLeft, XCircle, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePanicTrigger, ScenarioType } from "@/hooks/usePanicTrigger";
 import { useAuth } from "@/hooks/useAuth";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { PremiumLockedState } from "@/components/PremiumLockedState";
 
 const PanicTest = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
   const {
     state,
     holdProgress,
@@ -23,6 +26,33 @@ const PanicTest = () => {
   } = usePanicTrigger();
 
   const [selectedScenario, setSelectedScenario] = useState<ScenarioType>("medical");
+
+  // Loading state
+  if (authLoading || entLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Auth gate
+  if (!user) {
+    return <Navigate to="/auth" state={{ returnUrl: "/panic/test" }} replace />;
+  }
+
+  // Premium gate
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="py-8 md:py-12">
+          <PremiumLockedState title="Panic Button Test" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const handleMouseDown = () => {
     if (state === "idle") {
@@ -128,8 +158,7 @@ const PanicTest = () => {
               onMouseLeave={handleMouseUp}
               onTouchStart={handleMouseDown}
               onTouchEnd={handleMouseUp}
-              disabled={!user}
-              className="relative w-32 h-32 rounded-full mx-auto flex items-center justify-center cursor-pointer transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="relative w-32 h-32 rounded-full mx-auto flex items-center justify-center cursor-pointer transition-transform active:scale-95"
               style={{
                 background:
                   state === "holding"
@@ -143,7 +172,7 @@ const PanicTest = () => {
             </button>
 
             <p className="text-xs text-muted-foreground">
-              {!user ? "Please log in first" : state === "holding" ? "Keep holding..." : "Hold to activate"}
+              {state === "holding" ? "Keep holding..." : "Hold to activate"}
             </p>
           </div>
         );
