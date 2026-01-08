@@ -13,7 +13,7 @@ import { PremiumLockedState } from "@/components/PremiumLockedState";
 
 const PanicTest = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
+  const { isPremium, loading: entLoading } = useEntitlements();
   const {
     state,
     holdProgress,

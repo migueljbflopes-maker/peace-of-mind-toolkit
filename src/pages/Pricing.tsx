@@ -30,7 +30,7 @@ import { toast } from "sonner";
 
 const Pricing = () => {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
-  const { isPremium, loading } = useEntitlements(user, authLoading);
+  const { isPremium, loading } = useEntitlements();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 

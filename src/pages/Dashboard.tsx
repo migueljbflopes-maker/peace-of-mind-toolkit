@@ -53,7 +53,7 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { isPremium, loading: entitlementsLoading, refetch, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements(user, authLoading);
+  const { isPremium, loading: entitlementsLoading, refetch, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
   const { needsOnboarding } = useOnboardingState(user?.id);
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [plans, setPlans] = useState<SuppliesPlan[]>([]);

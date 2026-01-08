@@ -39,7 +39,7 @@ const scenarioLabels: Record<string, string> = {
 
 const PanicHistory = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
+  const { isPremium, loading: entLoading } = useEntitlements();
   const [history, setHistory] = useState<PanicActivation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

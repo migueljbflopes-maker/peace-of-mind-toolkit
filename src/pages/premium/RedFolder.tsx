@@ -19,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function RedFolder() {
   const { user, loading: authLoading } = useAuth();
-  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
+  const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
   const { isUnlocked } = useVaultSession();
   const { isLoading: isLoadingData, readiness, checkReadiness, loadAllData } = useRedFolderData();
