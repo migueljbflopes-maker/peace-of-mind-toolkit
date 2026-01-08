@@ -26,8 +26,8 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { isPremium, loading: entitlementsLoading } = useEntitlements();
-  const { step, loading: onboardingLoading, setStep, markCompleted, needsOnboarding } = useOnboardingState();
+  const { isPremium, loading: entitlementsLoading } = useEntitlements(user, authLoading);
+  const { step, loading: onboardingLoading, setStep, markCompleted, needsOnboarding } = useOnboardingState(user?.id);
   const { isUnlocked } = useVaultSession();
   
   const [currentStep, setCurrentStep] = useState(1);

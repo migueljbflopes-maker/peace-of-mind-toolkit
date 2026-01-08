@@ -21,7 +21,7 @@ import Footer from '@/components/Footer';
 
 export default function Plans() {
   const { user, loading: authLoading } = useAuth();
-  const { isPremium, loading: entLoading } = useEntitlements();
+  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
   const { t, locale } = useLocale();
   const { isUnlocked, getPassphrase } = useVaultSession();
   const { 

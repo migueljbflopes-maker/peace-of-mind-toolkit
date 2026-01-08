@@ -26,8 +26,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Pricing = () => {
-  const { isPremium, loading } = useEntitlements();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { isPremium, loading } = useEntitlements(user, authLoading);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
