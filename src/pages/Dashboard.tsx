@@ -60,12 +60,14 @@ export default function Dashboard() {
   const [purchaseConfirming, setPurchaseConfirming] = useState(false);
   const [purchaseTimedOut, setPurchaseTimedOut] = useState(false);
 
-  // Handle successful purchase redirect with polling
+  // Handle successful purchase redirect with instant verification + fallback polling
   useEffect(() => {
     const purchaseStatus = searchParams.get('purchase');
+    const sessionId = searchParams.get('session_id');
+    
     if (purchaseStatus !== 'success') return;
 
-    // Clear the URL param immediately
+    // Clear the URL params immediately
     setSearchParams({}, { replace: true });
     
     // If already premium, just show success
@@ -76,43 +78,66 @@ export default function Dashboard() {
       return;
     }
 
-    // Start polling for premium status
+    // Start confirmation flow
     setPurchaseConfirming(true);
     setPurchaseTimedOut(false);
 
-    let pollCount = 0;
-    const maxPolls = 10; // 10 polls × 2s = 20 seconds
-    const pollInterval = 2000;
+    const verifyAndConfirm = async () => {
+      // Try instant verification if we have session_id
+      if (sessionId) {
+        try {
+          const { data, error } = await supabase.functions.invoke('stripe-verify-session', {
+            body: { session_id: sessionId },
+          });
 
-    const pollTimer = setInterval(async () => {
-      pollCount++;
-      await refetch();
-      
-      // Check if premium is now active (need to re-check from DB)
-      const { data } = await supabase
-        .from('premium_entitlements')
-        .select('is_premium')
-        .eq('user_id', user?.id ?? '')
-        .maybeSingle();
-
-      if (data?.is_premium) {
-        clearInterval(pollTimer);
-        setPurchaseConfirming(false);
-        toast.success("Welcome to Premium!", {
-          description: "Your purchase was successful. Enjoy your new features!",
-        });
-        refetch(); // Final refresh
-        return;
+          if (!error && data?.is_premium) {
+            await refetch();
+            setPurchaseConfirming(false);
+            toast.success("Premium unlocked!", {
+              description: "Your purchase was successful. Enjoy your new features!",
+            });
+            return;
+          }
+        } catch (err) {
+          console.warn("Instant verification failed, falling back to polling", err);
+        }
       }
 
-      if (pollCount >= maxPolls) {
-        clearInterval(pollTimer);
-        setPurchaseConfirming(false);
-        setPurchaseTimedOut(true);
-      }
-    }, pollInterval);
+      // Fallback: poll for premium status (capped at 10 seconds)
+      let pollCount = 0;
+      const maxPolls = 5; // 5 polls × 2s = 10 seconds
+      const pollInterval = 2000;
 
-    return () => clearInterval(pollTimer);
+      const pollTimer = setInterval(async () => {
+        pollCount++;
+        await refetch();
+        
+        // Check if premium is now active
+        const { data } = await supabase
+          .from('premium_entitlements')
+          .select('is_premium')
+          .eq('user_id', user?.id ?? '')
+          .maybeSingle();
+
+        if (data?.is_premium) {
+          clearInterval(pollTimer);
+          setPurchaseConfirming(false);
+          toast.success("Welcome to Premium!", {
+            description: "Your purchase was successful. Enjoy your new features!",
+          });
+          refetch();
+          return;
+        }
+
+        if (pollCount >= maxPolls) {
+          clearInterval(pollTimer);
+          setPurchaseConfirming(false);
+          setPurchaseTimedOut(true);
+        }
+      }, pollInterval);
+    };
+
+    verifyAndConfirm();
   }, [searchParams, setSearchParams, user?.id]);
 
   const handleRetryConfirmation = async () => {

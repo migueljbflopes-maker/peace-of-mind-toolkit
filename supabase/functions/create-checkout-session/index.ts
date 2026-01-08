@@ -97,7 +97,8 @@ serve(async (req) => {
     }
 
     // Build success and cancel URLs from APP_URL (must be deployed app origin)
-    const successUrl = `${appUrl}/dashboard?purchase=success`;
+    // Include session_id for instant verification on return
+    const successUrl = `${appUrl}/dashboard?purchase=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${appUrl}/pricing?purchase=cancel`;
 
     // Create Stripe Checkout Session for one-time payment
