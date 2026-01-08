@@ -81,11 +81,7 @@ const PanicSetup = () => {
         <Navbar />
         <main className="py-8 md:py-12">
           <div className="container mx-auto px-4 max-w-2xl">
-            <PremiumLockedState
-              title="Panic Button"
-              description="Configure emergency contacts and scenarios to notify your loved ones instantly when you need help."
-              feature="panic-button"
-            />
+            <PremiumLockedState title="Panic Button" />
           </div>
         </main>
         <Footer />
