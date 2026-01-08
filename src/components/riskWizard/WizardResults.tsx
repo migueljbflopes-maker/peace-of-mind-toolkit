@@ -16,7 +16,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { WizardResult, TopDriver } from './types';
+import type { WizardResult } from './types';
+import CityContextCard from './CityContextCard';
+import PremiumInsightsPreview from './PremiumInsightsPreview';
 
 interface WizardResultsProps {
   result: WizardResult;
@@ -36,6 +38,7 @@ export default function WizardResults({
   const navigate = useNavigate();
   
   const scoreStyle = getScoreStyle(result.riskLevel);
+  const scoreLabel = result.readinessScore >= 60 ? 'Well Prepared' : result.readinessScore >= 30 ? 'Partially Ready' : 'Needs Attention';
   
   const breakdownItems = [
     { key: 'location_context', label: 'Location & Context', value: result.breakdown.location_context },
@@ -54,43 +57,66 @@ export default function WizardResults({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-6 md:py-8">
+      <div className="max-w-2xl mx-auto px-4 py-5 md:py-8">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-5">
           <button onClick={onBack} className="p-2 hover:bg-muted rounded-lg transition-colors">
             <ArrowLeft className="h-5 w-5 text-muted-foreground" />
           </button>
-          <h1 className="text-xl font-semibold text-foreground">Your Readiness Check</h1>
+          <h1 className="text-lg font-semibold text-foreground">Your Readiness Check</h1>
         </div>
 
         {/* Score Card */}
-        <Card className="p-4 mb-4 bg-[#F8FAFC] border-border/50">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-background border-2 border-primary/20">
-              <span className="text-2xl font-bold text-foreground">{result.readinessScore}</span>
+        <Card className="p-5 mb-4 bg-gradient-to-br from-muted/30 to-muted/10 border-border/50">
+          <div className="flex items-center gap-4 mb-5">
+            {/* Score circle */}
+            <div className="relative flex items-center justify-center w-20 h-20">
+              <svg className="w-20 h-20 transform -rotate-90">
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="currentColor"
+                  strokeWidth="6"
+                  fill="none"
+                  className="text-muted/50"
+                />
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="currentColor"
+                  strokeWidth="6"
+                  fill="none"
+                  strokeLinecap="round"
+                  className="text-primary"
+                  strokeDasharray={`${(result.readinessScore / 100) * 226} 226`}
+                />
+              </svg>
+              <span className="absolute text-2xl font-bold text-foreground">{result.readinessScore}</span>
             </div>
             <div>
               <div className={cn(
-                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border",
                 scoreStyle.bg, scoreStyle.color, scoreStyle.border
               )}>
-                {result.readinessScore >= 60 ? 'Well Prepared' : result.readinessScore >= 30 ? 'Partially Ready' : 'Needs Attention'}
+                {scoreLabel}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Readiness Score</p>
+              <p className="text-sm text-muted-foreground mt-1">Readiness Score</p>
             </div>
           </div>
 
           {/* 4-Dimension Breakdown Bars */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {breakdownItems.map(item => (
               <div key={item.key}>
-                <div className="flex justify-between text-xs mb-0.5">
-                  <span className="text-muted-foreground">{item.label}</span>
-                  <span className="text-foreground font-medium">{item.value}%</span>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-muted-foreground font-medium">{item.label}</span>
+                  <span className="text-foreground font-semibold">{item.value}%</span>
                 </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-primary/70 rounded-full transition-all duration-500" 
+                    className="h-full bg-gradient-to-r from-primary/70 to-primary rounded-full transition-all duration-700 ease-out" 
                     style={{ width: `${item.value}%` }} 
                   />
                 </div>
@@ -99,25 +125,44 @@ export default function WizardResults({
           </div>
         </Card>
 
+        {/* City Context Card */}
+        <CityContextCard
+          city={result.inputs.city}
+          postalCode={result.inputs.postal_code}
+          locationDrivers={undefined} // Would come from geo-risk API
+          isLoading={false}
+        />
+
         {/* Top Drivers / Priorities */}
         <Card className="p-4 mb-4 bg-background border-border/50">
           <h3 className="text-sm font-semibold text-foreground mb-3">Top priorities</h3>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {result.topDrivers.map((driver, i) => (
-              <li key={driver.key} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                <span>{driver.priority}</span>
+              <li key={driver.key} className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">
+                  {i + 1}
+                </div>
+                <span className="text-muted-foreground">{driver.priority}</span>
               </li>
             ))}
           </ul>
         </Card>
 
+        {/* Premium Insights Preview (with blur for non-premium) */}
+        <PremiumInsightsPreview
+          isPremium={isPremium}
+          city={result.inputs.city}
+          locationDrivers={undefined} // Only fetched for premium
+          actionPlan={undefined} // Only fetched for premium
+          onUnlock={onShowPaywall}
+        />
+
         {/* Premium or Next Steps */}
         {isPremium ? (
-          <Card className="p-5 mb-5 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
+          <Card className="p-5 mb-4 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">Your Premium Features</h3>
+              <h3 className="text-base font-semibold text-foreground">Your Premium Features</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Continue building your personalized plan with your premium tools.
@@ -139,15 +184,15 @@ export default function WizardResults({
                 </button>
               ))}
             </div>
-            <Button onClick={() => navigate('/premium/plans')} className="w-full">
+            <Button onClick={() => navigate('/premium/plans')} className="w-full h-11">
               Continue to Plans
             </Button>
           </Card>
         ) : (
-          <Card className="p-5 mb-5 border-primary/30 bg-gradient-to-br from-primary/5 via-primary/8 to-primary/5 shadow-md">
+          <Card className="p-5 mb-4 border-primary/30 bg-gradient-to-br from-primary/5 via-primary/8 to-primary/5 shadow-md">
             <div className="flex items-center gap-2 mb-3">
               <Shield className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">Personalized Resiliency Plan</h3>
+              <h3 className="text-base font-semibold text-foreground">Personalized Resiliency Plan</h3>
               <span className="ml-auto px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
                 Premium
               </span>
@@ -207,7 +252,7 @@ export default function WizardResults({
 
             {/* Primary CTA */}
             <Button 
-              className="w-full mb-2" 
+              className="w-full mb-2 h-12" 
               size="lg"
               onClick={onShowPaywall}
             >
@@ -266,9 +311,9 @@ export default function WizardResults({
 
 function getScoreStyle(level: string) {
   switch (level) {
-    case 'Low': return { color: 'text-green-600', bg: 'bg-green-100', border: 'border-green-200' };
-    case 'Medium': return { color: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200' };
-    case 'High': return { color: 'text-red-600', bg: 'bg-red-100', border: 'border-red-200' };
+    case 'Low': return { color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-200' };
+    case 'Medium': return { color: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-200' };
+    case 'High': return { color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-200' };
     default: return { color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border' };
   }
 }

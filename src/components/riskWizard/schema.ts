@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   MapPin, Home, Route, Users, HeartPulse, PawPrint,
   Droplets, Utensils, BatteryCharging, Wallet,
-  FileText, Radio, ClipboardList, Backpack
+  FileText, Radio, ClipboardList, Backpack, Car
 } from 'lucide-react';
 
 export type StepType = 'location' | 'single' | 'multi';
@@ -39,11 +39,20 @@ export interface WizardStep {
   onAnswer?: { callGeoRisk?: boolean };
 }
 
+export interface InterstitialConfig {
+  id: string;
+  title: string;
+  subtitle: string;
+  whyMatters: string;
+  tip: string;
+}
+
 export interface WizardSection {
   id: string;
   title: string;
   intro: string;
   steps: WizardStep[];
+  interstitial?: InterstitialConfig; // Shown after section completes
 }
 
 export interface WizardSchema {
@@ -69,6 +78,15 @@ export const STEP_ICONS: Record<string, LucideIcon> = {
   Radio,
   ClipboardList,
   Backpack,
+  Car,
+};
+
+// Section labels for display
+export const SECTION_LABELS: Record<string, string> = {
+  location: 'LOCATION',
+  household: 'HOUSEHOLD',
+  mobility: 'MOBILITY',
+  preparedness: 'SUPPLIES',
 };
 
 // Country list (same as existing)
@@ -110,7 +128,7 @@ export const COUNTRY_LIST = [
   { value: 'IS', label: 'Iceland' },
 ].sort((a, b) => a.label.localeCompare(b.label));
 
-// The complete wizard schema
+// The complete wizard schema with 4 sections and interstitials
 export const RISK_WIZARD: WizardSchema = {
   version: 'v1',
   title: 'Risk & Readiness Check',
@@ -118,8 +136,15 @@ export const RISK_WIZARD: WizardSchema = {
   sections: [
     {
       id: 'location',
-      title: 'Location & context',
+      title: 'Location & Context',
       intro: 'We use your location only to tailor guidance — your answers stay private unless you choose to save.',
+      interstitial: {
+        id: 'location_complete',
+        title: 'Location context captured',
+        subtitle: 'Now let\'s understand your household needs.',
+        whyMatters: 'Your location affects resource availability, emergency services response times, and the types of risks you may face.',
+        tip: 'Keep a paper contact list — phones may be dead or networks down.',
+      },
       steps: [
         {
           id: 'country_city_postal',
@@ -150,27 +175,20 @@ export const RISK_WIZARD: WizardSchema = {
             { value: 'apartment', label: 'Apartment' },
             { value: 'room', label: 'Room / shared housing' }
           ]
-        },
-        {
-          id: 'mobility_out',
-          type: 'single',
-          required: true,
-          title: 'If you needed to relocate within 2 hours, how easy would it be?',
-          helper: 'A simple mobility check — not about panic, just options.',
-          icon: 'Route',
-          image: 'illustration-mobility',
-          options: [
-            { value: 'easy', label: 'Easy (car/route ready)' },
-            { value: 'maybe', label: 'Possible but depends' },
-            { value: 'hard', label: 'Hard (limited options)' }
-          ]
         }
       ]
     },
     {
       id: 'household',
-      title: 'Household',
-      intro: "We adjust recommendations based on who you're responsible for.",
+      title: 'Household Needs',
+      intro: 'We adjust recommendations based on who you\'re responsible for.',
+      interstitial: {
+        id: 'household_complete',
+        title: 'Household profile complete',
+        subtitle: 'Next: a quick check on your mobility options.',
+        whyMatters: 'Larger households and special needs require more coordination, supplies, and planning time.',
+        tip: 'Assign one person as the "communications lead" to reduce confusion.',
+      },
       steps: [
         {
           id: 'household_size',
@@ -221,8 +239,36 @@ export const RISK_WIZARD: WizardSchema = {
       ]
     },
     {
+      id: 'mobility',
+      title: 'Mobility',
+      intro: 'A quick check on your ability to relocate if needed.',
+      interstitial: {
+        id: 'mobility_complete',
+        title: 'Mobility options noted',
+        subtitle: 'Final section: your current supplies & readiness.',
+        whyMatters: 'Mobility constraints affect evacuation timing and the type of plan you need.',
+        tip: 'Always keep your car at least half-full of fuel.',
+      },
+      steps: [
+        {
+          id: 'mobility_out',
+          type: 'single',
+          required: true,
+          title: 'If you needed to relocate within 2 hours, how easy would it be?',
+          helper: 'A simple mobility check — not about panic, just options.',
+          icon: 'Car',
+          image: 'illustration-mobility',
+          options: [
+            { value: 'easy', label: 'Easy (car/route ready)' },
+            { value: 'maybe', label: 'Possible but depends' },
+            { value: 'hard', label: 'Hard (limited options)' }
+          ]
+        }
+      ]
+    },
+    {
       id: 'preparedness',
-      title: 'Preparedness',
+      title: 'Supplies & Readiness',
       intro: 'Quick, practical checks for the next 72 hours.',
       steps: [
         {
@@ -348,6 +394,13 @@ export const RISK_WIZARD: WizardSchema = {
       ]
     }
   ]
+};
+
+// Interstitial configs for each section (shown after section completes)
+export const SECTION_INTERSTITIALS: Record<string, InterstitialConfig> = {
+  location: RISK_WIZARD.sections[0].interstitial!,
+  household: RISK_WIZARD.sections[1].interstitial!,
+  mobility: RISK_WIZARD.sections[2].interstitial!,
 };
 
 // Helper to flatten steps for linear navigation
