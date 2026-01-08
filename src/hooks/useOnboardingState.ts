@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
 
 export interface OnboardingState {
   completed: boolean;
@@ -12,14 +11,13 @@ export interface OnboardingState {
   updatedAt: string | null;
 }
 
-export function useOnboardingState() {
-  const { user } = useAuth();
+export function useOnboardingState(userId?: string) {
   const [state, setState] = useState<OnboardingState>({ completed: false, step: 1, updatedAt: null });
   const [loading, setLoading] = useState(true);
 
   // Fetch onboarding state
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -29,7 +27,7 @@ export function useOnboardingState() {
       const { data, error } = await supabase
         .from('onboarding_state')
         .select('completed, step, updated_at')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (error) {
@@ -50,16 +48,16 @@ export function useOnboardingState() {
     };
 
     fetchState();
-  }, [user]);
+  }, [userId]);
 
   // Update step
   const setStep = useCallback(async (step: number) => {
-    if (!user) return false;
+    if (!userId) return false;
 
     const { error } = await supabase
       .from('onboarding_state')
       .upsert({
-        user_id: user.id,
+        user_id: userId,
         step,
         completed: false,
         updated_at: new Date().toISOString(),
@@ -72,16 +70,16 @@ export function useOnboardingState() {
 
     setState(prev => ({ ...prev, step, completed: false }));
     return true;
-  }, [user]);
+  }, [userId]);
 
   // Mark as completed
   const markCompleted = useCallback(async () => {
-    if (!user) return false;
+    if (!userId) return false;
 
     const { error } = await supabase
       .from('onboarding_state')
       .upsert({
-        user_id: user.id,
+        user_id: userId,
         step: 4,
         completed: true,
         updated_at: new Date().toISOString(),
@@ -94,7 +92,7 @@ export function useOnboardingState() {
 
     setState({ completed: true, step: 4, updatedAt: new Date().toISOString() });
     return true;
-  }, [user]);
+  }, [userId]);
 
   return {
     ...state,
