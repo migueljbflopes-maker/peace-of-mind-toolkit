@@ -50,6 +50,8 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   };
 
   const navLinks = [
+    { label: "Safe Toolkit", href: "/toolkit", icon: Shield },
+    { label: "Panic Button", href: "/panic", icon: AlertTriangle },
     { label: t.nav.library, href: "/library", icon: Library },
     { label: t.nav.tips, href: "/tips", icon: Lightbulb },
     { label: t.nav.news, href: "/news/weekly", icon: Newspaper },
@@ -60,7 +62,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
     { label: t.nav.calculatorsHub, href: "/be-prepared", icon: LayoutGrid },
     { label: t.nav.riskCalculator, href: "/tools/risk", icon: AlertTriangle },
     { label: t.nav.suppliesPlanner, href: "/tools/supplies", icon: Package },
-    { label: t.nav.products, href: "#products", icon: Package },
+    { label: t.nav.products, href: "/products", icon: Package },
   ];
 
   const handleSignOut = async () => {
@@ -82,9 +84,17 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-1">
-            <Link to="/library">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                {t.nav.library}
+            <Link to="/toolkit">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
+                <Shield className="h-3.5 w-3.5" />
+                Safe Toolkit
+              </Button>
+            </Link>
+
+            <Link to="/panic">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Panic Button
               </Button>
             </Link>
 
@@ -108,15 +118,9 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/tips">
+            <Link to="/library">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                {t.nav.tips}
-              </Button>
-            </Link>
-
-            <Link to="/news/weekly">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                {t.nav.news}
+                {t.nav.library}
               </Button>
             </Link>
 
@@ -203,6 +207,24 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
         <div className="lg:hidden border-t border-border bg-background animate-fade-in">
           <div className="section-padding py-4 space-y-2">
             <Link
+              to="/toolkit"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors bg-primary/5"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Shield className="h-4 w-4 text-primary" />
+              <span className="font-medium">Safe Toolkit</span>
+            </Link>
+
+            <Link
+              to="/panic"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors bg-destructive/5"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="font-medium">Panic Button</span>
+            </Link>
+
+            <Link
               to="/library"
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors"
               onClick={() => setMobileMenuOpen(false)}
@@ -215,7 +237,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
             <Collapsible open={bePreparedOpen} onOpenChange={setBePreparedOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg hover:bg-accent transition-colors">
                 <div className="flex items-center gap-3">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <LayoutGrid className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{t.nav.bePrepared}</span>
                 </div>
                 <ChevronDown
