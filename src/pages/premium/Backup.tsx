@@ -8,6 +8,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useAuth } from '@/hooks/useAuth';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
+import { LoginGateCard } from '@/components/LoginGateCard';
 import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { 
   getLocalDataSummary, 
@@ -22,9 +23,9 @@ import Footer from '@/components/Footer';
 import { toast } from 'sonner';
 
 export default function Backup() {
-  const { isPremium, loading } = useEntitlements();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
-  const { user } = useAuth();
   const { isUnlocked } = useVaultSession();
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -120,12 +121,25 @@ export default function Backup() {
     });
   };
 
-  if (loading) {
+  if (authLoading || entLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Login check BEFORE premium check
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 container-wide section-padding py-8">
+          <LoginGateCard feature={t.backup.title} />
         </main>
         <Footer />
       </div>

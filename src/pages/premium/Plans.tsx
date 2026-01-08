@@ -6,6 +6,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { usePlansSync } from '@/hooks/usePlansSync';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
+import { LoginGateCard } from '@/components/LoginGateCard';
 import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { PlanCard } from '@/components/plans/PlanCard';
 import { PlanEditor } from '@/components/plans/PlanEditor';
@@ -19,10 +20,10 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function Plans() {
-  const { isPremium, loading } = useEntitlements();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
   const { isUnlocked, getPassphrase } = useVaultSession();
-  const { user } = useAuth();
   const { 
     isOnline, 
     planStatuses, 
@@ -130,12 +131,25 @@ export default function Plans() {
     }
   }, [getPassphrase, user, showContextWizard, t]);
 
-  if (loading) {
+  if (authLoading || entLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Login check BEFORE premium check
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 container-wide section-padding py-8">
+          <LoginGateCard feature={t.plans.title} />
         </main>
         <Footer />
       </div>

@@ -7,9 +7,10 @@ import { useLocale } from "@/i18n/useLocale";
 interface LoginGateCardProps {
   className?: string;
   compact?: boolean;
+  feature?: string;
 }
 
-export function LoginGateCard({ className, compact = false }: LoginGateCardProps) {
+export function LoginGateCard({ className, compact = false, feature }: LoginGateCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLocale();
@@ -45,7 +46,7 @@ export function LoginGateCard({ className, compact = false }: LoginGateCardProps
           <div className="p-1.5 rounded-lg bg-primary/10">
             <User className="h-4 w-4 text-primary" />
           </div>
-          <CardTitle className="text-base">{t.auth.saveAndContinue}</CardTitle>
+          <CardTitle className="text-base">{feature || t.auth.saveAndContinue}</CardTitle>
         </div>
         <CardDescription>{t.auth.saveAndContinueDesc}</CardDescription>
       </CardHeader>
