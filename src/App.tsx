@@ -21,6 +21,11 @@ import Plans from "./pages/premium/Plans";
 import RedFolder from "./pages/premium/RedFolder";
 import Backup from "./pages/premium/Backup";
 import Onboarding from "./pages/premium/Onboarding";
+import Toolkit from "./pages/Toolkit";
+import Panic from "./pages/Panic";
+import PanicSetup from "./pages/panic/Setup";
+import PanicTest from "./pages/panic/Test";
+import PanicHistory from "./pages/panic/History";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +55,12 @@ const App = () => (
             <Route path="/premium/red-folder" element={<RedFolder />} />
             <Route path="/premium/backup" element={<Backup />} />
             <Route path="/premium/onboarding" element={<Onboarding />} />
+            {/* New product pillars */}
+            <Route path="/toolkit" element={<Toolkit />} />
+            <Route path="/panic" element={<Panic />} />
+            <Route path="/panic/setup" element={<PanicSetup />} />
+            <Route path="/panic/test" element={<PanicTest />} />
+            <Route path="/panic/history" element={<PanicHistory />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
