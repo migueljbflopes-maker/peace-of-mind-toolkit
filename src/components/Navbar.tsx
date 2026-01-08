@@ -63,6 +63,8 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
     { label: t.nav.riskCalculator, href: "/tools/risk", icon: AlertTriangle },
     { label: t.nav.suppliesPlanner, href: "/tools/supplies", icon: Package },
     { label: t.nav.products, href: "/products", icon: Package },
+    { label: t.nav.tips, href: "/tips", icon: Lightbulb },
+    { label: t.nav.news, href: "/news/weekly", icon: Newspaper },
   ];
 
   const handleSignOut = async () => {
@@ -260,24 +262,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 ))}
               </CollapsibleContent>
             </Collapsible>
-
-            <Link
-              to="/tips"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Lightbulb className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{t.nav.tips}</span>
-            </Link>
-
-            <Link
-              to="/news/weekly"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Newspaper className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{t.nav.news}</span>
-            </Link>
 
             <Link
               to="/pricing"
