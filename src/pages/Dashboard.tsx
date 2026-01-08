@@ -55,25 +55,78 @@ export default function Dashboard() {
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [plans, setPlans] = useState<SuppliesPlan[]>([]);
   const [loadingData, setLoadingData] = useState(true);
-  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+  
+  // Purchase confirmation state
+  const [purchaseConfirming, setPurchaseConfirming] = useState(false);
+  const [purchaseTimedOut, setPurchaseTimedOut] = useState(false);
 
-  // Handle successful purchase redirect
+  // Handle successful purchase redirect with polling
   useEffect(() => {
     const purchaseStatus = searchParams.get('purchase');
-    if (purchaseStatus === 'success') {
-      setShowPurchaseSuccess(true);
-      // Refetch entitlements to get the new premium status
-      refetch();
-      // Clear the URL param after a short delay
-      setTimeout(() => {
-        setSearchParams({}, { replace: true });
-      }, 100);
-      // Show toast
+    if (purchaseStatus !== 'success') return;
+
+    // Clear the URL param immediately
+    setSearchParams({}, { replace: true });
+    
+    // If already premium, just show success
+    if (isPremium && !entitlementsLoading) {
       toast.success("Welcome to Premium!", {
         description: "Your purchase was successful. Enjoy your new features!",
       });
+      return;
     }
-  }, [searchParams, refetch, setSearchParams]);
+
+    // Start polling for premium status
+    setPurchaseConfirming(true);
+    setPurchaseTimedOut(false);
+
+    let pollCount = 0;
+    const maxPolls = 10; // 10 polls × 2s = 20 seconds
+    const pollInterval = 2000;
+
+    const pollTimer = setInterval(async () => {
+      pollCount++;
+      await refetch();
+      
+      // Check if premium is now active (need to re-check from DB)
+      const { data } = await supabase
+        .from('premium_entitlements')
+        .select('is_premium')
+        .eq('user_id', user?.id ?? '')
+        .maybeSingle();
+
+      if (data?.is_premium) {
+        clearInterval(pollTimer);
+        setPurchaseConfirming(false);
+        toast.success("Welcome to Premium!", {
+          description: "Your purchase was successful. Enjoy your new features!",
+        });
+        refetch(); // Final refresh
+        return;
+      }
+
+      if (pollCount >= maxPolls) {
+        clearInterval(pollTimer);
+        setPurchaseConfirming(false);
+        setPurchaseTimedOut(true);
+      }
+    }, pollInterval);
+
+    return () => clearInterval(pollTimer);
+  }, [searchParams, setSearchParams, user?.id]);
+
+  const handleRetryConfirmation = async () => {
+    setPurchaseTimedOut(false);
+    await refetch();
+    
+    if (isPremium) {
+      toast.success("Premium activated!", {
+        description: "Your premium status is now confirmed.",
+      });
+    } else {
+      setPurchaseTimedOut(true);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -110,6 +163,68 @@ export default function Dashboard() {
     if (plansRes.data) setPlans(plansRes.data);
     setLoadingData(false);
   };
+
+  // Show purchase confirming state
+  if (purchaseConfirming) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center py-12 px-4">
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <Loader2 className="h-6 w-6 text-primary animate-spin" />
+              </div>
+              <CardTitle>Confirming your purchase…</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Please wait while we verify your payment. This usually takes just a few seconds.
+              </p>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show purchase timeout state
+  if (purchaseTimedOut) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center py-12 px-4">
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <CardTitle>Taking longer than expected</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                We couldn't confirm your premium status yet. This can happen if payment processing is delayed. 
+                You can try again or contact support if the issue persists.
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button onClick={handleRetryConfirmation} className="w-full">
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Retry confirmation
+                </Button>
+                <Link to="/pricing" className="w-full">
+                  <Button variant="outline" className="w-full">
+                    Back to Pricing
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (authLoading || entitlementsLoading || onboardingLoading) {
     return (
