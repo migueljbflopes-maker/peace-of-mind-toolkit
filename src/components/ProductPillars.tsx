@@ -61,10 +61,6 @@ const ProductPillars = () => {
               </div>
               
               <div className="pt-2">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-muted-foreground">Premium</span>
-                  <span className="text-sm font-semibold text-foreground">€49 one-time</span>
-                </div>
                 <Link to="/toolkit">
                   <Button variant="default" className="w-full gap-2">
                     Create Safe Toolkit
@@ -114,9 +110,8 @@ const ProductPillars = () => {
               </div>
               
               <div className="pt-2">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-muted-foreground">Setup in 5 min</span>
-                  <span className="text-sm font-semibold text-primary">Free to set up</span>
+                <div className="flex items-center justify-center mb-3">
+                  <span className="text-sm font-medium text-primary">Included in Premium</span>
                 </div>
                 <Link to="/panic/setup">
                   <Button variant="outline" className="w-full gap-2 border-destructive/30 hover:bg-destructive/5">
