@@ -8,13 +8,13 @@ const USE_WIZARD_BY_DEFAULT = true;
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  MapPin, 
-  Building2, 
-  Users, 
-  Heart, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  MapPin,
+  Building2,
+  Users,
+  Heart,
   Car,
   AlertTriangle,
   CheckCircle2,
@@ -29,7 +29,7 @@ import {
   ClipboardList,
   Contact,
   Stethoscope,
-  Route
+  Route,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoginModal } from "@/components/modals/LoginModal";
@@ -41,12 +41,41 @@ const RESULT_KEY = "resilient_risk_result";
 const TOTAL_STEPS = 7;
 
 const COUNTRIES = [
-  "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czech Republic", 
-  "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", 
-  "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", 
-  "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden",
-  "United Kingdom", "United States", "Canada", "Australia", "New Zealand",
-  "Switzerland", "Norway", "Iceland"
+  "Austria",
+  "Belgium",
+  "Bulgaria",
+  "Croatia",
+  "Cyprus",
+  "Czech Republic",
+  "Denmark",
+  "Estonia",
+  "Finland",
+  "France",
+  "Germany",
+  "Greece",
+  "Hungary",
+  "Ireland",
+  "Italy",
+  "Latvia",
+  "Lithuania",
+  "Luxembourg",
+  "Malta",
+  "Netherlands",
+  "Poland",
+  "Portugal",
+  "Romania",
+  "Slovakia",
+  "Slovenia",
+  "Spain",
+  "Sweden",
+  "United Kingdom",
+  "United States",
+  "Canada",
+  "Australia",
+  "New Zealand",
+  "Switzerland",
+  "Norway",
+  "Iceland",
 ].sort();
 
 interface QuizAnswers {
@@ -99,13 +128,14 @@ async function fetchAiInsights(payload: {
 }): Promise<AiInsights> {
   // Log payload for debugging (in-memory only)
   console.log("AI Insights payload:", payload);
-  
+
   // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
   // Return placeholder response
   return {
-    summary: "Based on your profile, focusing on household supplies and a clear communication plan would strengthen your preparedness.",
+    summary:
+      "Based on your profile, focusing on household supplies and a clear communication plan would strengthen your preparedness.",
     dimension_notes: [
       "Your location may face infrastructure-related disruptions.",
       "Larger households benefit from delegating preparedness tasks.",
@@ -122,16 +152,16 @@ export default function RiskCalculator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isPremium } = useEntitlements();
-  
+
   // Feature flag check: use wizard if query param or default flag is set
-  const useWizard = searchParams.get('ui') === 'wizard' || 
-                    (USE_WIZARD_BY_DEFAULT && searchParams.get('ui') !== 'legacy');
-  
+  const useWizard =
+    searchParams.get("ui") === "wizard" || (USE_WIZARD_BY_DEFAULT && searchParams.get("ui") !== "legacy");
+
   // If using wizard, render it instead of the legacy UI
   if (useWizard) {
     return <RiskWizardUI />;
   }
-  
+
   // Legacy UI below
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<QuizAnswers>(defaultAnswers);
@@ -139,23 +169,23 @@ export default function RiskCalculator() {
   const [countrySearch, setCountrySearch] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
-  
+
   // AI Insights state
   const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
 
   // Track online status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -179,17 +209,17 @@ export default function RiskCalculator() {
   }, [answers, step]);
 
   const updateAnswer = <K extends keyof QuizAnswers>(key: K, value: QuizAnswers[K]) => {
-    setAnswers(prev => ({ ...prev, [key]: value }));
+    setAnswers((prev) => ({ ...prev, [key]: value }));
   };
 
   const toggleExtraSupport = (value: string) => {
-    setAnswers(prev => {
+    setAnswers((prev) => {
       if (value === "None") {
         return { ...prev, extraSupport: ["None"] };
       }
-      const current = prev.extraSupport.filter(v => v !== "None");
+      const current = prev.extraSupport.filter((v) => v !== "None");
       if (current.includes(value)) {
-        return { ...prev, extraSupport: current.filter(v => v !== value) };
+        return { ...prev, extraSupport: current.filter((v) => v !== value) };
       }
       return { ...prev, extraSupport: [...current, value] };
     });
@@ -197,14 +227,22 @@ export default function RiskCalculator() {
 
   const canProceed = () => {
     switch (step) {
-      case 1: return answers.country !== "";
-      case 2: return true;
-      case 3: return answers.areaType !== "";
-      case 4: return answers.nearInfrastructure !== "";
-      case 5: return answers.householdSize !== "";
-      case 6: return answers.extraSupport.length > 0;
-      case 7: return answers.mobility !== "";
-      default: return false;
+      case 1:
+        return answers.country !== "";
+      case 2:
+        return true;
+      case 3:
+        return answers.areaType !== "";
+      case 4:
+        return answers.nearInfrastructure !== "";
+      case 5:
+        return answers.householdSize !== "";
+      case 6:
+        return answers.extraSupport.length > 0;
+      case 7:
+        return answers.mobility !== "";
+      default:
+        return false;
     }
   };
 
@@ -213,25 +251,49 @@ export default function RiskCalculator() {
     // Location context (area type + infrastructure proximity)
     let locationContext = 20;
     switch (answers.areaType) {
-      case "Urban": locationContext += 25; break;
-      case "Suburban": locationContext += 15; break;
-      case "Rural": locationContext += 5; break;
-      case "Remote": locationContext += 10; break;
+      case "Urban":
+        locationContext += 25;
+        break;
+      case "Suburban":
+        locationContext += 15;
+        break;
+      case "Rural":
+        locationContext += 5;
+        break;
+      case "Remote":
+        locationContext += 10;
+        break;
     }
     switch (answers.nearInfrastructure) {
-      case "Yes": locationContext += 40; break;
-      case "Not sure": locationContext += 20; break;
-      case "No": locationContext += 5; break;
+      case "Yes":
+        locationContext += 40;
+        break;
+      case "Not sure":
+        locationContext += 20;
+        break;
+      case "No":
+        locationContext += 5;
+        break;
     }
 
     // Household complexity (size + extra support needs)
     let householdComplexity = 10;
     switch (answers.householdSize) {
-      case "1": householdComplexity += 5; break;
-      case "2": householdComplexity += 15; break;
-      case "3–4": householdComplexity += 30; break;
-      case "5–6": householdComplexity += 45; break;
-      case "7+": householdComplexity += 55; break;
+      case "1":
+        householdComplexity += 5;
+        break;
+      case "2":
+        householdComplexity += 15;
+        break;
+      case "3–4":
+        householdComplexity += 30;
+        break;
+      case "5–6":
+        householdComplexity += 45;
+        break;
+      case "7+":
+        householdComplexity += 55;
+        break;
     }
     if (answers.extraSupport.includes("Kids")) householdComplexity += 10;
     if (answers.extraSupport.includes("Elderly")) householdComplexity += 10;
@@ -241,9 +303,15 @@ export default function RiskCalculator() {
     // Mobility constraints
     let mobilityConstraints = 15;
     switch (answers.mobility) {
-      case "Car available": mobilityConstraints += 10; break;
-      case "Public transport only": mobilityConstraints += 45; break;
-      case "Limited mobility": mobilityConstraints += 70; break;
+      case "Car available":
+        mobilityConstraints += 10;
+        break;
+      case "Public transport only":
+        mobilityConstraints += 45;
+        break;
+      case "Limited mobility":
+        mobilityConstraints += 70;
+        break;
     }
 
     // Preparedness autonomy (derived from complexity + mobility as proxy)
@@ -263,21 +331,39 @@ export default function RiskCalculator() {
     let score = 30;
 
     switch (answers.areaType) {
-      case "Urban": score += 10; break;
-      case "Suburban": score += 5; break;
-      case "Remote": score += 5; break;
+      case "Urban":
+        score += 10;
+        break;
+      case "Suburban":
+        score += 5;
+        break;
+      case "Remote":
+        score += 5;
+        break;
     }
 
     switch (answers.nearInfrastructure) {
-      case "Yes": score += 25; break;
-      case "Not sure": score += 12; break;
+      case "Yes":
+        score += 25;
+        break;
+      case "Not sure":
+        score += 12;
+        break;
     }
 
     switch (answers.householdSize) {
-      case "2": score += 5; break;
-      case "3–4": score += 10; break;
-      case "5–6": score += 15; break;
-      case "7+": score += 20; break;
+      case "2":
+        score += 5;
+        break;
+      case "3–4":
+        score += 10;
+        break;
+      case "5–6":
+        score += 15;
+        break;
+      case "7+":
+        score += 20;
+        break;
     }
 
     if (answers.extraSupport.includes("Kids")) score += 5;
@@ -286,8 +372,12 @@ export default function RiskCalculator() {
     if (answers.extraSupport.includes("Pets")) score += 3;
 
     switch (answers.mobility) {
-      case "Public transport only": score += 8; break;
-      case "Limited mobility": score += 12; break;
+      case "Public transport only":
+        score += 8;
+        break;
+      case "Limited mobility":
+        score += 12;
+        break;
     }
 
     return Math.min(100, Math.max(0, score));
@@ -301,20 +391,44 @@ export default function RiskCalculator() {
 
   const getScoreStyle = (level: string) => {
     switch (level) {
-      case "Low": return { color: "text-green-600", bg: "bg-green-100", border: "border-green-200" };
-      case "Medium": return { color: "text-amber-600", bg: "bg-amber-100", border: "border-amber-200" };
-      case "High": return { color: "text-red-600", bg: "bg-red-100", border: "border-red-200" };
-      default: return { color: "text-muted-foreground", bg: "bg-muted", border: "border-border" };
+      case "Low":
+        return { color: "text-green-600", bg: "bg-green-100", border: "border-green-200" };
+      case "Medium":
+        return { color: "text-amber-600", bg: "bg-amber-100", border: "border-amber-200" };
+      case "High":
+        return { color: "text-red-600", bg: "bg-red-100", border: "border-red-200" };
+      default:
+        return { color: "text-muted-foreground", bg: "bg-muted", border: "border-border" };
     }
   };
 
   // Generate default explanation based on top drivers
   const generateDefaultExplanation = (breakdown: Breakdown): { explanation: string; priorities: string[] } => {
     const drivers = [
-      { key: "location_context", label: "location context", value: breakdown.location_context, priority: "Review local emergency resources and alert systems." },
-      { key: "household_complexity", label: "household complexity", value: breakdown.household_complexity, priority: "Create a household communication plan with clear roles." },
-      { key: "mobility_constraints", label: "mobility situation", value: breakdown.mobility_constraints, priority: "Identify accessible evacuation routes and backup transport options." },
-      { key: "preparedness_autonomy", label: "self-reliance needs", value: breakdown.preparedness_autonomy, priority: "Build a 14-day supplies reserve tailored to your household." },
+      {
+        key: "location_context",
+        label: "location context",
+        value: breakdown.location_context,
+        priority: "Review local emergency resources and alert systems.",
+      },
+      {
+        key: "household_complexity",
+        label: "household complexity",
+        value: breakdown.household_complexity,
+        priority: "Create a household communication plan with clear roles.",
+      },
+      {
+        key: "mobility_constraints",
+        label: "mobility situation",
+        value: breakdown.mobility_constraints,
+        priority: "Identify accessible evacuation routes and backup transport options.",
+      },
+      {
+        key: "preparedness_autonomy",
+        label: "self-reliance needs",
+        value: breakdown.preparedness_autonomy,
+        priority: "Build a 14-day supplies reserve tailored to your household.",
+      },
     ].sort((a, b) => b.value - a.value);
 
     const top1 = drivers[0];
@@ -322,7 +436,7 @@ export default function RiskCalculator() {
     const top3 = drivers[2];
 
     const explanation = `Your assessment highlights ${top1.label} and ${top2.label} as key factors to consider. A practical preparedness plan can help you feel confident and ready, no matter the situation.`;
-    
+
     const priorities = [top1.priority, top2.priority, top3.priority];
 
     return { explanation, priorities };
@@ -336,7 +450,7 @@ export default function RiskCalculator() {
       const score = calculateScore();
       const breakdown = calculateBreakdown();
       const riskLevel = getRiskLevel(score);
-      
+
       const result: RiskResult = {
         score,
         riskLevel,
@@ -344,7 +458,7 @@ export default function RiskCalculator() {
         breakdown,
         updatedAt: new Date().toISOString(),
       };
-      
+
       localStorage.setItem(RESULT_KEY, JSON.stringify(result));
       setShowResults(true);
     }
@@ -361,7 +475,7 @@ export default function RiskCalculator() {
 
   const handleFetchAiInsights = async () => {
     if (!isOnline) return;
-    
+
     setAiLoading(true);
     try {
       const breakdown = calculateBreakdown();
@@ -380,7 +494,7 @@ export default function RiskCalculator() {
         },
         breakdown_0_100: breakdown,
       };
-      
+
       const insights = await fetchAiInsights(payload);
       setAiInsights(insights);
     } catch (error) {
@@ -390,9 +504,7 @@ export default function RiskCalculator() {
     }
   };
 
-  const filteredCountries = COUNTRIES.filter(c => 
-    c.toLowerCase().includes(countrySearch.toLowerCase())
-  );
+  const filteredCountries = COUNTRIES.filter((c) => c.toLowerCase().includes(countrySearch.toLowerCase()));
 
   const resetQuiz = () => {
     setAnswers(defaultAnswers);
@@ -443,7 +555,15 @@ export default function RiskCalculator() {
                 <span className="text-2xl font-bold text-foreground">{score}</span>
               </div>
               <div>
-                <div className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", scoreStyle.bg, scoreStyle.color, scoreStyle.border, "border")}>
+                <div
+                  className={cn(
+                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                    scoreStyle.bg,
+                    scoreStyle.color,
+                    scoreStyle.border,
+                    "border",
+                  )}
+                >
                   {riskLevel} Risk Level
                 </div>
               </div>
@@ -451,16 +571,16 @@ export default function RiskCalculator() {
 
             {/* 4-Dimension Breakdown Bars */}
             <div className="space-y-2">
-              {breakdownItems.map(item => (
+              {breakdownItems.map((item) => (
                 <div key={item.key}>
                   <div className="flex justify-between text-xs mb-0.5">
                     <span className="text-muted-foreground">{item.label}</span>
                     <span className="text-foreground font-medium">{item.value}%</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary/70 rounded-full transition-all duration-500" 
-                      style={{ width: `${item.value}%` }} 
+                    <div
+                      className="h-full bg-primary/70 rounded-full transition-all duration-900"
+                      style={{ width: `${item.value}%` }}
                     />
                   </div>
                 </div>
@@ -471,9 +591,7 @@ export default function RiskCalculator() {
           {/* What This Means */}
           <Card className="p-4 mb-4 bg-background border-border/50">
             <h3 className="text-sm font-semibold text-foreground mb-2">What this means</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {explanation}
-            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{explanation}</p>
           </Card>
 
           {/* Top Priorities */}
@@ -529,7 +647,7 @@ export default function RiskCalculator() {
                   Premium
                 </span>
               </div>
-              
+
               <p className="text-sm text-muted-foreground mb-4">
                 Printable offline PDF + encrypted Vault + Plans A & B.
               </p>
@@ -563,7 +681,10 @@ export default function RiskCalculator() {
               {/* Preview grid */}
               <div className="grid grid-cols-5 gap-2 mb-5">
                 {premiumPreviewItems.map((item, i) => (
-                  <div key={i} className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/50">
+                  <div
+                    key={i}
+                    className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/50"
+                  >
                     <item.icon className="h-5 w-5 text-primary/70 mb-1" />
                     <span className="text-[10px] text-muted-foreground text-center leading-tight">{item.label}</span>
                   </div>
@@ -574,7 +695,9 @@ export default function RiskCalculator() {
               <div className="p-3 rounded-lg bg-background/50 border border-primary/10 mb-4">
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">Included: Personalized explanation & next steps</span>
+                  <span className="text-sm font-medium text-foreground">
+                    Included: Personalized explanation & next steps
+                  </span>
                   <span className="ml-auto flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary">
                     <Lock className="h-3 w-3" />
                     Premium
@@ -589,17 +712,13 @@ export default function RiskCalculator() {
               </div>
 
               {/* Primary CTA */}
-              <Button 
-                className="w-full mb-2" 
-                size="lg"
-                onClick={() => setShowPaywallModal(true)}
-              >
+              <Button className="w-full mb-2" size="lg" onClick={() => setShowPaywallModal(true)}>
                 <Shield className="mr-2 h-4 w-4" />
                 Generate my Resiliency Plan (€49)
               </Button>
 
               {/* Secondary link */}
-              <button 
+              <button
                 onClick={() => navigate("/tools/supplies")}
                 className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-2 transition-colors"
               >
@@ -615,7 +734,7 @@ export default function RiskCalculator() {
 
           {/* Save link (low prominence) */}
           <div className="text-center">
-            <button 
+            <button
               onClick={() => setShowLoginModal(true)}
               className="text-xs text-muted-foreground hover:text-foreground underline"
             >
@@ -636,13 +755,15 @@ export default function RiskCalculator() {
         {/* Header with progress */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <button 
-              onClick={() => step > 1 ? handleBack() : navigate("/be-prepared")}
+            <button
+              onClick={() => (step > 1 ? handleBack() : navigate("/be-prepared"))}
               className="p-2 hover:bg-muted rounded-lg transition-colors"
             >
               <ArrowLeft className="h-5 w-5 text-muted-foreground" />
             </button>
-            <span className="text-sm font-medium text-muted-foreground">Step {step} of {TOTAL_STEPS}</span>
+            <span className="text-sm font-medium text-muted-foreground">
+              Step {step} of {TOTAL_STEPS}
+            </span>
             <div className="w-9" />
           </div>
           <Progress value={(step / TOTAL_STEPS) * 100} className="h-2" />
@@ -663,7 +784,7 @@ export default function RiskCalculator() {
                 className="mb-4"
               />
               <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                {filteredCountries.map(country => (
+                {filteredCountries.map((country) => (
                   <button
                     key={country}
                     onClick={() => updateAnswer("country", country)}
@@ -671,7 +792,7 @@ export default function RiskCalculator() {
                       "p-3 text-left text-sm rounded-xl border transition-all",
                       answers.country === country
                         ? "border-primary bg-primary/5 text-foreground"
-                        : "border-border bg-background hover:border-primary/50 text-muted-foreground"
+                        : "border-border bg-background hover:border-primary/50 text-muted-foreground",
                     )}
                   >
                     {country}
@@ -694,7 +815,10 @@ export default function RiskCalculator() {
                 className="mb-3"
               />
               <button
-                onClick={() => { updateAnswer("city", ""); handleNext(); }}
+                onClick={() => {
+                  updateAnswer("city", "");
+                  handleNext();
+                }}
                 className="text-sm text-muted-foreground hover:text-foreground underline"
               >
                 Skip this step
@@ -714,7 +838,7 @@ export default function RiskCalculator() {
                   { value: "Suburban", icon: Home, desc: "Town or outskirts" },
                   { value: "Rural", icon: TreePine, desc: "Countryside" },
                   { value: "Remote", icon: Mountain, desc: "Isolated area" },
-                ].map(option => (
+                ].map((option) => (
                   <OptionCard
                     key={option.value}
                     selected={answers.areaType === option.value}
@@ -735,7 +859,7 @@ export default function RiskCalculator() {
               subtitle="e.g., airports, major ports, large energy sites"
             >
               <div className="grid gap-3">
-                {["No", "Not sure", "Yes"].map(option => (
+                {["No", "Not sure", "Yes"].map((option) => (
                   <OptionCard
                     key={option}
                     selected={answers.nearInfrastructure === option}
@@ -755,7 +879,7 @@ export default function RiskCalculator() {
               subtitle="Include everyone who lives with you."
             >
               <div className="flex flex-wrap gap-3 justify-center">
-                {["1", "2", "3–4", "5–6", "7+"].map(option => (
+                {["1", "2", "3–4", "5–6", "7+"].map((option) => (
                   <button
                     key={option}
                     onClick={() => updateAnswer("householdSize", option)}
@@ -763,7 +887,7 @@ export default function RiskCalculator() {
                       "w-16 h-16 rounded-xl border text-lg font-medium transition-all",
                       answers.householdSize === option
                         ? "border-primary bg-primary/5 text-foreground"
-                        : "border-border bg-background hover:border-primary/50 text-muted-foreground"
+                        : "border-border bg-background hover:border-primary/50 text-muted-foreground",
                     )}
                   >
                     {option}
@@ -780,7 +904,7 @@ export default function RiskCalculator() {
               subtitle="Select all that apply."
             >
               <div className="flex flex-wrap gap-2 justify-center">
-                {["None", "Kids", "Elderly", "Medical needs", "Pets"].map(option => (
+                {["None", "Kids", "Elderly", "Medical needs", "Pets"].map((option) => (
                   <button
                     key={option}
                     onClick={() => toggleExtraSupport(option)}
@@ -788,7 +912,7 @@ export default function RiskCalculator() {
                       "px-4 py-2 rounded-full border text-sm font-medium transition-all",
                       answers.extraSupport.includes(option)
                         ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background hover:border-primary/50 text-muted-foreground"
+                        : "border-border bg-background hover:border-primary/50 text-muted-foreground",
                     )}
                   >
                     {option}
@@ -809,7 +933,7 @@ export default function RiskCalculator() {
                   { value: "Car available", icon: Car },
                   { value: "Public transport only", icon: Building2 },
                   { value: "Limited mobility", icon: Users },
-                ].map(option => (
+                ].map((option) => (
                   <OptionCard
                     key={option.value}
                     selected={answers.mobility === option.value}
@@ -826,20 +950,11 @@ export default function RiskCalculator() {
 
         {/* Navigation */}
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={step === 1}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={handleBack} disabled={step === 1} className="flex-1">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <Button
-            onClick={handleNext}
-            disabled={!canProceed()}
-            className="flex-1"
-          >
+          <Button onClick={handleNext} disabled={!canProceed()} className="flex-1">
             {step === TOTAL_STEPS ? "See Results" : "Next"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -849,22 +964,20 @@ export default function RiskCalculator() {
   );
 }
 
-function StepContainer({ 
-  icon, 
-  title, 
-  subtitle, 
-  children 
-}: { 
-  icon: React.ReactNode; 
-  title: string; 
-  subtitle: string; 
+function StepContainer({
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="text-center">
-      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
-        {icon}
-      </div>
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">{icon}</div>
       <h2 className="text-xl font-semibold text-foreground mb-2">{title}</h2>
       <p className="text-muted-foreground mb-6">{subtitle}</p>
       {children}
@@ -872,18 +985,18 @@ function StepContainer({
   );
 }
 
-function OptionCard({ 
-  selected, 
-  onClick, 
-  icon, 
-  label, 
+function OptionCard({
+  selected,
+  onClick,
+  icon,
+  label,
   description,
-  horizontal = false
-}: { 
-  selected: boolean; 
-  onClick: () => void; 
-  icon?: React.ReactNode; 
-  label: string; 
+  horizontal = false,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  label: string;
   description?: string;
   horizontal?: boolean;
 }) {
@@ -893,34 +1006,25 @@ function OptionCard({
       className={cn(
         "p-4 rounded-xl border transition-all text-left",
         horizontal ? "flex items-center gap-3" : "flex flex-col items-center text-center",
-        selected
-          ? "border-primary bg-primary/5 shadow-sm"
-          : "border-border bg-[#F8FAFC] hover:border-primary/50"
+        selected ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-[#F8FAFC] hover:border-primary/50",
       )}
     >
       {icon && (
-        <div className={cn(
-          "flex items-center justify-center rounded-lg",
-          horizontal ? "w-10 h-10 bg-primary/10" : "w-12 h-12 bg-primary/10 mb-2",
-          selected ? "text-primary" : "text-muted-foreground"
-        )}>
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-lg",
+            horizontal ? "w-10 h-10 bg-primary/10" : "w-12 h-12 bg-primary/10 mb-2",
+            selected ? "text-primary" : "text-muted-foreground",
+          )}
+        >
           {icon}
         </div>
       )}
       <div>
-        <span className={cn(
-          "font-medium",
-          selected ? "text-foreground" : "text-muted-foreground"
-        )}>
-          {label}
-        </span>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        )}
+        <span className={cn("font-medium", selected ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
-      {selected && horizontal && (
-        <CheckCircle2 className="ml-auto h-5 w-5 text-primary" />
-      )}
+      {selected && horizontal && <CheckCircle2 className="ml-auto h-5 w-5 text-primary" />}
     </button>
   );
 }
