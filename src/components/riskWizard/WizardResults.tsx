@@ -48,12 +48,11 @@ export default function WizardResults({
   onShowLogin,
 }: WizardResultsProps) {
   const navigate = useNavigate();
-  const [hasAnimatedOnce, setHasAnimatedOnce] = useState(false);
   const [showResultsBadge, setShowResultsBadge] = useState(true);
   const [premiumCardVisible, setPremiumCardVisible] = useState(false);
   const [showAllPriorities, setShowAllPriorities] = useState(false);
   const [isLoadingContext, setIsLoadingContext] = useState(true);
-  const premiumRef = useRef<HTMLDivElement>(null);
+  const hasAnimatedRef = useRef(false);
 
   const scoreStyle = getScoreStyle(result.riskLevel);
   const scoreLabel = result.readinessScore >= 60 ? 'Well Prepared' : result.readinessScore >= 30 ? 'Partially Ready' : 'Needs Attention';
@@ -67,27 +66,26 @@ export default function WizardResults({
 
   const locationLabel = [result.inputs.city, result.inputs.postal_code].filter(Boolean).join(', ');
 
-  // Animation effects
+  // Animation effects - run once on mount
   useEffect(() => {
-    if (hasAnimatedOnce) return;
+    if (hasAnimatedRef.current) return;
+    hasAnimatedRef.current = true;
     
     // Hide badge after 3s
     const badgeTimer = setTimeout(() => setShowResultsBadge(false), 3000);
     
-    // Show premium card with delay
+    // Show premium card with delay for slide-up effect
     const premiumTimer = setTimeout(() => setPremiumCardVisible(true), 300);
     
     // Simulate location context loading
     const contextTimer = setTimeout(() => setIsLoadingContext(false), 1500);
-    
-    setHasAnimatedOnce(true);
     
     return () => {
       clearTimeout(badgeTimer);
       clearTimeout(premiumTimer);
       clearTimeout(contextTimer);
     };
-  }, [hasAnimatedOnce]);
+  }, []);
 
   // Visible priorities (2 above fold, rest in accordion)
   const visiblePriorities = result.topDrivers.slice(0, 2);
@@ -273,7 +271,6 @@ export default function WizardResults({
 
         {/* Premium Insights Section - slide-up animation */}
         <div
-          ref={premiumRef}
           className={cn(
             "transition-all duration-500 ease-out",
             premiumCardVisible 
