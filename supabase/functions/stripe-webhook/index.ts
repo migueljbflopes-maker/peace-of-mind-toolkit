@@ -32,24 +32,47 @@ serve(async (req) => {
     if (!supabaseUrl) throw new Error("SUPABASE_URL not configured");
     if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
 
-    // Get raw body and signature
+    // Get raw body and signature BEFORE any processing
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
     
+    logStep("Received request", { 
+      hasBody: !!body, 
+      bodyLength: body.length,
+      hasSignature: !!signature,
+      signaturePrefix: signature ? signature.substring(0, 20) + "..." : "none"
+    });
+
     if (!signature) {
-      throw new Error("No Stripe signature header");
+      logStep("ERROR: Missing stripe-signature header");
+      return new Response(JSON.stringify({ error: "Missing stripe-signature header" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Initialize Stripe and verify webhook signature
+    // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     
+    // Verify webhook signature using raw body
     let event: Stripe.Event;
     try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+      // Use async version for Deno compatibility with SubtleCrypto
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        webhookSecret,
+        undefined,
+        Stripe.createSubtleCryptoProvider()
+      );
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : String(err);
-      logStep("Signature verification failed", { error: errMessage });
-      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+      logStep("Signature verification FAILED", { 
+        error: errMessage,
+        webhookSecretPrefix: webhookSecret.substring(0, 10) + "...",
+        signatureHeader: signature.substring(0, 50) + "..."
+      });
+      return new Response(JSON.stringify({ error: "Webhook signature verification failed" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
