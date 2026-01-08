@@ -9,8 +9,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Toolkit = () => {
-  const { user } = useAuth();
-  const { isPremium, loading } = useEntitlements();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
+  const loading = authLoading || entLoading;
 
   const features = [
     {
