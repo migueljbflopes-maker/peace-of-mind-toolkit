@@ -15,6 +15,9 @@ import {
   WifiOff,
   CheckCircle2,
   Loader2,
+  Bell,
+  MapPin,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -31,6 +34,29 @@ const Pricing = () => {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  const pillars = [
+    {
+      title: "Safe Toolkit",
+      icon: Shield,
+      features: [
+        { icon: Lock, label: "Encrypted Vault" },
+        { icon: Map, label: "Plans A & B" },
+        { icon: FileText, label: "Red Folder PDF" },
+        { icon: Download, label: "Backup & Restore" },
+      ],
+    },
+    {
+      title: "Panic Button",
+      icon: Bell,
+      features: [
+        { icon: Bell, label: "One-tap emergency alerts" },
+        { icon: User, label: "Notify trusted contacts" },
+        { icon: MapPin, label: "Location sharing" },
+        { icon: History, label: "Activation history" },
+      ],
+    },
+  ];
+
   const benefits = [
     {
       icon: FileText,
@@ -46,6 +72,11 @@ const Pricing = () => {
       icon: Map,
       title: "Plans A & B",
       description: "Exit routes and emergency protocols for your household.",
+    },
+    {
+      icon: Bell,
+      title: "Panic Button",
+      description: "One-tap emergency alerts to your trusted contacts with location sharing.",
     },
     {
       icon: Download,
@@ -65,6 +96,7 @@ const Pricing = () => {
     { icon: Heart, label: "Medical" },
     { icon: FileText, label: "Essentials Checklist" },
     { icon: Map, label: "Plans A/B" },
+    { icon: Bell, label: "Panic Button" },
   ];
 
   const handleUnlockPremium = async () => {
@@ -105,6 +137,7 @@ const Pricing = () => {
       { icon: Map, label: "Plans A & B", href: "/premium/plans" },
       { icon: FileText, label: "Red Folder PDF", href: "/premium/red-folder" },
       { icon: Download, label: "Backup & Restore", href: "/premium/backup" },
+      { icon: Bell, label: "Panic Button", href: "/panic/setup" },
     ];
 
     return (
@@ -172,8 +205,11 @@ const Pricing = () => {
 
               {/* Title */}
               <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                Personalized Resiliency Plan
+                Complete Premium Bundle
               </h1>
+              <p className="text-sm text-muted-foreground mb-4">
+                Two powerful pillars. One payment. Yours forever.
+              </p>
 
               {/* Price */}
               <div className="mb-4">
@@ -182,7 +218,7 @@ const Pricing = () => {
               </div>
 
               <p className="text-sm text-muted-foreground mb-6">
-                No subscription. No recurring fees. Yours forever.
+                No subscription. No recurring fees.
               </p>
 
               {/* Primary CTA */}
@@ -220,13 +256,53 @@ const Pricing = () => {
           </div>
         </section>
 
+        {/* Two Pillars Section */}
+        <section className="bg-section-light py-10">
+          <div className="container mx-auto px-4">
+            <p className="text-xs font-medium text-muted-foreground text-center mb-6 uppercase tracking-wide">
+              Two pillars, one bundle
+            </p>
+            <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+              {pillars.map((pillar, index) => {
+                const PillarIcon = pillar.icon;
+                return (
+                  <div
+                    key={index}
+                    className="bg-card rounded-xl border border-border p-5"
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <PillarIcon className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-base font-semibold text-foreground">
+                        {pillar.title}
+                      </h3>
+                    </div>
+                    <ul className="space-y-2">
+                      {pillar.features.map((feature, fIndex) => {
+                        const FeatureIcon = feature.icon;
+                        return (
+                          <li key={fIndex} className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <FeatureIcon className="h-4 w-4 text-primary/70" />
+                            {feature.label}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
         {/* Preview Grid */}
-        <section className="bg-section-light py-8">
+        <section className="py-8">
           <div className="container mx-auto px-4">
             <p className="text-xs font-medium text-muted-foreground text-center mb-4 uppercase tracking-wide">
               What's included in your plan
             </p>
-            <div className="grid grid-cols-5 gap-2 max-w-lg mx-auto">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-xl mx-auto">
               {previewSections.map((section, index) => {
                 const IconComponent = section.icon;
                 return (
