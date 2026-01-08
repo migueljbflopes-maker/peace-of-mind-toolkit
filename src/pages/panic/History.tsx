@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Clock, AlertCircle, ArrowLeft, Shield, CheckCircle, XCircle, FlaskConical } from "lucide-react";
+import { Link, Navigate } from "react-router-dom";
+import { Clock, AlertCircle, ArrowLeft, Shield, CheckCircle, XCircle, FlaskConical, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { PremiumLockedState } from "@/components/PremiumLockedState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 
@@ -36,13 +38,14 @@ const scenarioLabels: Record<string, string> = {
 };
 
 const PanicHistory = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
   const [history, setHistory] = useState<PanicActivation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadHistory = async () => {
-      if (!user) {
+      if (!user || !isPremium) {
         setIsLoading(false);
         return;
       }
@@ -68,7 +71,34 @@ const PanicHistory = () => {
     };
 
     loadHistory();
-  }, [user]);
+  }, [user, isPremium]);
+
+  // Loading state
+  if (authLoading || entLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Auth gate
+  if (!user) {
+    return <Navigate to="/auth" state={{ returnUrl: "/panic/history" }} replace />;
+  }
+
+  // Premium gate
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="py-8 md:py-12">
+          <PremiumLockedState title="Panic Button History" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
