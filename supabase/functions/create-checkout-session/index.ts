@@ -18,6 +18,33 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Only accept POST requests
+  if (req.method !== "POST") {
+    logStep("Method not allowed", { method: req.method });
+    return new Response(
+      JSON.stringify({ error: "Method not allowed. Use POST." }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 405 }
+    );
+  }
+
+  // Guard JSON parsing - check Content-Type and handle empty/invalid body
+  const contentType = req.headers.get("Content-Type") || "";
+  if (contentType.includes("application/json")) {
+    try {
+      const bodyText = await req.text();
+      if (bodyText && bodyText.trim()) {
+        // Attempt to parse JSON to validate it, but we don't use the body currently
+        JSON.parse(bodyText);
+      }
+    } catch {
+      logStep("Invalid JSON body");
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+  }
+
   try {
     logStep("Function started");
 
@@ -30,7 +57,7 @@ serve(async (req) => {
     if (!priceId) throw new Error("STRIPE_PRICE_ID_PREMIUM is not configured");
     if (!appUrl) throw new Error("APP_URL is not configured");
 
-    logStep("Environment variables verified");
+    logStep("Environment variables verified", { appUrl });
 
     // Create Supabase client with anon key for user authentication
     const supabaseClient = createClient(
@@ -69,6 +96,10 @@ serve(async (req) => {
       logStep("No existing Stripe customer, will create on checkout");
     }
 
+    // Build success and cancel URLs from APP_URL (must be deployed app origin)
+    const successUrl = `${appUrl}/dashboard?purchase=success`;
+    const cancelUrl = `${appUrl}/pricing?purchase=cancel`;
+
     // Create Stripe Checkout Session for one-time payment
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -85,8 +116,8 @@ serve(async (req) => {
       ],
       mode: "payment", // One-time payment, not subscription
       allow_promotion_codes: true, // Enable promo/coupon codes at checkout
-      success_url: `${appUrl}/dashboard?purchase=success`,
-      cancel_url: `${appUrl}/pricing?purchase=cancel`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
