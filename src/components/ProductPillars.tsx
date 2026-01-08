@@ -11,9 +11,14 @@ const ProductPillars = () => {
           <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
             Two pillars for complete peace of mind
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
+          <p className="text-muted-foreground max-w-xl mx-auto mb-4">
             Everything you need to be prepared — and respond — in any situation.
           </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+            <span className="text-sm font-medium text-foreground">One payment, full access:</span>
+            <span className="text-lg font-bold text-primary">€49</span>
+            <span className="text-sm text-muted-foreground">one-time</span>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
