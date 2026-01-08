@@ -415,6 +415,41 @@ export const translations = {
       finishSetup: 'Finish setting up your Premium plan',
       finishSetupDesc: 'Complete your personalized resiliency plan setup.',
     },
+    // Risk Wizard
+    riskWizard: {
+      title: 'Risk & Readiness Check',
+      subtitle: 'A 3–4 minute check to help you prepare calmly and practically.',
+      progressSaved: 'Progress saved automatically',
+      seeResults: 'See Results',
+      continue: 'Continue',
+      whyWeAsk: 'Why we ask',
+      // Resume modal
+      resumeTitle: 'Continue where you left off?',
+      resumeDesc: 'We found your previous progress. Would you like to resume or start fresh?',
+      resumeBtn: 'Continue where I left off',
+      startFreshBtn: 'Start fresh',
+      // Sections
+      sections: {
+        location: 'Location & Context',
+        household: 'Household',
+        preparedness: 'Preparedness',
+      },
+      // Results
+      results: {
+        title: 'Your Readiness Check',
+        readinessScore: 'Readiness Score',
+        wellPrepared: 'Well Prepared',
+        partiallyReady: 'Partially Ready',
+        needsAttention: 'Needs Attention',
+        topPriorities: 'Top priorities',
+        buildSupplies: 'Build your supplies plan',
+        buildSuppliesDesc: 'Free 14-day checklist based on your household',
+        disclaimer: 'This is a planning aid — always follow local authorities\' guidance.',
+        saveForLater: 'Save & continue later',
+      },
+      // Ready preview
+      readyPercent: '% ready',
+    },
   },
   pt: {
     // Common
@@ -829,6 +864,41 @@ export const translations = {
       completedSuccess: 'Configuração Premium completa. O teu plano está pronto offline.',
       finishSetup: 'Terminar configuração do teu plano Premium',
       finishSetupDesc: 'Completa a configuração do teu plano de resiliência personalizado.',
+    },
+    // Risk Wizard
+    riskWizard: {
+      title: 'Verificação de Risco e Prontidão',
+      subtitle: 'Um check de 3–4 minutos para te ajudar a preparar com calma e praticidade.',
+      progressSaved: 'Progresso guardado automaticamente',
+      seeResults: 'Ver Resultados',
+      continue: 'Continuar',
+      whyWeAsk: 'Porque perguntamos',
+      // Resume modal
+      resumeTitle: 'Continuar de onde paraste?',
+      resumeDesc: 'Encontrámos o teu progresso anterior. Queres continuar ou começar do início?',
+      resumeBtn: 'Continuar de onde parei',
+      startFreshBtn: 'Começar do início',
+      // Sections
+      sections: {
+        location: 'Localização e Contexto',
+        household: 'Agregado Familiar',
+        preparedness: 'Preparação',
+      },
+      // Results
+      results: {
+        title: 'A tua Verificação de Prontidão',
+        readinessScore: 'Pontuação de Prontidão',
+        wellPrepared: 'Bem Preparado',
+        partiallyReady: 'Parcialmente Pronto',
+        needsAttention: 'Precisa de Atenção',
+        topPriorities: 'Prioridades principais',
+        buildSupplies: 'Criar o teu plano de suprimentos',
+        buildSuppliesDesc: 'Checklist grátis de 14 dias baseada no teu agregado',
+        disclaimer: 'Isto é uma ajuda ao planeamento — segue sempre as orientações das autoridades locais.',
+        saveForLater: 'Guardar e continuar depois',
+      },
+      // Ready preview
+      readyPercent: '% pronto',
     },
   },
 } as const;

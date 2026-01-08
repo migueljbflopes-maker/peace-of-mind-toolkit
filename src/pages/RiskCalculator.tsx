@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { RiskWizardUI } from "@/components/riskWizard";
+
+// Feature flag: use new wizard UI if ?ui=wizard or set to true for full rollout
+const USE_WIZARD_BY_DEFAULT = true;
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
@@ -116,7 +120,19 @@ async function fetchAiInsights(payload: {
 
 export default function RiskCalculator() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isPremium } = useEntitlements();
+  
+  // Feature flag check: use wizard if query param or default flag is set
+  const useWizard = searchParams.get('ui') === 'wizard' || 
+                    (USE_WIZARD_BY_DEFAULT && searchParams.get('ui') !== 'legacy');
+  
+  // If using wizard, render it instead of the legacy UI
+  if (useWizard) {
+    return <RiskWizardUI />;
+  }
+  
+  // Legacy UI below
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<QuizAnswers>(defaultAnswers);
   const [showResults, setShowResults] = useState(false);
