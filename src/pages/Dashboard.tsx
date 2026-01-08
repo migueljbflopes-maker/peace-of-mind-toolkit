@@ -254,7 +254,7 @@ export default function Dashboard() {
     );
   }
 
-  if (authLoading || entitlementsLoading || onboardingLoading) {
+  if (authLoading || entitlementsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
