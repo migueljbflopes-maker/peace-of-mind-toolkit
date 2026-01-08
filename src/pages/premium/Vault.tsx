@@ -21,7 +21,7 @@ import Footer from '@/components/Footer';
 
 export default function Vault() {
   const { user, loading: authLoading } = useAuth();
-  const { isPremium, loading: entLoading } = useEntitlements(user, authLoading);
+  const { isPremium, loading: entLoading } = useEntitlements();
   const { t } = useLocale();
   const { isUnlocked, lock, getPassphrase, recordActivity, timeUntilLock } = useVaultSession();
   const { 

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
 import { useAuth } from './useAuth';
 
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
@@ -20,14 +19,11 @@ const defaultEntitlements: Entitlements = {
 
 /**
  * Hook para gerir entitlements premium.
- * Quando user e authLoading são passados externamente, usa esses valores.
- * Caso contrário, usa useAuth() internamente (retrocompatibilidade).
+ * Usa o AuthContext global para garantir estado consistente.
  */
-export function useEntitlements(externalUser?: User | null, externalAuthLoading?: boolean) {
-  // Se parâmetros externos são fornecidos, usa-os; senão usa useAuth internamente
-  const internalAuth = useAuth();
-  const user = externalUser !== undefined ? externalUser : internalAuth.user;
-  const authLoading = externalAuthLoading !== undefined ? externalAuthLoading : internalAuth.loading;
+export function useEntitlements() {
+  // Usa sempre o AuthContext global - uma única fonte de verdade
+  const { user, loading: authLoading } = useAuth();
   const [entitlements, setEntitlements] = useState<Entitlements>(() => {
     // Load from cache
     const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
