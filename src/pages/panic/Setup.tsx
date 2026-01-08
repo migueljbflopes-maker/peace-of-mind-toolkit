@@ -25,7 +25,7 @@ const SCENARIO_OPTIONS: { type: ScenarioType; label: string; description: string
 
 const PanicSetup = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
   const {
     contacts,
@@ -74,23 +74,8 @@ const PanicSetup = () => {
     }
   };
 
-  // Show premium locked state if not premium
-  if (!entLoading && !isPremium) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="py-8 md:py-12">
-          <div className="container mx-auto px-4 max-w-2xl">
-            <PremiumLockedState title="Panic Button" />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  // Show login prompt if not logged in
-  if (!user && !entLoading) {
+  // Show login prompt if not logged in (FIRST)
+  if (!authLoading && !user) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -104,6 +89,21 @@ const PanicSetup = () => {
             <Link to="/login">
               <Button variant="cta">Log In</Button>
             </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show premium locked state if not premium (SECOND)
+  if (!entLoading && !isPremium) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="py-8 md:py-12">
+          <div className="container mx-auto px-4 max-w-2xl">
+            <PremiumLockedState title="Panic Button" />
           </div>
         </main>
         <Footer />
