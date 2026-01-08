@@ -7,6 +7,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { useRedFolderData, DataReadiness } from '@/hooks/useRedFolderData';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
+import { LoginGateCard } from '@/components/LoginGateCard';
 import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { DataReadinessPanel } from '@/components/redFolder/DataReadinessPanel';
 import { buildRedFolderPdf } from '@/lib/pdf/redFolderPdf';
@@ -17,10 +18,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function RedFolder() {
-  const { isPremium, loading } = useEntitlements();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
   const { isUnlocked } = useVaultSession();
-  const { user } = useAuth();
   const { isLoading: isLoadingData, readiness, checkReadiness, loadAllData } = useRedFolderData();
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -114,12 +115,25 @@ export default function RedFolder() {
     handleGeneratePdf();
   };
 
-  if (loading) {
+  if (authLoading || entLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Login check BEFORE premium check
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 container-wide section-padding py-8">
+          <LoginGateCard feature={t.redFolder.title} />
         </main>
         <Footer />
       </div>

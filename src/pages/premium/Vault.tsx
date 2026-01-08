@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, WifiOff, Clock } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
+import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
+import { LoginGateCard } from '@/components/LoginGateCard';
 import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { VaultSectionCard } from '@/components/vault/VaultSectionCard';
 import { VaultSyncStatus } from '@/components/vault/VaultSyncStatus';
@@ -18,7 +20,8 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function Vault() {
-  const { isPremium, loading } = useEntitlements();
+  const { user, loading: authLoading } = useAuth();
+  const { isPremium, loading: entLoading } = useEntitlements();
   const { t } = useLocale();
   const { isUnlocked, lock, getPassphrase, recordActivity, timeUntilLock } = useVaultSession();
   const { 
@@ -136,12 +139,25 @@ export default function Vault() {
     }
   }, [isPremium, isUnlocked, isOnline, sync]);
 
-  if (loading) {
+  if (authLoading || entLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Login check BEFORE premium check
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 container-wide section-padding py-8">
+          <LoginGateCard feature={t.vault.title} />
         </main>
         <Footer />
       </div>
