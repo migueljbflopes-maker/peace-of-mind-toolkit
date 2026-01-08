@@ -319,6 +319,165 @@ export type Database = {
         }
         Relationships: []
       }
+      panic_activations: {
+        Row: {
+          activated_at: string
+          cancelled_at: string | null
+          completed_at: string | null
+          confirmed_at: string | null
+          id: string
+          is_test: boolean
+          location_snapshot: Json | null
+          scenario_type: Database["public"]["Enums"]["panic_scenario_type"]
+          shared_data: Json | null
+          status: Database["public"]["Enums"]["panic_activation_status"]
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          confirmed_at?: string | null
+          id?: string
+          is_test?: boolean
+          location_snapshot?: Json | null
+          scenario_type: Database["public"]["Enums"]["panic_scenario_type"]
+          shared_data?: Json | null
+          status?: Database["public"]["Enums"]["panic_activation_status"]
+          user_id: string
+        }
+        Update: {
+          activated_at?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          confirmed_at?: string | null
+          id?: string
+          is_test?: boolean
+          location_snapshot?: Json | null
+          scenario_type?: Database["public"]["Enums"]["panic_scenario_type"]
+          shared_data?: Json | null
+          status?: Database["public"]["Enums"]["panic_activation_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      panic_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          priority: number
+          updated_at: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          priority?: number
+          updated_at?: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          priority?: number
+          updated_at?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
+      panic_notifications: {
+        Row: {
+          activation_id: string
+          channel: Database["public"]["Enums"]["panic_notification_channel"]
+          contact_id: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["panic_notification_status"]
+        }
+        Insert: {
+          activation_id: string
+          channel: Database["public"]["Enums"]["panic_notification_channel"]
+          contact_id: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["panic_notification_status"]
+        }
+        Update: {
+          activation_id?: string
+          channel?: Database["public"]["Enums"]["panic_notification_channel"]
+          contact_id?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["panic_notification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panic_notifications_activation_id_fkey"
+            columns: ["activation_id"]
+            isOneToOne: false
+            referencedRelation: "panic_activations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "panic_notifications_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "panic_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      panic_scenarios: {
+        Row: {
+          created_at: string
+          custom_label: string | null
+          enabled: boolean
+          id: string
+          scenario_type: Database["public"]["Enums"]["panic_scenario_type"]
+          share_config: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_label?: string | null
+          enabled?: boolean
+          id?: string
+          scenario_type: Database["public"]["Enums"]["panic_scenario_type"]
+          share_config?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_label?: string | null
+          enabled?: boolean
+          id?: string
+          scenario_type?: Database["public"]["Enums"]["panic_scenario_type"]
+          share_config?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plan_items: {
         Row: {
           ciphertext: string
@@ -672,6 +831,14 @@ export type Database = {
       alert_frequency: "immediate" | "daily" | "weekly"
       news_severity: "major" | "moderate"
       news_source_type: "rss" | "api"
+      panic_activation_status:
+        | "pending"
+        | "confirmed"
+        | "cancelled"
+        | "completed"
+      panic_notification_channel: "email" | "sms"
+      panic_notification_status: "pending" | "sent" | "delivered" | "failed"
+      panic_scenario_type: "medical" | "natural" | "security" | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -802,6 +969,15 @@ export const Constants = {
       alert_frequency: ["immediate", "daily", "weekly"],
       news_severity: ["major", "moderate"],
       news_source_type: ["rss", "api"],
+      panic_activation_status: [
+        "pending",
+        "confirmed",
+        "cancelled",
+        "completed",
+      ],
+      panic_notification_channel: ["email", "sms"],
+      panic_notification_status: ["pending", "sent", "delivered", "failed"],
+      panic_scenario_type: ["medical", "natural", "security", "custom"],
     },
   },
 } as const
