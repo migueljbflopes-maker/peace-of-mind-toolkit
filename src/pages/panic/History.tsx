@@ -1,13 +1,74 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Clock, AlertCircle, ArrowLeft, Shield } from "lucide-react";
+import { Clock, AlertCircle, ArrowLeft, Shield, CheckCircle, XCircle, FlaskConical } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDistanceToNow } from "date-fns";
+
+interface PanicActivation {
+  id: string;
+  scenario_type: string;
+  status: string;
+  is_test: boolean;
+  activated_at: string;
+  cancelled_at: string | null;
+  confirmed_at: string | null;
+  completed_at: string | null;
+}
+
+const statusConfig: Record<string, { icon: React.ElementType; color: string; label: string }> = {
+  pending: { icon: Clock, color: "text-amber-500", label: "Pending" },
+  confirmed: { icon: CheckCircle, color: "text-primary", label: "Confirmed" },
+  completed: { icon: CheckCircle, color: "text-primary", label: "Completed" },
+  cancelled: { icon: XCircle, color: "text-muted-foreground", label: "Cancelled" },
+};
+
+const scenarioLabels: Record<string, string> = {
+  medical: "Medical Emergency",
+  natural: "Natural Disaster",
+  security: "Security Threat",
+  custom: "Custom Scenario",
+};
 
 const PanicHistory = () => {
-  // Placeholder - no history yet
-  const history: Array<{ date: string; type: string; status: string }> = [];
+  const { user } = useAuth();
+  const [history, setHistory] = useState<PanicActivation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("panic_activations")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("activated_at", { ascending: false })
+          .limit(50);
+
+        if (error) {
+          console.error("Error loading history:", error);
+        } else {
+          setHistory(data || []);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadHistory();
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -23,9 +84,7 @@ const PanicHistory = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
               Panic Button History
             </h1>
-            <p className="text-muted-foreground">
-              View past activations and test runs.
-            </p>
+            <p className="text-muted-foreground">View past activations and test runs.</p>
           </div>
 
           {/* History List */}
@@ -37,7 +96,13 @@ const PanicHistory = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {history.length === 0 ? (
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : history.length === 0 ? (
                 <div className="text-center py-12">
                   <Shield className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                   <p className="text-muted-foreground mb-2">No activations yet</p>
@@ -47,17 +112,57 @@ const PanicHistory = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {history.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                      <div>
-                        <p className="font-medium text-foreground">{item.type}</p>
-                        <p className="text-sm text-muted-foreground">{item.date}</p>
+                  {history.map((item) => {
+                    const config = statusConfig[item.status] || statusConfig.pending;
+                    const StatusIcon = config.icon;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              item.is_test ? "bg-amber-100" : "bg-muted"
+                            }`}
+                          >
+                            {item.is_test ? (
+                              <FlaskConical className="h-5 w-5 text-amber-600" />
+                            ) : (
+                              <StatusIcon className={`h-5 w-5 ${config.color}`} />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {scenarioLabels[item.scenario_type] || item.scenario_type}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {formatDistanceToNow(new Date(item.activated_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {item.is_test && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                              Test
+                            </span>
+                          )}
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              item.status === "cancelled"
+                                ? "bg-muted text-muted-foreground"
+                                : item.status === "confirmed" || item.status === "completed"
+                                ? "bg-primary/10 text-primary"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {config.label}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                        {item.status}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -72,9 +177,7 @@ const PanicHistory = () => {
               </Button>
             </Link>
             <Link to="/panic/test">
-              <Button variant="ghost">
-                Test Mode
-              </Button>
+              <Button variant="ghost">Test Mode</Button>
             </Link>
           </div>
         </div>
