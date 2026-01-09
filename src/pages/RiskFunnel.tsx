@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2, Lock, FileText, FolderHeart, Zap, Bell, Clock } from 'lucide-react';
+import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2, Lock, FileText, FolderHeart, Zap, Bell, Clock, AlertTriangle, Route } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -46,7 +46,9 @@ interface FunnelData {
   homeType: 'apartment' | 'house' | '';
   floorLevel: string;
   householdTags: string[];
+  emergencyExperience: 'never' | 'once' | 'multiple' | '';
   hasKit: 'yes' | 'partly' | 'no' | '';
+  hasEvacuationPlan: 'yes' | 'somewhat' | 'no' | '';
   hasWater3Days: boolean;
   hasPowerBackup: boolean;
   hasEmergencyContacts: boolean;
@@ -59,7 +61,9 @@ const defaultData: FunnelData = {
   homeType: '',
   floorLevel: '',
   householdTags: [],
+  emergencyExperience: '',
   hasKit: '',
+  hasEvacuationPlan: '',
   hasWater3Days: false,
   hasPowerBackup: false,
   hasEmergencyContacts: false,
@@ -79,9 +83,17 @@ const whyWeAskContent = {
     pt: "Cada membro tem necessidades únicas - isto ajuda-nos a personalizar o plano.",
     en: "Each member has unique needs - this helps us personalize your plan."
   },
+  experience: {
+    pt: "Experiência prévia influencia a tua capacidade de resposta em situações reais.",
+    en: "Past experience influences your ability to respond in real situations."
+  },
   preparedness: {
     pt: "Perceber o que já tens ajuda a focar nas lacunas prioritárias.",
     en: "Understanding what you already have helps focus on priority gaps."
+  },
+  evacuation: {
+    pt: "Ter um plano claro pode fazer a diferença nos primeiros minutos críticos.",
+    en: "Having a clear plan can make the difference in the first critical minutes."
   }
 };
 
@@ -122,7 +134,19 @@ function calculateScore(data: FunnelData): { exposure: number; preparednessGap: 
   if (!data.hasPowerBackup) preparednessGap += 6;
   if (!data.hasEmergencyContacts) preparednessGap += 4;
 
-  preparednessGap = Math.min(30, preparednessGap);
+  // Emergency experience scoring
+  if (data.emergencyExperience === 'never') {
+    preparednessGap += 4;
+  }
+
+  // Evacuation plan scoring
+  if (data.hasEvacuationPlan === 'no') {
+    preparednessGap += 8;
+  } else if (data.hasEvacuationPlan === 'somewhat') {
+    preparednessGap += 4;
+  }
+
+  preparednessGap = Math.min(40, preparednessGap);
 
   return {
     exposure,
@@ -447,98 +471,58 @@ function SocialProof() {
   );
 }
 
-// Product Popup Component - Two Pillars
+// Product Popup Component - High Conversion Version
 function ProductPopup({ 
   open, 
   onClose, 
   onCheckout,
-  loading 
+  loading,
+  city
 }: { 
   open: boolean; 
   onClose: () => void;
   onCheckout: () => void;
   loading: boolean;
+  city?: string;
 }) {
   const { locale } = useLocale();
   
-  const safeToolkitFeatures = [
-    { icon: Shield, labelPt: 'Análise de Risco Personalizada', labelEn: 'Personalized Risk Analysis' },
-    { icon: FileText, labelPt: 'Plano de Ação 72h', labelEn: '72h Action Plan' },
-    { icon: FolderHeart, labelPt: 'Red Folder PDF', labelEn: 'Red Folder PDF' },
-    { icon: Lock, labelPt: 'Vault Encriptado', labelEn: 'Encrypted Vault' },
-  ];
-
-  const panicButtonFeatures = [
-    { icon: Bell, labelPt: 'Alertas de Emergência', labelEn: 'Emergency Alerts' },
-    { icon: Users, labelPt: 'Notificar Contactos', labelEn: 'Notify Contacts' },
-    { icon: MapPin, labelPt: 'Partilha de Localização', labelEn: 'Location Sharing' },
-    { icon: Clock, labelPt: 'Histórico de Ativações', labelEn: 'Activation History' },
+  const benefits = [
+    { labelPt: 'O teu plano de ação personalizado para 72h', labelEn: 'Your personalized 72h action plan' },
+    { labelPt: city ? `Análise de risco específica para ${city}` : 'Análise de risco da tua cidade', labelEn: city ? `City-specific risk analysis for ${city}` : 'City-specific risk analysis' },
+    { labelPt: 'Vault de emergência & Red Folder PDF', labelEn: 'Emergency vault & Red Folder PDF' },
+    { labelPt: 'Botão de pânico para alertar a família', labelEn: 'One-tap panic button for your family' },
   ];
   
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-center text-xl">
-            {locale === 'pt' ? 'Bundle Premium Completo' : 'Complete Premium Bundle'}
+      <DialogContent className="sm:max-w-md">
+        {/* Header with success icon */}
+        <div className="text-center mb-4">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+            <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+          </div>
+          <DialogTitle className="text-xl font-semibold">
+            {locale === 'pt' ? 'O teu plano personalizado está pronto' : 'Your personalized plan is ready'}
           </DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogDescription className="mt-1">
             {locale === 'pt' 
-              ? 'Dois pilares poderosos. Um pagamento. Teu para sempre.'
-              : 'Two powerful pillars. One payment. Yours forever.'}
+              ? 'Desbloqueia acesso instantâneo a tudo o que precisas'
+              : 'Unlock instant access to everything you need'}
           </DialogDescription>
-        </DialogHeader>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
-          {/* Safe Toolkit Pillar */}
-          <div className="rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Shield className="h-4 w-4 text-primary" />
-              </div>
-              <h3 className="font-semibold text-sm">Safe Toolkit</h3>
-            </div>
-            <ul className="space-y-2">
-              {safeToolkitFeatures.map((feature, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <feature.icon className="h-4 w-4 text-muted-foreground" />
-                  <span>{locale === 'pt' ? feature.labelPt : feature.labelEn}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        </div>
 
-          {/* Panic Button Pillar */}
-          <div className="rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Bell className="h-4 w-4 text-destructive" />
-              </div>
-              <h3 className="font-semibold text-sm">Panic Button</h3>
-            </div>
-            <ul className="space-y-2">
-              {panicButtonFeatures.map((feature, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <feature.icon className="h-4 w-4 text-muted-foreground" />
-                  <span>{locale === 'pt' ? feature.labelPt : feature.labelEn}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        
-        <div className="text-center py-2">
-          <div className="inline-flex items-baseline gap-1">
-            <span className="text-3xl font-bold">€49</span>
-            <span className="text-muted-foreground text-sm">
-              {locale === 'pt' ? 'pagamento único' : 'one-time'}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {locale === 'pt' ? 'Acesso vitalício • Sem subscrições' : 'Lifetime access • No subscriptions'}
-          </p>
-        </div>
-        
+        {/* Benefits list - simple, focused */}
+        <ul className="space-y-3 py-4">
+          {benefits.map((benefit, i) => (
+            <li key={i} className="flex items-center gap-3">
+              <Check className="h-5 w-5 text-emerald-500 shrink-0" />
+              <span className="text-sm">{locale === 'pt' ? benefit.labelPt : benefit.labelEn}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* CTA with price inline */}
         <Button 
           onClick={onCheckout}
           disabled={loading}
@@ -551,26 +535,27 @@ function ProductPopup({
               {locale === 'pt' ? 'A processar...' : 'Processing...'}
             </>
           ) : (
-            <>
-              <Zap className="mr-2 h-4 w-4" />
-              {locale === 'pt' ? 'Desbloquear Acesso Premium' : 'Unlock Premium Access'}
-            </>
+            locale === 'pt' ? 'Obter o Meu Plano — €49' : 'Get My Plan — €49'
           )}
         </Button>
-        
-        <p className="text-xs text-center text-muted-foreground">
-          {locale === 'pt' 
-            ? 'Pagamento seguro via Stripe. Não precisas de conta prévia.'
-            : 'Secure payment via Stripe. No account needed upfront.'}
-        </p>
+
+        {/* Trust badges inline */}
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-3">
+          <span className="flex items-center gap-1">
+            <Lock className="h-3 w-3" />
+            {locale === 'pt' ? 'Checkout seguro' : 'Secure checkout'}
+          </span>
+          <span>•</span>
+          <span>{locale === 'pt' ? 'Sem subscrição' : 'No subscription'}</span>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// Steps: 1-Location, 2-Home, 3-Household, 4-Interstitial, 5-Preparedness, 6-Interstitial, 7-Analyzing, 8-Results
-const totalSteps = 8;
-const questionSteps = [1, 2, 3, 5]; // Steps that are actual questions
+// Steps: 1-Location, 2-Home, 3-Household, 4-EmergencyExp, 5-Interstitial, 6-Kit, 7-EvacPlan, 8-Interstitial, 9-Analyzing, 10-Results
+const totalSteps = 10;
+const questionSteps = [1, 2, 3, 4, 6, 7]; // Steps that are actual questions
 
 export default function RiskFunnel() {
   const navigate = useNavigate();
@@ -629,8 +614,12 @@ export default function RiskFunnel() {
         return !!data.homeType;
       case 3:
         return true; // Optional selections
-      case 5:
+      case 4:
+        return !!data.emergencyExperience;
+      case 6:
         return !!data.hasKit;
+      case 7:
+        return !!data.hasEvacuationPlan;
       default:
         return true;
     }
@@ -748,22 +737,22 @@ export default function RiskFunnel() {
     high: 'text-red-600',
   };
 
-  // Render interstitial after Household (step 4)
-  if (step === 4) {
+  // Render interstitial after Emergency Experience (step 5)
+  if (step === 5) {
     return (
       <FunnelInterstitial
-        titlePt="Agregado registado"
-        titleEn="Household logged"
-        subtitlePt="A personalizar para a tua família"
-        subtitleEn="Personalizing for your family"
+        titlePt="Perfil registado"
+        titleEn="Profile logged"
+        subtitlePt="A personalizar para a tua situação"
+        subtitleEn="Personalizing for your situation"
         color="violet"
         onComplete={handleNext}
       />
     );
   }
 
-  // Render interstitial after Preparedness (step 6)
-  if (step === 6) {
+  // Render interstitial after Evacuation Plan (step 8)
+  if (step === 8) {
     return (
       <FunnelInterstitial
         titlePt="Verificação de prontidão completa"
@@ -776,8 +765,8 @@ export default function RiskFunnel() {
     );
   }
 
-  // Render analyzing screen (step 7)
-  if (step === 7) {
+  // Render analyzing screen (step 9)
+  if (step === 9) {
     return (
       <FunnelAnalyzingScreen
         city={data.city}
@@ -786,8 +775,8 @@ export default function RiskFunnel() {
     );
   }
 
-  // Render results (step 8)
-  if (step === 8) {
+  // Render results (step 10)
+  if (step === 10) {
     return (
       <>
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
@@ -853,6 +842,7 @@ export default function RiskFunnel() {
           onClose={() => setShowProductPopup(false)}
           onCheckout={handleCheckout}
           loading={checkoutLoading}
+          city={data.city}
         />
       </>
     );
@@ -1067,8 +1057,57 @@ export default function RiskFunnel() {
               </div>
             )}
 
-            {/* Step 5: Preparedness */}
-            {step === 5 && (
+            {/* Step 4: Emergency Experience (NEW) */}
+            {step === 4 && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <AlertTriangle className="h-10 w-10 mx-auto text-primary" />
+                  <h2 className="text-xl font-semibold">
+                    {locale === 'pt' ? 'Já passaste por uma emergência real?' : 'Have you been through a real emergency?'}
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { value: 'multiple' as const, label: locale === 'pt' ? 'Sim, várias vezes' : 'Yes, multiple times', emoji: '🔁' },
+                    { value: 'once' as const, label: locale === 'pt' ? 'Sim, uma vez' : 'Yes, once', emoji: '✅' },
+                    { value: 'never' as const, label: locale === 'pt' ? 'Nunca' : 'Never', emoji: '❌' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => updateData('emergencyExperience', opt.value)}
+                      className={cn(
+                        'p-4 rounded-lg border-2 text-left transition-all flex items-center gap-3',
+                        data.emergencyExperience === opt.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      )}
+                    >
+                      <span className="text-xl">{opt.emoji}</span>
+                      <span className="font-medium">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <WhyWeAsk 
+                  textPt={whyWeAskContent.experience.pt}
+                  textEn={whyWeAskContent.experience.en}
+                />
+
+                <Button 
+                  onClick={handleNext} 
+                  disabled={!canProceed}
+                  className="w-full"
+                  size="lg"
+                >
+                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* Step 6: Emergency Kit */}
+            {step === 6 && (
               <div className="space-y-6">
                 <div className="text-center space-y-2">
                   <Package className="h-10 w-10 mx-auto text-primary" />
@@ -1132,6 +1171,55 @@ export default function RiskFunnel() {
                 <WhyWeAsk 
                   textPt={whyWeAskContent.preparedness.pt}
                   textEn={whyWeAskContent.preparedness.en}
+                />
+
+                <Button 
+                  onClick={handleNext} 
+                  disabled={!canProceed}
+                  className="w-full"
+                  size="lg"
+                >
+                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* Step 7: Evacuation Plan (NEW) */}
+            {step === 7 && (
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <Route className="h-10 w-10 mx-auto text-primary" />
+                  <h2 className="text-xl font-semibold">
+                    {locale === 'pt' ? 'Tens um plano de evacuação?' : 'Do you have an evacuation plan?'}
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { value: 'yes' as const, label: locale === 'pt' ? 'Sim, toda a família sabe' : 'Yes, everyone knows it', emoji: '✅' },
+                    { value: 'somewhat' as const, label: locale === 'pt' ? 'Mais ou menos' : 'Somewhat', emoji: '🔶' },
+                    { value: 'no' as const, label: locale === 'pt' ? 'Não temos' : 'We don\'t have one', emoji: '❌' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => updateData('hasEvacuationPlan', opt.value)}
+                      className={cn(
+                        'p-4 rounded-lg border-2 text-left transition-all flex items-center gap-3',
+                        data.hasEvacuationPlan === opt.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      )}
+                    >
+                      <span className="text-xl">{opt.emoji}</span>
+                      <span className="font-medium">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <WhyWeAsk 
+                  textPt={whyWeAskContent.evacuation.pt}
+                  textEn={whyWeAskContent.evacuation.en}
                 />
 
                 <Button 
