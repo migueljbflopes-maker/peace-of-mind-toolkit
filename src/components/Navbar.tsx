@@ -165,7 +165,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                  <DropdownMenuItem onSelect={handleSignOut} className="cursor-pointer text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />
                     {t.nav.logout}
                   </DropdownMenuItem>
