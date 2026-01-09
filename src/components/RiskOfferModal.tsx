@@ -37,7 +37,7 @@ export function RiskOfferModal({
   city,
   onCheckout,
   loading = false,
-  minutes = 10,
+  minutes = 5,
   priceNow = 49,
   priceWas = 120,
 }: RiskOfferModalProps) {
@@ -79,6 +79,7 @@ export function RiskOfferModal({
   ];
 
   const isUrgent = secondsLeft <= 60;
+  const isCritical = secondsLeft <= 30;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,7 +89,8 @@ export function RiskOfferModal({
           "px-4 py-2.5 flex items-center justify-between transition-colors duration-300",
           isUrgent 
             ? "bg-gradient-to-r from-red-500 to-orange-500" 
-            : "bg-gradient-to-r from-amber-500 to-orange-500"
+            : "bg-gradient-to-r from-amber-500 to-orange-500",
+          isCritical && "animate-[shake_0.5s_ease-in-out_infinite]"
         )}>
           <div className="flex items-center gap-2">
             <Clock className={cn(
