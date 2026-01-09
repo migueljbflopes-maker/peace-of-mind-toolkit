@@ -1,6 +1,7 @@
 import { useState, forwardRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Shield,
   Menu,
@@ -145,7 +146,9 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
           <div className="hidden lg:flex items-center gap-2">
             <LanguageSwitcher />
             
-            {isAuthenticated ? (
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2">
@@ -282,7 +285,9 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
             )}
 
             <div className="pt-4 border-t border-border space-y-2">
-              {isAuthenticated ? (
+              {loading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : isAuthenticated ? (
                 <>
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     {user?.email}
