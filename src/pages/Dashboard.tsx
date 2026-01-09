@@ -68,13 +68,14 @@ export default function Dashboard() {
     const purchaseStatus = searchParams.get('purchase');
     const sessionId = searchParams.get('session_id');
     
-    if (purchaseStatus !== 'success') return;
+    // Only trigger when we have purchase=success AND entitlements are done loading
+    if (purchaseStatus !== 'success' || entitlementsLoading) return;
 
     // Clear the URL params immediately
     setSearchParams({}, { replace: true });
     
     // If already premium, just show success
-    if (isPremium && !entitlementsLoading) {
+    if (isPremium) {
       toast.success("Welcome to Premium!", {
         description: "Your purchase was successful. Enjoy your new features!",
       });
@@ -141,7 +142,7 @@ export default function Dashboard() {
     };
 
     verifyAndConfirm();
-  }, [searchParams, setSearchParams, user?.id]);
+  }, [searchParams, setSearchParams, user?.id, isPremium, entitlementsLoading, refetch]);
 
   const handleRetryConfirmation = async () => {
     setPurchaseTimedOut(false);
@@ -254,7 +255,8 @@ export default function Dashboard() {
     );
   }
 
-  if (authLoading) {
+  // Combined loading gate for auth + entitlements
+  if (authLoading || entitlementsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
