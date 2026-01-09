@@ -14,7 +14,7 @@ import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, 
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { StripeGuestWalletModal } from '@/components/StripeGuestWalletModal';
+import { RiskOfferModal } from '@/components/RiskOfferModal';
 
 const STORAGE_KEY = 'resilient_risk_funnel';
 
@@ -562,7 +562,8 @@ export default function RiskFunnel() {
   const navigate = useNavigate();
   const { locale } = useLocale();
   const [step, setStep] = useState(1);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [data, setData] = useState<FunnelData>(() => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -632,7 +633,25 @@ export default function RiskFunnel() {
   };
 
   const handleViewResults = () => {
-    setShowPaymentModal(true);
+    setShowOfferModal(true);
+  };
+
+  const handleCheckout = async () => {
+    try {
+      setCheckoutLoading(true);
+      const { data: res, error } = await supabase.functions.invoke("create-guest-checkout", {
+        body: { source: "riskfunnel" },
+      });
+      if (error) throw error;
+      if (!res?.url) throw new Error("No checkout URL received");
+      
+      // Redirect to Stripe Checkout
+      window.location.href = res.url;
+    } catch (e) {
+      console.error('[RiskFunnel] Checkout error:', e);
+      toast.error(locale === 'pt' ? 'Erro ao abrir checkout' : 'Error opening checkout');
+      setCheckoutLoading(false);
+    }
   };
 
   const score = useMemo(() => calculateScore(data), [data]);
@@ -813,10 +832,15 @@ export default function RiskFunnel() {
           <SocialProof />
         </div>
         
-        <StripeGuestWalletModal
-          open={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
+        <RiskOfferModal
+          open={showOfferModal}
+          onOpenChange={setShowOfferModal}
           city={data.city}
+          loading={checkoutLoading}
+          onCheckout={handleCheckout}
+          minutes={10}
+          priceWas={120}
+          priceNow={49}
         />
       </>
     );
