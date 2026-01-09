@@ -69,8 +69,9 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   ];
 
   const handleSignOut = async () => {
-    await signOut();
+    // Close menu BEFORE signOut to ensure clean state
     setMobileMenuOpen(false);
+    await signOut(); // signOut handles redirect via window.location.assign
   };
 
   return (
@@ -165,7 +166,13 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={handleSignOut} className="cursor-pointer text-destructive">
+                  <DropdownMenuItem 
+                    onSelect={(e) => { 
+                      e.preventDefault(); 
+                      handleSignOut(); 
+                    }} 
+                    className="cursor-pointer text-destructive"
+                  >
                     <LogOut className="h-4 w-4 mr-2" />
                     {t.nav.logout}
                   </DropdownMenuItem>

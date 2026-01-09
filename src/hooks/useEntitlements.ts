@@ -5,7 +5,21 @@ import { useAuth } from './useAuth';
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
 
+// DEV-only logging helper
+const dbg = (...args: any[]) => {
+  if (import.meta.env.DEV) console.log('[Entitlements]', ...args);
+};
+
 interface Entitlements {
+  isPremium: boolean;
+  planName: string;
+  priceEur: number;
+}
+
+// Cached entitlements with userId scoping to prevent stale data across user switches
+interface CachedEntitlements {
+  userId: string;
+  cachedAt: number;
   isPremium: boolean;
   planName: string;
   priceEur: number;
@@ -21,9 +35,9 @@ const defaultEntitlements: Entitlements = {
  * Hook para gerir entitlements premium.
  * Usa o AuthContext global para garantir estado consistente.
  * 
- * FIX #1: Robust handling of user changes and sign-out:
+ * Features:
+ * - Cache scoped by userId to prevent "ghost" premium across user switches
  * - Clears cache and resets state when user changes or signs out
- * - Uses useRef to track last user ID for change detection
  * - Only fetches after auth is stable
  */
 export function useEntitlements() {
@@ -52,7 +66,10 @@ export function useEntitlements() {
 
   // Fetch entitlements from database
   const fetchEntitlements = useCallback(async () => {
+    dbg('fetchEntitlements called:', { userId: user?.id ?? null });
+    
     if (!user) {
+      dbg('No user, resetting to defaults');
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
@@ -60,6 +77,8 @@ export function useEntitlements() {
     }
 
     setLoading(true);
+    dbg('Fetching from DB for user:', user.id);
+    
     try {
       // Only select non-sensitive fields (no Stripe IDs)
       const { data, error } = await supabase
@@ -67,6 +86,8 @@ export function useEntitlements() {
         .select('is_premium, plan_name, price_eur')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      dbg('DB result:', { data, error: error?.message ?? null });
 
       if (error) {
         // DEV-only: log RLS or other errors for debugging
@@ -83,8 +104,16 @@ export function useEntitlements() {
           }
         : defaultEntitlements;
 
+      dbg('Final state:', newEntitlements);
       setEntitlements(newEntitlements);
-      localStorage.setItem(ENTITLEMENTS_CACHE_KEY, JSON.stringify(newEntitlements));
+      
+      // Save cache with userId scoping
+      const cacheData: CachedEntitlements = {
+        userId: user.id,
+        cachedAt: Date.now(),
+        ...newEntitlements,
+      };
+      localStorage.setItem(ENTITLEMENTS_CACHE_KEY, JSON.stringify(cacheData));
     } catch (err) {
       console.error('[Entitlements] fetch error:', err);
       setEntitlements(defaultEntitlements);
@@ -93,10 +122,17 @@ export function useEntitlements() {
     }
   }, [user]);
 
-  // Main effect: Handle auth state changes
+  // Main effect: Handle auth state changes with cache validation
   useEffect(() => {
+    dbg('Effect triggered:', { 
+      authLoading, 
+      currentUserId: user?.id ?? null, 
+      previousUserId: lastUserIdRef.current 
+    });
+
     // Wait for auth to finish loading
     if (authLoading) {
+      dbg('Auth still loading, waiting...');
       return;
     }
 
@@ -105,7 +141,7 @@ export function useEntitlements() {
 
     // Case 1: User signed out (was logged in, now null)
     if (previousUserId !== null && currentUserId === null) {
-      // Clear everything immediately
+      dbg('CASE 1: User signed out');
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
@@ -115,6 +151,7 @@ export function useEntitlements() {
 
     // Case 2: No user (initial state or after sign out)
     if (currentUserId === null) {
+      dbg('CASE 2: No user');
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
@@ -124,26 +161,48 @@ export function useEntitlements() {
 
     // Case 3: User changed (different user signed in)
     if (currentUserId !== previousUserId) {
-      // Clear cache for previous user before fetching
-      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      dbg('CASE 3: User changed, validating cache...');
+      
+      // Validate cache userId matches current user
+      try {
+        const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as CachedEntitlements;
+          if (parsed.userId !== currentUserId) {
+            dbg('Cache userId mismatch, clearing:', { cached: parsed.userId, current: currentUserId });
+            localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+          }
+        }
+      } catch {
+        localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      }
+      
       lastUserIdRef.current = currentUserId;
       fetchEntitlements();
       return;
     }
 
     // Case 4: Same user, already loaded - no action needed
-    // (this handles re-renders without refetching)
+    dbg('CASE 4: Same user, no action');
 
   }, [authLoading, user, fetchEntitlements]);
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
+  const combinedLoading = authLoading || loading;
+
+  dbg('Returning:', { 
+    isPremium, 
+    loading: combinedLoading,
+    devPremiumOverride,
+    rawIsPremium: entitlements.isPremium
+  });
 
   return {
     ...entitlements,
     isPremium,
     // Combined loading: true if auth OR entitlements are loading
-    loading: authLoading || loading,
+    loading: combinedLoading,
     refetch: fetchEntitlements,
     // Dev-only
     devPremiumOverride,

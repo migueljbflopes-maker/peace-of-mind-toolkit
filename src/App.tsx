@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LocaleProvider } from "@/i18n";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import BePrepared from "./pages/BePrepared";
 import Products from "./pages/Products";
@@ -28,6 +29,11 @@ import PanicSetup from "./pages/panic/Setup";
 import PanicTest from "./pages/panic/Test";
 import PanicHistory from "./pages/panic/History";
 import NotFound from "./pages/NotFound";
+
+// DEV-only: Lazy load AuthDebugPanel
+const AuthDebugPanel = import.meta.env.DEV 
+  ? lazy(() => import("./components/AuthDebugPanel"))
+  : null;
 
 const queryClient = new QueryClient();
 
@@ -66,6 +72,12 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            {/* DEV-only: Auth debug panel */}
+            {import.meta.env.DEV && AuthDebugPanel && (
+              <Suspense fallback={null}>
+                <AuthDebugPanel />
+              </Suspense>
+            )}
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
