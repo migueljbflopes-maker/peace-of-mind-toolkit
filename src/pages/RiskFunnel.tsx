@@ -9,10 +9,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2, Lock, FileText, FolderHeart, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const STORAGE_KEY = 'resilient_risk_funnel';
+
+// Avatar photos for social proof
+const AVATAR_PHOTOS = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+];
 
 // Countries list (subset for demo)
 const COUNTRIES = [
@@ -74,40 +85,44 @@ const whyWeAskContent = {
   }
 };
 
-// Scoring logic
+// Scoring logic - adjusted to always give moderate or high
 function calculateScore(data: FunnelData): { exposure: number; preparednessGap: number; total: number } {
-  let exposure = 0;
+  // Base score starts at 35 to bias towards moderate/high
+  let exposure = 35;
   let preparednessGap = 0;
 
+  // Location always adds points (everyone has location risk)
+  exposure += 10;
+
   if (data.homeType === 'apartment') {
-    exposure += 15;
+    exposure += 12;
     const floor = parseInt(data.floorLevel) || 0;
-    if (floor >= 5) exposure += 10;
+    if (floor >= 5) exposure += 8;
     else if (floor >= 3) exposure += 5;
   } else if (data.homeType === 'house') {
     exposure += 8;
   }
 
   const tags = data.householdTags;
-  if (tags.includes('kids')) exposure += 10;
-  if (tags.includes('elderly')) exposure += 12;
-  if (tags.includes('medical')) exposure += 15;
+  if (tags.includes('kids')) exposure += 8;
+  if (tags.includes('elderly')) exposure += 10;
+  if (tags.includes('medical')) exposure += 12;
   if (tags.includes('pets')) exposure += 5;
-  if (tags.includes('alone')) exposure += 8;
+  if (tags.includes('alone')) exposure += 6;
 
-  exposure = Math.min(60, exposure);
+  exposure = Math.min(70, exposure);
 
   if (data.hasKit === 'no') {
-    preparednessGap += 15;
+    preparednessGap += 12;
   } else if (data.hasKit === 'partly') {
-    preparednessGap += 8;
+    preparednessGap += 6;
   }
 
-  if (!data.hasWater3Days) preparednessGap += 10;
-  if (!data.hasPowerBackup) preparednessGap += 8;
-  if (!data.hasEmergencyContacts) preparednessGap += 7;
+  if (!data.hasWater3Days) preparednessGap += 8;
+  if (!data.hasPowerBackup) preparednessGap += 6;
+  if (!data.hasEmergencyContacts) preparednessGap += 4;
 
-  preparednessGap = Math.min(40, preparednessGap);
+  preparednessGap = Math.min(30, preparednessGap);
 
   return {
     exposure,
@@ -117,39 +132,70 @@ function calculateScore(data: FunnelData): { exposure: number; preparednessGap: 
 }
 
 function getRiskLevel(score: number): 'low' | 'moderate' | 'high' {
-  if (score <= 33) return 'low';
-  if (score <= 66) return 'moderate';
+  // Adjusted thresholds - low is now harder to achieve
+  if (score <= 40) return 'low';
+  if (score <= 65) return 'moderate';
   return 'high';
 }
 
 function getReasons(data: FunnelData, score: { exposure: number; preparednessGap: number }): string[] {
   const reasons: string[] = [];
+  const { locale } = useLocale();
+  const isPortuguese = locale === 'pt';
 
+  // Location is ALWAYS first
+  if (data.city) {
+    reasons.push(isPortuguese 
+      ? `Localização em ${data.city} apresenta riscos específicos`
+      : `Location in ${data.city} presents specific risks`);
+  } else {
+    reasons.push(isPortuguese
+      ? 'A tua localização geográfica influencia o perfil de risco'
+      : 'Your geographic location influences your risk profile');
+  }
+
+  // Then add other factors
   if (data.homeType === 'apartment' && parseInt(data.floorLevel) >= 5) {
-    reasons.push('High-rise living may complicate evacuation');
+    reasons.push(isPortuguese 
+      ? 'Habitação em andar alto pode complicar evacuação'
+      : 'High-rise living may complicate evacuation');
   }
 
   if (data.householdTags.includes('elderly')) {
-    reasons.push('Elderly household members need extra planning');
+    reasons.push(isPortuguese 
+      ? 'Membros idosos precisam de planeamento extra'
+      : 'Elderly household members need extra planning');
   }
   if (data.householdTags.includes('medical')) {
-    reasons.push('Medical needs require backup supplies');
+    reasons.push(isPortuguese 
+      ? 'Necessidades médicas requerem reservas de backup'
+      : 'Medical needs require backup supplies');
   }
   if (data.householdTags.includes('kids')) {
-    reasons.push('Children need specialized emergency planning');
+    reasons.push(isPortuguese 
+      ? 'Crianças precisam de planeamento de emergência especializado'
+      : 'Children need specialized emergency planning');
   }
   if (data.householdTags.includes('alone')) {
-    reasons.push('Living alone means self-reliance is critical');
+    reasons.push(isPortuguese 
+      ? 'Viver sozinho significa que auto-suficiência é crítica'
+      : 'Living alone means self-reliance is critical');
   }
 
   if (data.hasKit === 'no') {
-    reasons.push('No emergency kit increases vulnerability');
+    reasons.push(isPortuguese 
+      ? 'Sem kit de emergência aumenta vulnerabilidade'
+      : 'No emergency kit increases vulnerability');
   }
   if (!data.hasWater3Days) {
-    reasons.push('Water supply for 3+ days is essential');
+    reasons.push(isPortuguese 
+      ? 'Reserva de água para 3+ dias é essencial'
+      : 'Water supply for 3+ days is essential');
   }
   if (!data.hasEmergencyContacts) {
-    reasons.push('Emergency contacts should be readily available');
+    reasons.push(isPortuguese 
+      ? 'Contactos de emergência devem estar acessíveis'
+      : 'Emergency contacts should be readily available');
   }
 
   return reasons.slice(0, 3);
@@ -351,21 +397,21 @@ function FunnelAnalyzingScreen({
   );
 }
 
-// Social Proof Component (Trustpilot style)
+// Social Proof Component (Trustpilot style with real photos)
 function SocialProof() {
   const { locale } = useLocale();
   
   return (
     <div className="mt-6 text-center">
-      {/* Avatars */}
+      {/* Avatars with real photos */}
       <div className="flex justify-center -space-x-2 mb-3">
-        {['J', 'M', 'A', 'S'].map((initial, i) => (
-          <div 
-            key={i} 
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 border-2 border-white flex items-center justify-center text-xs font-medium text-slate-500"
-          >
-            {initial}
-          </div>
+        {AVATAR_PHOTOS.map((photo, i) => (
+          <img 
+            key={i}
+            src={photo}
+            alt=""
+            className="w-8 h-8 rounded-full border-2 border-white object-cover"
+          />
         ))}
       </div>
       
@@ -401,6 +447,125 @@ function SocialProof() {
   );
 }
 
+// Product Popup Component
+function ProductPopup({ 
+  open, 
+  onClose, 
+  onCheckout,
+  loading 
+}: { 
+  open: boolean; 
+  onClose: () => void;
+  onCheckout: () => void;
+  loading: boolean;
+}) {
+  const { locale } = useLocale();
+  
+  const features = [
+    {
+      icon: Shield,
+      titlePt: 'Análise de Risco Personalizada',
+      titleEn: 'Personalized Risk Analysis',
+      descPt: 'Avaliação completa baseada na tua localização e perfil familiar',
+      descEn: 'Complete assessment based on your location and family profile'
+    },
+    {
+      icon: FileText,
+      titlePt: 'Plano de Ação 72h',
+      titleEn: '72h Action Plan',
+      descPt: 'Passos concretos prioritizados para as primeiras 72 horas',
+      descEn: 'Prioritized concrete steps for the first 72 hours'
+    },
+    {
+      icon: FolderHeart,
+      titlePt: 'Red Folder PDF',
+      titleEn: 'Red Folder PDF',
+      descPt: 'Documento imprimível com todos os dados críticos da família',
+      descEn: 'Printable document with all critical family data'
+    },
+    {
+      icon: Lock,
+      titlePt: 'Vault Encriptado',
+      titleEn: 'Encrypted Vault',
+      descPt: 'Armazenamento seguro para documentos e informações sensíveis',
+      descEn: 'Secure storage for sensitive documents and information'
+    }
+  ];
+  
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center flex items-center justify-center gap-2">
+            <Shield className="h-6 w-6 text-primary" />
+            {locale === 'pt' ? 'Acesso Premium' : 'Premium Access'}
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            {locale === 'pt' 
+              ? 'Desbloqueia a tua análise de risco personalizada com plano de ação completo.'
+              : 'Unlock your personalized risk analysis with a complete action plan.'}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          {features.map((feature, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <feature.icon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">
+                  {locale === 'pt' ? feature.titlePt : feature.titleEn}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {locale === 'pt' ? feature.descPt : feature.descEn}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="text-center py-2">
+          <div className="inline-flex items-baseline gap-1">
+            <span className="text-3xl font-bold">€49</span>
+            <span className="text-muted-foreground text-sm">
+              {locale === 'pt' ? 'pagamento único' : 'one-time'}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {locale === 'pt' ? 'Acesso vitalício • Sem subscrições' : 'Lifetime access • No subscriptions'}
+          </p>
+        </div>
+        
+        <Button 
+          onClick={onCheckout}
+          disabled={loading}
+          className="w-full"
+          size="lg"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {locale === 'pt' ? 'A processar...' : 'Processing...'}
+            </>
+          ) : (
+            <>
+              <Zap className="mr-2 h-4 w-4" />
+              {locale === 'pt' ? 'Desbloquear Acesso Premium' : 'Unlock Premium Access'}
+            </>
+          )}
+        </Button>
+        
+        <p className="text-xs text-center text-muted-foreground">
+          {locale === 'pt' 
+            ? 'Pagamento seguro via Stripe. Garantia de 30 dias.'
+            : 'Secure payment via Stripe. 30-day guarantee.'}
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Steps: 1-Location, 2-Home, 3-Household, 4-Interstitial, 5-Preparedness, 6-Interstitial, 7-Analyzing, 8-Results
 const totalSteps = 8;
 const questionSteps = [1, 2, 3, 5]; // Steps that are actual questions
@@ -409,6 +574,8 @@ export default function RiskFunnel() {
   const navigate = useNavigate();
   const { locale } = useLocale();
   const [step, setStep] = useState(1);
+  const [showProductPopup, setShowProductPopup] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [data, setData] = useState<FunnelData>(() => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -474,17 +641,102 @@ export default function RiskFunnel() {
   };
 
   const handleViewResults = () => {
-    navigate('/tools/risk', {
-      state: {
-        funnelData: data,
-        fromFunnel: true,
-      },
-    });
+    setShowProductPopup(true);
+  };
+
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data: checkoutData, error } = await supabase.functions.invoke('create-checkout-session', {
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : undefined
+      });
+
+      if (error) throw error;
+
+      if (checkoutData?.url) {
+        window.location.href = checkoutData.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast.error(locale === 'pt' 
+        ? 'Erro ao iniciar checkout. Tenta novamente.'
+        : 'Error starting checkout. Please try again.');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   const score = useMemo(() => calculateScore(data), [data]);
   const riskLevel = useMemo(() => getRiskLevel(score.total), [score.total]);
-  const reasons = useMemo(() => getReasons(data, score), [data, score]);
+
+  // Get reasons with locale context
+  const reasons = useMemo(() => {
+    const reasonsList: string[] = [];
+    const isPortuguese = locale === 'pt';
+
+    // Location is ALWAYS first
+    if (data.city) {
+      reasonsList.push(isPortuguese 
+        ? `Localização em ${data.city} apresenta riscos específicos`
+        : `Location in ${data.city} presents specific risks`);
+    } else {
+      reasonsList.push(isPortuguese
+        ? 'A tua localização geográfica influencia o perfil de risco'
+        : 'Your geographic location influences your risk profile');
+    }
+
+    // Then add other factors
+    if (data.homeType === 'apartment' && parseInt(data.floorLevel) >= 5) {
+      reasonsList.push(isPortuguese 
+        ? 'Habitação em andar alto pode complicar evacuação'
+        : 'High-rise living may complicate evacuation');
+    }
+
+    if (data.householdTags.includes('elderly')) {
+      reasonsList.push(isPortuguese 
+        ? 'Membros idosos precisam de planeamento extra'
+        : 'Elderly household members need extra planning');
+    }
+    if (data.householdTags.includes('medical')) {
+      reasonsList.push(isPortuguese 
+        ? 'Necessidades médicas requerem reservas de backup'
+        : 'Medical needs require backup supplies');
+    }
+    if (data.householdTags.includes('kids')) {
+      reasonsList.push(isPortuguese 
+        ? 'Crianças precisam de planeamento de emergência especializado'
+        : 'Children need specialized emergency planning');
+    }
+    if (data.householdTags.includes('alone')) {
+      reasonsList.push(isPortuguese 
+        ? 'Viver sozinho significa que auto-suficiência é crítica'
+        : 'Living alone means self-reliance is critical');
+    }
+
+    if (data.hasKit === 'no') {
+      reasonsList.push(isPortuguese 
+        ? 'Sem kit de emergência aumenta vulnerabilidade'
+        : 'No emergency kit increases vulnerability');
+    }
+    if (!data.hasWater3Days) {
+      reasonsList.push(isPortuguese 
+        ? 'Reserva de água para 3+ dias é essencial'
+        : 'Water supply for 3+ days is essential');
+    }
+    if (!data.hasEmergencyContacts) {
+      reasonsList.push(isPortuguese 
+        ? 'Contactos de emergência devem estar acessíveis'
+        : 'Emergency contacts should be readily available');
+    }
+
+    return reasonsList.slice(0, 3);
+  }, [data, locale]);
 
   const riskLevelLabel = {
     low: locale === 'pt' ? 'Baixo' : 'Low',
@@ -539,63 +791,72 @@ export default function RiskFunnel() {
   // Render results (step 8)
   if (step === 8) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md p-6 shadow-lg">
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2">
-                <Shield className="h-8 w-8 text-primary" />
+      <>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4">
+          <Card className="w-full max-w-md p-6 shadow-lg">
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2">
+                  <Shield className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">
+                  {locale === 'pt' 
+                    ? 'O teu perfil de risco está pronto' 
+                    : 'Your risk profile is ready'}
+                </h2>
               </div>
-              <h2 className="text-xl font-semibold">
-                {locale === 'pt' 
-                  ? 'O teu perfil de risco está pronto' 
-                  : 'Your risk profile is ready'}
-              </h2>
-            </div>
 
-            {/* Risk level display */}
-            <div className="text-center py-4 px-6 bg-muted/50 rounded-xl">
-              <p className="text-sm text-muted-foreground mb-1">
-                {locale === 'pt' ? 'Categoria de Risco' : 'Risk Category'}
-              </p>
-              <p className={cn('text-2xl font-bold', riskLevelColor[riskLevel])}>
-                {riskLevelLabel[riskLevel]}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Score: {score.total}/100
-              </p>
-            </div>
-
-            {/* Reasons */}
-            {reasons.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-center">
-                  {locale === 'pt' ? 'Principais fatores:' : 'Key factors:'}
+              {/* Risk level display */}
+              <div className="text-center py-4 px-6 bg-muted/50 rounded-xl">
+                <p className="text-sm text-muted-foreground mb-1">
+                  {locale === 'pt' ? 'Categoria de Risco' : 'Risk Category'}
                 </p>
-                <ul className="space-y-2">
-                  {reasons.map((reason, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className="text-primary mt-0.5">•</span>
-                      <span>{reason}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className={cn('text-2xl font-bold', riskLevelColor[riskLevel])}>
+                  {riskLevelLabel[riskLevel]}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Score: {score.total}/100
+                </p>
               </div>
-            )}
 
-            <Button 
-              onClick={handleViewResults}
-              className="w-full"
-              size="lg"
-            >
-              {locale === 'pt' ? 'Ver resultados personalizados' : 'View personalized results'}
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </Card>
+              {/* Reasons */}
+              {reasons.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-center">
+                    {locale === 'pt' ? 'Principais fatores:' : 'Key factors:'}
+                  </p>
+                  <ul className="space-y-2">
+                    {reasons.map((reason, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <Button 
+                onClick={handleViewResults}
+                className="w-full"
+                size="lg"
+              >
+                {locale === 'pt' ? 'Ver Resultados Personalizados & Preparar-me' : 'View Personalized Results & Get Ready'}
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </Card>
+          
+          <SocialProof />
+        </div>
         
-        <SocialProof />
-      </div>
+        <ProductPopup 
+          open={showProductPopup}
+          onClose={() => setShowProductPopup(false)}
+          onCheckout={handleCheckout}
+          loading={checkoutLoading}
+        />
+      </>
     );
   }
 
