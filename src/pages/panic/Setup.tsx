@@ -74,8 +74,25 @@ const PanicSetup = () => {
     }
   };
 
-  // Show login prompt if not logged in (FIRST)
-  if (!authLoading && !user) {
+  // STEP 1: Show loading while auth or entitlements are loading
+  if (authLoading || entLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="py-8 md:py-12">
+          <div className="container mx-auto px-4 max-w-2xl">
+            <Skeleton className="h-12 w-48 mx-auto mb-4" />
+            <Skeleton className="h-64 w-full mb-6" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // STEP 2: Show login prompt if not logged in
+  if (!user) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -96,8 +113,8 @@ const PanicSetup = () => {
     );
   }
 
-  // Show premium locked state if not premium (SECOND)
-  if (!entLoading && !isPremium) {
+  // STEP 3: Show premium locked state if not premium
+  if (!isPremium) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
