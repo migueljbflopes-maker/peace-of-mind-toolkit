@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -20,23 +20,19 @@ const defaultEntitlements: Entitlements = {
 /**
  * Hook para gerir entitlements premium.
  * Usa o AuthContext global para garantir estado consistente.
+ * 
+ * FIX #1: Robust handling of user changes and sign-out:
+ * - Clears cache and resets state when user changes or signs out
+ * - Uses useRef to track last user ID for change detection
+ * - Only fetches after auth is stable
  */
 export function useEntitlements() {
-  // Usa sempre o AuthContext global - uma única fonte de verdade
   const { user, loading: authLoading } = useAuth();
-  const [entitlements, setEntitlements] = useState<Entitlements>(() => {
-    // Load from cache
-    const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return defaultEntitlements;
-      }
-    }
-    return defaultEntitlements;
-  });
+  const [entitlements, setEntitlements] = useState<Entitlements>(defaultEntitlements);
   const [loading, setLoading] = useState(true);
+  
+  // Track last user ID to detect user changes
+  const lastUserIdRef = useRef<string | null>(null);
 
   // Dev-only premium simulation
   const [devPremiumOverride, setDevPremiumOverride] = useState(() => {
@@ -63,6 +59,7 @@ export function useEntitlements() {
       return;
     }
 
+    setLoading(true);
     try {
       // Only select non-sensitive fields (no Stripe IDs)
       const { data, error } = await supabase
@@ -87,16 +84,54 @@ export function useEntitlements() {
       localStorage.setItem(ENTITLEMENTS_CACHE_KEY, JSON.stringify(newEntitlements));
     } catch (err) {
       console.error('Error fetching entitlements:', err);
+      setEntitlements(defaultEntitlements);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
+  // Main effect: Handle auth state changes
   useEffect(() => {
-    if (!authLoading) {
-      fetchEntitlements();
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
     }
-  }, [authLoading, fetchEntitlements]);
+
+    const currentUserId = user?.id ?? null;
+    const previousUserId = lastUserIdRef.current;
+
+    // Case 1: User signed out (was logged in, now null)
+    if (previousUserId !== null && currentUserId === null) {
+      // Clear everything immediately
+      setEntitlements(defaultEntitlements);
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      setLoading(false);
+      lastUserIdRef.current = null;
+      return;
+    }
+
+    // Case 2: No user (initial state or after sign out)
+    if (currentUserId === null) {
+      setEntitlements(defaultEntitlements);
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      setLoading(false);
+      lastUserIdRef.current = null;
+      return;
+    }
+
+    // Case 3: User changed (different user signed in)
+    if (currentUserId !== previousUserId) {
+      // Clear cache for previous user before fetching
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      lastUserIdRef.current = currentUserId;
+      fetchEntitlements();
+      return;
+    }
+
+    // Case 4: Same user, already loaded - no action needed
+    // (this handles re-renders without refetching)
+
+  }, [authLoading, user, fetchEntitlements]);
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
@@ -104,7 +139,8 @@ export function useEntitlements() {
   return {
     ...entitlements,
     isPremium,
-    loading: loading || authLoading,
+    // Combined loading: true if auth OR entitlements are loading
+    loading: authLoading || loading,
     refetch: fetchEntitlements,
     // Dev-only
     devPremiumOverride,

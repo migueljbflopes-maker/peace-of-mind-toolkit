@@ -47,8 +47,23 @@ const Toolkit = () => {
     "Multi-device sync — access from any device",
   ];
 
-  // Premium user view - show access to features
-  if (isPremium && !loading) {
+  // STEP 1: Show loading while auth or entitlements are loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="py-16">
+          <div className="container mx-auto px-4">
+            <Skeleton className="h-64 w-full max-w-3xl mx-auto" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // STEP 2: Premium user view - show access to features
+  if (isPremium) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -116,20 +131,7 @@ const Toolkit = () => {
     );
   }
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="py-16">
-          <div className="container mx-auto px-4">
-            <Skeleton className="h-64 w-full max-w-3xl mx-auto" />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  // STEP 3: Non-premium view - show marketing page (loading already handled above)
 
   // Non-premium view - show marketing page
   return (
