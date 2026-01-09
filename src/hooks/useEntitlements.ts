@@ -69,7 +69,10 @@ export function useEntitlements() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching entitlements:', error);
+        // DEV-only: log RLS or other errors for debugging
+        if (import.meta.env.DEV) {
+          console.error('[Entitlements] select failed', error);
+        }
       }
 
       const newEntitlements: Entitlements = data
@@ -83,7 +86,7 @@ export function useEntitlements() {
       setEntitlements(newEntitlements);
       localStorage.setItem(ENTITLEMENTS_CACHE_KEY, JSON.stringify(newEntitlements));
     } catch (err) {
-      console.error('Error fetching entitlements:', err);
+      console.error('[Entitlements] fetch error:', err);
       setEntitlements(defaultEntitlements);
     } finally {
       setLoading(false);
