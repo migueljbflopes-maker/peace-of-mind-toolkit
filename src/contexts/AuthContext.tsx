@@ -7,6 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
 
+// DEV-only logging helper (no tokens/sessions logged)
+const dbg = (...args: any[]) => {
+  if (import.meta.env.DEV) console.log('[Auth]', ...args);
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -27,9 +32,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
+    // DEV: Log Supabase project on mount
+    if (import.meta.env.DEV) {
+      try {
+        const host = new URL(import.meta.env.VITE_SUPABASE_URL).host;
+        console.log('[Auth] Supabase project:', host);
+      } catch {}
+    }
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        dbg('onAuthStateChange:', { event, userId: session?.user?.id ?? null });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -45,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      dbg('getSession result:', { userId: session?.user?.id ?? null, hasSession: !!session });
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -165,21 +180,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 /**
    * HARD logout: clears local session deterministically, even if network fails.
    * Uses scope:'local' to ensure local session is removed regardless of API.
+   * Keeps loading=true during process to prevent UI flicker.
    */
   const signOut = useCallback(async () => {
-    // Immediately reflect logged out in UI
+    dbg('signOut: initiated');
+    
+    // Keep loading TRUE during signout to prevent UI inconsistencies
+    setLoading(true);
+    
+    // Clear user/session immediately
     setUser(null);
     setSession(null);
-    setLoading(false);
+    dbg('signOut: state cleared (user/session null)');
     
     // Clear caches BEFORE supabase call
     clearAuthCaches();
+    dbg('signOut: caches cleared (pre-supabase)');
     
     // Use scope:'local' to ensure local session cleared even if network fails
     const { error } = await supabase.auth.signOut({ scope: 'local' });
+    dbg('signOut: supabase result', { error: error?.message ?? null });
     
     // Clear caches AFTER as well (belt and suspenders)
     clearAuthCaches();
+    dbg('signOut: caches cleared (post-supabase)');
     
     if (error) {
       toast({
@@ -189,7 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
     
-    // Force reload to clear any stale in-memory state
+    // Force reload to clear any stale in-memory state - ALWAYS redirect
+    dbg('signOut: redirecting to /');
     window.location.assign('/');
     
     return { error };
