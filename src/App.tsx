@@ -31,6 +31,7 @@ import PanicTest from "./pages/panic/Test";
 import PanicHistory from "./pages/panic/History";
 import NotFound from "./pages/NotFound";
 import RiskFunnel from "./pages/RiskFunnel";
+import PurchaseSuccess from "./pages/PurchaseSuccess";
 
 // DEV-only: Lazy load AuthDebugPanel
 const AuthDebugPanel = import.meta.env.DEV 
@@ -74,6 +75,7 @@ const App = () => (
                 <Route path="/panic/history" element={<PanicHistory />} />
                 {/* Standalone funnel (no navbar/footer) */}
                 <Route path="/riskfunnel" element={<RiskFunnel />} />
+                <Route path="/purchase-success" element={<PurchaseSuccess />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
