@@ -67,14 +67,28 @@ function PaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCardPayment, setShowCardPayment] = useState(false);
   const [expressReady, setExpressReady] = useState(false);
+  const [availableMethods, setAvailableMethods] = useState<{ applePay?: boolean; googlePay?: boolean } | null>(null);
+
+  // onClick handler - REQUIRED for ExpressCheckoutElement to work
+  const handleExpressClick = useCallback(({ resolve }: { resolve: (options: any) => void }) => {
+    console.log('[Stripe] ExpressCheckout clicked, resolving options...');
+    resolve({
+      emailRequired: true,
+      phoneNumberRequired: false,
+      billingAddressRequired: false,
+    });
+  }, []);
 
   const handleExpressCheckoutConfirm = useCallback(async (event: any) => {
     if (!stripe || !elements) return;
 
     setIsProcessing(true);
+    console.log('[Stripe] ExpressCheckout confirm event:', event);
+    
     try {
       // Get email from billing details if available
       const billingEmail = event.billingDetails?.email;
+      console.log('[Stripe] Billing email from wallet:', billingEmail);
       
       // If we got an email, save it immediately
       if (billingEmail) {
@@ -93,18 +107,34 @@ function PaymentForm({
       });
 
       if (error) {
+        console.error('[Stripe] Payment error:', error);
         toast.error(error.message || (locale === 'pt' ? 'Erro no pagamento' : 'Payment error'));
         setIsProcessing(false);
       } else {
         // Payment succeeded
+        console.log('[Stripe] Payment succeeded');
         onSuccess(billingEmail);
       }
     } catch (err) {
-      console.error('Payment error:', err);
+      console.error('[Stripe] Payment error:', err);
       toast.error(locale === 'pt' ? 'Erro no pagamento' : 'Payment error');
       setIsProcessing(false);
     }
   }, [stripe, elements, claimCode, onSuccess, locale]);
+
+  // onReady handler with detailed logging
+  const handleExpressReady = useCallback(({ availablePaymentMethods }: { availablePaymentMethods?: { applePay?: boolean; googlePay?: boolean } }) => {
+    console.log('[Stripe] ExpressCheckout ready, available methods:', availablePaymentMethods);
+    setAvailableMethods(availablePaymentMethods || null);
+    
+    // Only set ready if at least one method is available
+    const hasMethod = availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay;
+    setExpressReady(!!hasMethod);
+    
+    if (!hasMethod) {
+      console.log('[Stripe] No express payment methods available on this device/browser');
+    }
+  }, []);
 
   const handleCardPayment = async () => {
     if (!stripe || !elements) return;
@@ -138,15 +168,29 @@ function PaymentForm({
       {/* Express Checkout (Apple Pay / Google Pay) */}
       <div className="min-h-[44px]">
         <ExpressCheckoutElement
+          onClick={handleExpressClick}
           onConfirm={handleExpressCheckoutConfirm}
-          onReady={() => setExpressReady(true)}
+          onReady={handleExpressReady}
           options={{
             buttonType: {
               applePay: 'buy',
               googlePay: 'buy',
             },
+            wallets: {
+              applePay: 'auto',
+              googlePay: 'auto',
+            },
           }}
         />
+        
+        {/* Debug info in development */}
+        {availableMethods !== null && !expressReady && (
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            {locale === 'pt' 
+              ? 'Apple Pay/Google Pay não disponível neste dispositivo'
+              : 'Apple Pay/Google Pay not available on this device'}
+          </p>
+        )}
       </div>
 
       {/* Divider */}
