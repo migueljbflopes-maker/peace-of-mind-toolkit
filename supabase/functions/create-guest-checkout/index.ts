@@ -29,6 +29,9 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
+    // Parse optional source from body
+    const { source = "pricing" } = await req.json().catch(() => ({}));
+
     // Validate required environment variables
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const priceId = Deno.env.get("STRIPE_PRICE_ID_PREMIUM");
@@ -38,7 +41,7 @@ serve(async (req) => {
     if (!priceId) throw new Error("STRIPE_PRICE_ID_PREMIUM is not configured");
     if (!appUrl) throw new Error("APP_URL is not configured");
 
-    logStep("Environment variables verified", { appUrl });
+    logStep("Environment variables verified", { appUrl, source });
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -46,7 +49,11 @@ serve(async (req) => {
     // Build success and cancel URLs
     // Success URL includes session_id for post-payment processing
     const successUrl = `${appUrl}/purchase-success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${appUrl}/riskfunnel?purchase=cancel`;
+    
+    // Dynamic cancel URL based on source
+    const cancelUrl = source === "riskfunnel" 
+      ? `${appUrl}/riskfunnel?purchase=cancel`
+      : `${appUrl}/pricing?purchase=cancel`;
 
     // Create Stripe Checkout Session for one-time payment (guest mode)
     // No customer_email - Stripe will collect it during checkout
@@ -62,7 +69,7 @@ serve(async (req) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
-        source: "riskfunnel",
+        source: source,
         is_guest: "true",
       },
     });
