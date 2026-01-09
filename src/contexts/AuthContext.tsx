@@ -142,6 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: 'Error',
         description: error.message,
       });
+    } else {
+      // Clear state immediately for instant UI update
+      setUser(null);
+      setSession(null);
     }
     return { error };
   }, [toast]);
