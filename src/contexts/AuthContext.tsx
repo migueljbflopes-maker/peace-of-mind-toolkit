@@ -185,39 +185,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     dbg('signOut: initiated');
     
-    // Keep loading TRUE during signout to prevent UI inconsistencies
+    // Keep loading TRUE during signout
     setLoading(true);
     
     // Clear user/session immediately
     setUser(null);
     setSession(null);
-    dbg('signOut: state cleared (user/session null)');
+    dbg('signOut: state cleared');
     
     // Clear caches BEFORE supabase call
     clearAuthCaches();
     dbg('signOut: caches cleared (pre-supabase)');
     
-    // Use scope:'local' to ensure local session cleared even if network fails
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    dbg('signOut: supabase result', { error: error?.message ?? null });
+    // Wrap in try-catch to ensure redirect happens even if supabase fails
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      dbg('signOut: supabase result', { error: error?.message ?? null });
+      
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error.message,
+        });
+      }
+    } catch (e) {
+      dbg('signOut: supabase call failed', e);
+    }
     
-    // Clear caches AFTER as well (belt and suspenders)
+    // Clear caches AFTER as safety net
     clearAuthCaches();
     dbg('signOut: caches cleared (post-supabase)');
     
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
-      });
-    }
-    
-    // Force reload to clear any stale in-memory state - ALWAYS redirect
+    // ALWAYS redirect - use replace to prevent back-button issues
     dbg('signOut: redirecting to /');
-    window.location.assign('/');
+    window.location.replace('/');
     
-    return { error };
+    return { error: null };
   }, [toast, clearAuthCaches]);
 
   const value: AuthContextType = {
