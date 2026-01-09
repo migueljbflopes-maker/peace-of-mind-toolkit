@@ -24,15 +24,13 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useAuth } from "@/hooks/useAuth";
-import { LoginModal } from "@/components/modals/LoginModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Pricing = () => {
-  const { isAuthenticated, user, loading: authLoading } = useAuth();
-  const { isPremium, loading } = useEntitlements();
+  const { isAuthenticated, user } = useAuth();
+  const { isPremium } = useEntitlements();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const pillars = [
     {
@@ -100,15 +98,18 @@ const Pricing = () => {
   ];
 
   const handleUnlockPremium = async () => {
-    // If not logged in, show login modal (soft gate)
-    if (!isAuthenticated || !user) {
-      setShowLoginModal(true);
-      return;
-    }
-
     setCheckoutLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout-session");
+      // Choose the right checkout based on auth status
+      // Logged in: use existing email via create-checkout-session
+      // Guest: email collected at Stripe via create-guest-checkout
+      const functionName = isAuthenticated && user 
+        ? "create-checkout-session"
+        : "create-guest-checkout";
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { source: "pricing" }
+      });
       
       if (error) {
         console.error("Checkout error:", error);
@@ -117,8 +118,8 @@ const Pricing = () => {
       }
 
       if (data?.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
+        // Open in new tab (works in iframe environment)
+        window.open(data.url, '_blank');
       } else {
         toast.error("No checkout URL received. Please try again.");
       }
@@ -438,13 +439,6 @@ const Pricing = () => {
       </main>
 
       <Footer />
-
-      {/* Login Modal for soft gate */}
-      <LoginModal 
-        open={showLoginModal} 
-        onOpenChange={setShowLoginModal}
-        returnUrl="/pricing"
-      />
     </div>
   );
 };

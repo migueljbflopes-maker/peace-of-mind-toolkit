@@ -15,6 +15,7 @@ export default function PurchaseSuccess() {
   const { locale } = useLocale();
   const [status, setStatus] = useState<Status>('loading');
   const [email, setEmail] = useState<string>('');
+  const [isNewUser, setIsNewUser] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const sessionId = searchParams.get('session_id');
@@ -38,6 +39,7 @@ export default function PurchaseSuccess() {
 
         if (data?.success && data?.email) {
           setEmail(data.email);
+          setIsNewUser(data.is_new_user ?? true);
           setStatus('success');
         } else {
           throw new Error('Unexpected response');
@@ -105,9 +107,15 @@ export default function PurchaseSuccess() {
         </h1>
         
         <p className="text-muted-foreground mb-6">
-          {locale === 'pt' 
-            ? 'O teu pagamento foi confirmado e a tua conta está pronta.'
-            : 'Your payment has been confirmed and your account is ready.'}
+          {isNewUser ? (
+            locale === 'pt' 
+              ? 'O teu pagamento foi confirmado e criámos a tua conta.'
+              : 'Your payment has been confirmed and we\'ve created your account.'
+          ) : (
+            locale === 'pt' 
+              ? 'O teu pagamento foi confirmado e a tua conta foi atualizada para Premium!'
+              : 'Your payment has been confirmed and your account has been upgraded to Premium!'
+          )}
         </p>
 
         <div className="bg-muted/50 rounded-lg p-4 mb-6">
@@ -118,38 +126,61 @@ export default function PurchaseSuccess() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            {locale === 'pt' 
-              ? `Enviámos um link de acesso para `
-              : `We've sent an access link to `}
-            <span className="font-semibold text-foreground">{email}</span>
+            {isNewUser ? (
+              <>
+                {locale === 'pt' 
+                  ? `Enviámos um link de acesso para `
+                  : `We've sent an access link to `}
+                <span className="font-semibold text-foreground">{email}</span>
+              </>
+            ) : (
+              <>
+                {locale === 'pt' 
+                  ? `A tua conta `
+                  : `Your account `}
+                <span className="font-semibold text-foreground">{email}</span>
+                {locale === 'pt' 
+                  ? ` agora é Premium!`
+                  : ` is now Premium!`}
+              </>
+            )}
           </p>
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          {locale === 'pt'
-            ? 'Clica no link no email para aceder ao teu dashboard personalizado.'
-            : 'Click the link in your email to access your personalized dashboard.'}
+          {isNewUser ? (
+            locale === 'pt'
+              ? 'Clica no link no email para aceder ao teu dashboard personalizado.'
+              : 'Click the link in your email to access your personalized dashboard.'
+          ) : (
+            locale === 'pt'
+              ? 'Podes fazer login com o teu email para aceder às funcionalidades Premium.'
+              : 'You can log in with your email to access Premium features.'
+          )}
         </p>
 
         <div className="space-y-2">
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => {
-              toast.info(locale === 'pt' 
-                ? 'Verifica a pasta de spam se não encontrares o email.'
-                : 'Check your spam folder if you don\'t see the email.');
-            }}
-          >
-            {locale === 'pt' ? 'Não recebi o email' : 'I didn\'t receive the email'}
-          </Button>
+          {isNewUser ? (
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => {
+                toast.info(locale === 'pt' 
+                  ? 'Verifica a pasta de spam se não encontrares o email.'
+                  : 'Check your spam folder if you don\'t see the email.');
+              }}
+            >
+              {locale === 'pt' ? 'Não recebi o email' : 'I didn\'t receive the email'}
+            </Button>
+          ) : (
+            <Button 
+              className="w-full"
+              onClick={() => navigate('/login')}
+            >
+              {locale === 'pt' ? 'Ir para Login' : 'Go to Login'}
+            </Button>
+          )}
         </div>
-
-        <p className="text-xs text-muted-foreground mt-6">
-          {locale === 'pt'
-            ? 'Se já tens uma conta com este email, podes fazer login normalmente.'
-            : 'If you already have an account with this email, you can log in normally.'}
-        </p>
       </Card>
     </div>
   );
