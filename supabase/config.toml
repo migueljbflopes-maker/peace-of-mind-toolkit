@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.panic-confirm]
 verify_jwt = false
+
+[functions.create-guest-checkout]
+verify_jwt = false
+
+[functions.complete-guest-purchase]
+verify_jwt = false

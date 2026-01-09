@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2, Lock, FileText, FolderHeart, Zap } from 'lucide-react';
+import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2, Lock, FileText, FolderHeart, Zap, Bell, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -447,7 +447,7 @@ function SocialProof() {
   );
 }
 
-// Product Popup Component
+// Product Popup Component - Two Pillars
 function ProductPopup({ 
   open, 
   onClose, 
@@ -461,68 +461,70 @@ function ProductPopup({
 }) {
   const { locale } = useLocale();
   
-  const features = [
-    {
-      icon: Shield,
-      titlePt: 'Análise de Risco Personalizada',
-      titleEn: 'Personalized Risk Analysis',
-      descPt: 'Avaliação completa baseada na tua localização e perfil familiar',
-      descEn: 'Complete assessment based on your location and family profile'
-    },
-    {
-      icon: FileText,
-      titlePt: 'Plano de Ação 72h',
-      titleEn: '72h Action Plan',
-      descPt: 'Passos concretos prioritizados para as primeiras 72 horas',
-      descEn: 'Prioritized concrete steps for the first 72 hours'
-    },
-    {
-      icon: FolderHeart,
-      titlePt: 'Red Folder PDF',
-      titleEn: 'Red Folder PDF',
-      descPt: 'Documento imprimível com todos os dados críticos da família',
-      descEn: 'Printable document with all critical family data'
-    },
-    {
-      icon: Lock,
-      titlePt: 'Vault Encriptado',
-      titleEn: 'Encrypted Vault',
-      descPt: 'Armazenamento seguro para documentos e informações sensíveis',
-      descEn: 'Secure storage for sensitive documents and information'
-    }
+  const safeToolkitFeatures = [
+    { icon: Shield, labelPt: 'Análise de Risco Personalizada', labelEn: 'Personalized Risk Analysis' },
+    { icon: FileText, labelPt: 'Plano de Ação 72h', labelEn: '72h Action Plan' },
+    { icon: FolderHeart, labelPt: 'Red Folder PDF', labelEn: 'Red Folder PDF' },
+    { icon: Lock, labelPt: 'Vault Encriptado', labelEn: 'Encrypted Vault' },
+  ];
+
+  const panicButtonFeatures = [
+    { icon: Bell, labelPt: 'Alertas de Emergência', labelEn: 'Emergency Alerts' },
+    { icon: Users, labelPt: 'Notificar Contactos', labelEn: 'Notify Contacts' },
+    { icon: MapPin, labelPt: 'Partilha de Localização', labelEn: 'Location Sharing' },
+    { icon: Clock, labelPt: 'Histórico de Ativações', labelEn: 'Activation History' },
   ];
   
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-center flex items-center justify-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            {locale === 'pt' ? 'Acesso Premium' : 'Premium Access'}
+          <DialogTitle className="text-center text-xl">
+            {locale === 'pt' ? 'Bundle Premium Completo' : 'Complete Premium Bundle'}
           </DialogTitle>
           <DialogDescription className="text-center">
             {locale === 'pt' 
-              ? 'Desbloqueia a tua análise de risco personalizada com plano de ação completo.'
-              : 'Unlock your personalized risk analysis with a complete action plan.'}
+              ? 'Dois pilares poderosos. Um pagamento. Teu para sempre.'
+              : 'Two powerful pillars. One payment. Yours forever.'}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 py-4">
-          {features.map((feature, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <feature.icon className="h-5 w-5 text-primary" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+          {/* Safe Toolkit Pillar */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Shield className="h-4 w-4 text-primary" />
               </div>
-              <div>
-                <p className="font-medium text-sm">
-                  {locale === 'pt' ? feature.titlePt : feature.titleEn}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {locale === 'pt' ? feature.descPt : feature.descEn}
-                </p>
-              </div>
+              <h3 className="font-semibold text-sm">Safe Toolkit</h3>
             </div>
-          ))}
+            <ul className="space-y-2">
+              {safeToolkitFeatures.map((feature, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm">
+                  <feature.icon className="h-4 w-4 text-muted-foreground" />
+                  <span>{locale === 'pt' ? feature.labelPt : feature.labelEn}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Panic Button Pillar */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Bell className="h-4 w-4 text-destructive" />
+              </div>
+              <h3 className="font-semibold text-sm">Panic Button</h3>
+            </div>
+            <ul className="space-y-2">
+              {panicButtonFeatures.map((feature, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm">
+                  <feature.icon className="h-4 w-4 text-muted-foreground" />
+                  <span>{locale === 'pt' ? feature.labelPt : feature.labelEn}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
         
         <div className="text-center py-2">
@@ -558,8 +560,8 @@ function ProductPopup({
         
         <p className="text-xs text-center text-muted-foreground">
           {locale === 'pt' 
-            ? 'Pagamento seguro via Stripe. Garantia de 30 dias.'
-            : 'Secure payment via Stripe. 30-day guarantee.'}
+            ? 'Pagamento seguro via Stripe. Não precisas de conta prévia.'
+            : 'Secure payment via Stripe. No account needed upfront.'}
         </p>
       </DialogContent>
     </Dialog>
@@ -647,13 +649,8 @@ export default function RiskFunnel() {
   const handleCheckout = async () => {
     setCheckoutLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data: checkoutData, error } = await supabase.functions.invoke('create-checkout-session', {
-        headers: session?.access_token ? {
-          Authorization: `Bearer ${session.access_token}`
-        } : undefined
-      });
+      // Use guest checkout - no auth required
+      const { data: checkoutData, error } = await supabase.functions.invoke('create-guest-checkout');
 
       if (error) throw error;
 
