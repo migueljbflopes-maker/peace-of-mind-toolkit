@@ -44,3 +44,12 @@ verify_jwt = false
 
 [functions.complete-guest-purchase]
 verify_jwt = false
+
+[functions.create-payment-intent]
+verify_jwt = false
+
+[functions.set-guest-email]
+verify_jwt = false
+
+[functions.claim-guest-purchase]
+verify_jwt = true

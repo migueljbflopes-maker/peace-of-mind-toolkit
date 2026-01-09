@@ -112,6 +112,69 @@ serve(async (req) => {
 
     // Handle specific event types
     switch (event.type) {
+      case "payment_intent.succeeded": {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        logStep("Processing payment_intent.succeeded", { piId: pi.id });
+
+        const purchaseType = pi.metadata?.purchase_type;
+        const userId = pi.metadata?.user_id;
+
+        if (purchaseType === "guest") {
+          // Guest purchase - extract email from charge and mark as paid
+          let email: string | null = null;
+          
+          // Try to get email from the charge billing details
+          if (pi.latest_charge && typeof pi.latest_charge === 'string') {
+            try {
+              const charge = await stripe.charges.retrieve(pi.latest_charge);
+              email = charge.billing_details?.email || null;
+              logStep("Got email from charge", { email });
+            } catch (chargeErr) {
+              logStep("Could not retrieve charge", { error: String(chargeErr) });
+            }
+          }
+
+          // Update guest_purchases - only update payer_email if not already set
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ 
+              status: "paid", 
+              paid_at: new Date().toISOString(),
+              // Only set payer_email if we got one and it's not already set
+              ...(email ? { payer_email: email.toLowerCase() } : {})
+            })
+            .eq("payment_intent_id", pi.id);
+
+          if (updateError) {
+            logStep("ERROR updating guest purchase", { error: updateError.message });
+          } else {
+            logStep("Guest purchase marked as paid", { piId: pi.id, email });
+          }
+          // Do NOT create users or grant premium for guests
+        } else if (userId) {
+          // Logged-in user flow - grant premium directly
+          const { error: upsertError } = await supabase
+            .from("premium_entitlements")
+            .upsert({
+              user_id: userId,
+              is_premium: true,
+              granted_at: new Date().toISOString(),
+              revoked_at: null,
+              plan_name: "Personalized Resiliency Plan",
+              price_eur: 49,
+            }, {
+              onConflict: "user_id",
+            });
+
+          if (upsertError) {
+            logStep("ERROR upserting entitlement", { error: upsertError.message });
+          } else {
+            logStep("Premium granted to logged-in user", { userId });
+          }
+        }
+        break;
+      }
+
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         logStep("Processing checkout.session.completed", { 
@@ -126,19 +189,19 @@ serve(async (req) => {
         }
 
         // Extract user_id from metadata or client_reference_id
-        const userId = session.metadata?.user_id || session.client_reference_id;
-        if (!userId) {
+        const sessionUserId = session.metadata?.user_id || session.client_reference_id;
+        if (!sessionUserId) {
           logStep("ERROR: No user_id found in session", { sessionId: session.id });
           throw new Error("No user_id in session metadata or client_reference_id");
         }
 
-        logStep("Granting premium to user", { userId });
+        logStep("Granting premium to user", { userId: sessionUserId });
 
         // Upsert premium entitlement (public-facing, no Stripe IDs)
         const { error: upsertError } = await supabase
           .from("premium_entitlements")
           .upsert({
-            user_id: userId,
+            user_id: sessionUserId,
             is_premium: true,
             granted_at: new Date().toISOString(),
             revoked_at: null,
@@ -157,7 +220,7 @@ serve(async (req) => {
         const { error: mapError } = await supabase
           .from("stripe_customer_map")
           .upsert({
-            user_id: userId,
+            user_id: sessionUserId,
             stripe_customer_id: session.customer as string,
             stripe_checkout_session_id: session.id,
             stripe_payment_intent_id: session.payment_intent as string,
@@ -171,7 +234,7 @@ serve(async (req) => {
           // Don't throw - premium was granted, this is secondary
         }
 
-        logStep("Premium granted successfully", { userId });
+        logStep("Premium granted successfully", { userId: sessionUserId });
         break;
       }
 
