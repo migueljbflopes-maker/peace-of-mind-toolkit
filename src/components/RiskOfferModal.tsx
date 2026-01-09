@@ -78,16 +78,32 @@ export function RiskOfferModal({
     { title: "Panic Button", subtitle: "Alert family", icon: Siren },
   ];
 
+  const isUrgent = secondsLeft <= 60;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden">
         {/* Urgency top bar */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 flex items-center justify-between">
+        <div className={cn(
+          "px-4 py-2.5 flex items-center justify-between transition-colors duration-300",
+          isUrgent 
+            ? "bg-gradient-to-r from-red-500 to-orange-500" 
+            : "bg-gradient-to-r from-amber-500 to-orange-500"
+        )}>
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-white" />
-            <span className="text-white text-sm font-medium">
+            <Clock className={cn(
+              "h-4 w-4 text-white",
+              isUrgent && "animate-pulse"
+            )} />
+            <span className={cn(
+              "text-white text-sm font-medium",
+              isUrgent && "animate-pulse"
+            )}>
               {locale === 'pt' ? 'Desconto expira em' : 'Discount expires in'}{" "}
-              <span className="font-mono font-bold">
+              <span className={cn(
+                "font-mono font-bold",
+                isUrgent && "text-yellow-200"
+              )}>
                 {pad2(mm)}:{pad2(ss)}
               </span>
             </span>
@@ -104,8 +120,8 @@ export function RiskOfferModal({
         <div className="px-5 py-6">
           {/* Headline */}
           <div className="text-center mb-5">
-            <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-emerald-100 flex items-center justify-center">
-              <Shield className="h-7 w-7 text-emerald-600" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <Shield className="h-10 w-10 text-white drop-shadow-sm" />
             </div>
 
             <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 font-medium mb-2">
