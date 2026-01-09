@@ -76,15 +76,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  /**
-   * Helper to clear all auth-related caches from localStorage.
+/**
+   * Helper to clear ALL auth-related caches from localStorage.
    * Called on sign-out to prevent stale premium/entitlement state.
+   * Also clears supabase auth tokens as safety net.
    */
   const clearAuthCaches = useCallback(() => {
-    localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
-    // Only clear dev premium in dev mode, but safe to always remove
-    if (import.meta.env.DEV) {
+    try {
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       localStorage.removeItem(DEV_PREMIUM_KEY);
+      
+      // Safety net: remove any supabase auth tokens (key format may vary)
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+          localStorage.removeItem(k);
+        }
+        if (k.includes('supabase') && k.includes('auth')) {
+          localStorage.removeItem(k);
+        }
+      });
+    } catch (e) {
+      console.warn('[Auth] cache clear failed', e);
     }
   }, []);
 
@@ -150,21 +162,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, [toast]);
 
-  /**
-   * FIX #2: Robust sign-out that clears all caches and forces immediate UI update
+/**
+   * HARD logout: clears local session deterministically, even if network fails.
+   * Uses scope:'local' to ensure local session is removed regardless of API.
    */
   const signOut = useCallback(async () => {
-    // Clear caches BEFORE calling supabase.signOut to ensure
-    // they're cleared even if signOut has issues
-    clearAuthCaches();
-    
-    const { error } = await supabase.auth.signOut();
-    
-    // ALWAYS clear state immediately, regardless of error
-    // This ensures UI updates even if there's a network issue
+    // Immediately reflect logged out in UI
     setUser(null);
     setSession(null);
     setLoading(false);
+    
+    // Clear caches BEFORE supabase call
+    clearAuthCaches();
+    
+    // Use scope:'local' to ensure local session cleared even if network fails
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    
+    // Clear caches AFTER as well (belt and suspenders)
+    clearAuthCaches();
     
     if (error) {
       toast({
@@ -173,6 +188,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: error.message,
       });
     }
+    
+    // Force reload to clear any stale in-memory state
+    window.location.assign('/');
     
     return { error };
   }, [toast, clearAuthCaches]);
