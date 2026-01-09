@@ -655,7 +655,8 @@ export default function RiskFunnel() {
       if (error) throw error;
 
       if (checkoutData?.url) {
-        window.location.href = checkoutData.url;
+        // Open in new tab (works in iframe environment)
+        window.open(checkoutData.url, '_blank');
       } else {
         throw new Error('No checkout URL received');
       }
