@@ -3,6 +3,10 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// Cache keys that need to be cleared on sign out
+const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
+const DEV_PREMIUM_KEY = 'resilient_dev_premium';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -72,6 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * Helper to clear all auth-related caches from localStorage.
+   * Called on sign-out to prevent stale premium/entitlement state.
+   */
+  const clearAuthCaches = useCallback(() => {
+    localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+    // Only clear dev premium in dev mode, but safe to always remove
+    if (import.meta.env.DEV) {
+      localStorage.removeItem(DEV_PREMIUM_KEY);
+    }
+  }, []);
+
   // Magic Link sign-in
   const signInWithMagicLink = useCallback(async (email: string, returnUrl?: string) => {
     const baseUrl = window.location.origin;
@@ -134,21 +150,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, [toast]);
 
+  /**
+   * FIX #2: Robust sign-out that clears all caches and forces immediate UI update
+   */
   const signOut = useCallback(async () => {
+    // Clear caches BEFORE calling supabase.signOut to ensure
+    // they're cleared even if signOut has issues
+    clearAuthCaches();
+    
     const { error } = await supabase.auth.signOut();
+    
+    // ALWAYS clear state immediately, regardless of error
+    // This ensures UI updates even if there's a network issue
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+    
     if (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: error.message,
       });
-    } else {
-      // Clear state immediately for instant UI update
-      setUser(null);
-      setSession(null);
     }
+    
     return { error };
-  }, [toast]);
+  }, [toast, clearAuthCaches]);
 
   const value: AuthContextType = {
     user,
