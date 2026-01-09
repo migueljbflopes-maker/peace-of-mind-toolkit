@@ -14,6 +14,7 @@ import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, 
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { StripeGuestWalletModal } from '@/components/StripeGuestWalletModal';
 
 const STORAGE_KEY = 'resilient_risk_funnel';
 
@@ -561,8 +562,7 @@ export default function RiskFunnel() {
   const navigate = useNavigate();
   const { locale } = useLocale();
   const [step, setStep] = useState(1);
-  const [showProductPopup, setShowProductPopup] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [data, setData] = useState<FunnelData>(() => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -632,31 +632,7 @@ export default function RiskFunnel() {
   };
 
   const handleViewResults = () => {
-    setShowProductPopup(true);
-  };
-
-  const handleCheckout = async () => {
-    setCheckoutLoading(true);
-    try {
-      // Use guest checkout - no auth required
-      const { data: checkoutData, error } = await supabase.functions.invoke('create-guest-checkout');
-
-      if (error) throw error;
-
-      if (checkoutData?.url) {
-        // Open in new tab (works in iframe environment)
-        window.open(checkoutData.url, '_blank');
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Checkout error:', error);
-      toast.error(locale === 'pt' 
-        ? 'Erro ao iniciar checkout. Tenta novamente.'
-        : 'Error starting checkout. Please try again.');
-    } finally {
-      setCheckoutLoading(false);
-    }
+    setShowPaymentModal(true);
   };
 
   const score = useMemo(() => calculateScore(data), [data]);
@@ -837,11 +813,9 @@ export default function RiskFunnel() {
           <SocialProof />
         </div>
         
-        <ProductPopup 
-          open={showProductPopup}
-          onClose={() => setShowProductPopup(false)}
-          onCheckout={handleCheckout}
-          loading={checkoutLoading}
+        <StripeGuestWalletModal
+          open={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
           city={data.city}
         />
       </>

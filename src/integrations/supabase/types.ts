@@ -176,6 +176,54 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_purchases: {
+        Row: {
+          amount_cents: number
+          claim_code: string
+          claimed_at: string | null
+          created_at: string
+          currency: string
+          guest_session_id: string
+          id: string
+          paid_at: string | null
+          payer_email: string | null
+          payment_intent_id: string
+          source: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          claim_code: string
+          claimed_at?: string | null
+          created_at?: string
+          currency?: string
+          guest_session_id: string
+          id?: string
+          paid_at?: string | null
+          payer_email?: string | null
+          payment_intent_id: string
+          source?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          claim_code?: string
+          claimed_at?: string | null
+          created_at?: string
+          currency?: string
+          guest_session_id?: string
+          id?: string
+          paid_at?: string | null
+          payer_email?: string | null
+          payment_intent_id?: string
+          source?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       news_domain_allowlist: {
         Row: {
           domain: string
