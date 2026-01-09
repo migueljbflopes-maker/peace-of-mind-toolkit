@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, CheckCircle2, Loader2, Mail, CreditCard } from 'lucide-react';
+import { Lock, CheckCircle2, Loader2, Mail, CreditCard, Wallet, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocale } from '@/i18n/useLocale';
 import { toast } from 'sonner';
@@ -163,9 +163,29 @@ function PaymentForm({
     }
   };
 
+  // Fallback to Stripe Checkout hosted (for Apple Pay when domain verification fails)
+  const openStripeCheckoutHosted = async () => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-guest-checkout', {
+        body: { source: 'riskfunnel' },
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('No checkout URL received');
+
+      // Open Stripe Checkout in same tab (it handles Apple Pay natively)
+      window.location.href = data.url;
+    } catch (err) {
+      console.error('[Stripe] Checkout redirect error:', err);
+      toast.error(locale === 'pt' ? 'Erro ao abrir checkout' : 'Error opening checkout');
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Express Checkout (Apple Pay / Google Pay) */}
+      {/* Express Checkout (Apple Pay / Google Pay) - native */}
       <div className="min-h-[44px]">
         <ExpressCheckoutElement
           onClick={handleExpressClick}
@@ -182,19 +202,40 @@ function PaymentForm({
             },
           }}
         />
-        
-        {/* Debug info in development */}
-        {availableMethods !== null && !expressReady && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            {locale === 'pt' 
-              ? 'Apple Pay/Google Pay não disponível neste dispositivo'
-              : 'Apple Pay/Google Pay not available on this device'}
-          </p>
-        )}
       </div>
 
-      {/* Divider */}
-      {expressReady && (
+      {/* Fallback: Stripe Checkout hosted (when express methods unavailable) */}
+      {availableMethods !== null && !expressReady && (
+        <div className="space-y-3">
+          <Button
+            onClick={openStripeCheckoutHosted}
+            disabled={isProcessing}
+            className="w-full"
+            variant="default"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {locale === 'pt' ? 'A abrir...' : 'Opening...'}
+              </>
+            ) : (
+              <>
+                <Wallet className="mr-2 h-4 w-4" />
+                {locale === 'pt' ? 'Checkout Rápido' : 'Express Checkout'}
+                <ExternalLink className="ml-2 h-3 w-3 opacity-50" />
+              </>
+            )}
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            {locale === 'pt' 
+              ? 'Apple Pay, Google Pay ou cartão'
+              : 'Apple Pay, Google Pay or card'}
+          </p>
+        </div>
+      )}
+
+      {/* Divider - show when express is ready OR when we have fallback */}
+      {(expressReady || (availableMethods !== null && !expressReady)) && (
         <div className="flex items-center gap-3 text-muted-foreground text-sm">
           <div className="flex-1 h-px bg-border" />
           <span>{locale === 'pt' ? 'ou' : 'or'}</span>
