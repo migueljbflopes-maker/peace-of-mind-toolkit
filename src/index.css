@@ -228,3 +228,102 @@
     color: hsl(var(--muted-foreground));
   }
 }
+
+/* Print Styles - Clean PDF Layout */
+@media print {
+  /* Hide non-essential elements */
+  .no-print,
+  nav,
+  footer,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Reset background and colors for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  /* Ensure content fills the page */
+  .print\\:block {
+    display: block !important;
+  }
+
+  /* Remove shadows and gradients */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm 2cm;
+    size: A4;
+  }
+
+  /* Avoid page breaks inside important elements */
+  .print\\:break-inside-avoid,
+  [class*="Card"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Force page break before */
+  .print\\:break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* Ensure links are visible */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  /* Don't show URL for internal links or buttons */
+  a[href^="#"]::after,
+  a[href^="javascript"]::after,
+  button a::after,
+  .no-print-url::after {
+    content: none;
+  }
+
+  /* Cards styling for print */
+  [class*="Card"] {
+    border: 1px solid #ddd !important;
+    background: white !important;
+    margin-bottom: 1rem;
+  }
+
+  /* Collapsible content should be visible */
+  [data-state="closed"] > [data-radix-collapsible-content] {
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* Badges and labels */
+  [class*="Badge"] {
+    border: 1px solid currentColor;
+    background: transparent !important;
+  }
+
+  /* Force all text to be visible */
+  .text-muted-foreground {
+    color: #444 !important;
+  }
+
+  /* Remove hover states */
+  *:hover {
+    transform: none !important;
+  }
+
+  /* Ensure images print properly */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+}
