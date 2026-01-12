@@ -12,12 +12,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { useLocale } from '@/i18n/useLocale';
 import { getAllCachedSections, VaultSectionCache } from '@/lib/vaultStorage';
-import { getCachedPlan, PlanData, PlanType } from '@/lib/plansStore';
 import { decryptJSON, EncryptedPayload } from '@/lib/crypto';
+import { getCachedPremiumPlan } from '@/lib/planWizard2Store';
 import { 
   RedFolderPdfData, 
-  RiskData, 
-  SuppliesData, 
   VaultSectionData 
 } from '@/lib/pdf/redFolderPdf';
 
@@ -106,11 +104,14 @@ export function useRedFolderData() {
         if (section.section === 'devices') newReadiness.vaultDevices = true;
       });
 
-      // Check plans from local cache
-      const planA = await getCachedPlan('A');
-      const planB = await getCachedPlan('B');
-      newReadiness.planA = !!planA;
-      newReadiness.planB = !!planB;
+      // Check wizard v2 plans from local cache
+      if (user) {
+        const wizardPlan = await getCachedPremiumPlan(user.id);
+        if (wizardPlan) {
+          newReadiness.planA = wizardPlan.plan_a_json !== null && wizardPlan.plan_a_json !== undefined;
+          newReadiness.planB = wizardPlan.plan_b_json !== null && wizardPlan.plan_b_json !== undefined;
+        }
+      }
 
       setReadiness(newReadiness);
       return newReadiness;
@@ -253,26 +254,14 @@ export function useRedFolderData() {
       }
       result.vault = vault;
 
-      // Load and decrypt plans
-      const decryptPlan = async (planType: PlanType): Promise<PlanData | null> => {
-        const cached = await getCachedPlan(planType);
-        if (!cached) return null;
-        
-        try {
-          const payload: EncryptedPayload = {
-            ciphertextB64: cached.ciphertextB64,
-            ivB64: cached.ivB64,
-            saltB64: cached.saltB64,
-            version: cached.version,
-          };
-          return await decryptJSON<PlanData>(payload, passphrase);
-        } catch {
-          return null;
+      // Load wizard v2 plans (not encrypted)
+      if (user) {
+        const wizardPlan = await getCachedPremiumPlan(user.id);
+        if (wizardPlan) {
+          result.planA = wizardPlan.plan_a_json || null;
+          result.planB = wizardPlan.plan_b_json || null;
         }
-      };
-
-      result.planA = await decryptPlan('A');
-      result.planB = await decryptPlan('B');
+      }
 
       return result;
     } catch {
