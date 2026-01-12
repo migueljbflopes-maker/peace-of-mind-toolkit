@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { SharePrefs, DEFAULT_SHARE_PREFS } from "@/hooks/usePreparednessReadiness";
 
 export type ScenarioType = "medical" | "natural" | "security" | "custom";
 
@@ -19,6 +20,7 @@ export interface PanicScenario {
   custom_label?: string;
   enabled: boolean;
   contact_ids: string[];
+  share_prefs: SharePrefs;
 }
 
 export interface CheckInConfig {
@@ -80,13 +82,17 @@ export function usePanicSetup() {
         console.error("Error loading scenarios:", scenariosError);
       } else {
         setScenarios(
-          scenariosData?.map((s) => ({
-            id: s.id,
-            scenario_type: s.scenario_type as ScenarioType,
-            custom_label: s.custom_label || undefined,
-            enabled: s.enabled,
-            contact_ids: (s.share_config as any)?.contact_ids || [],
-          })) || []
+          scenariosData?.map((s) => {
+            const shareConfig = s.share_config as Record<string, unknown> | null;
+            return {
+              id: s.id,
+              scenario_type: s.scenario_type as ScenarioType,
+              custom_label: s.custom_label || undefined,
+              enabled: s.enabled,
+              contact_ids: (shareConfig?.contact_ids as string[]) || [],
+              share_prefs: (shareConfig?.share_prefs as SharePrefs) || { ...DEFAULT_SHARE_PREFS },
+            };
+          }) || []
         );
       }
     } catch (error) {
@@ -135,7 +141,13 @@ export function usePanicSetup() {
           s.scenario_type === type ? { ...s, enabled, custom_label: customLabel } : s
         );
       }
-      return [...prev, { scenario_type: type, enabled, custom_label: customLabel, contact_ids: [] }];
+      return [...prev, {
+        scenario_type: type,
+        enabled,
+        custom_label: customLabel,
+        contact_ids: [],
+        share_prefs: { ...DEFAULT_SHARE_PREFS },
+      }];
     });
   }, []);
 
@@ -148,7 +160,36 @@ export function usePanicSetup() {
           s.scenario_type === type ? { ...s, contact_ids: contactIds } : s
         );
       }
-      return [...prev, { scenario_type: type, enabled: true, contact_ids: contactIds }];
+      return [...prev, {
+        scenario_type: type,
+        enabled: true,
+        contact_ids: contactIds,
+        share_prefs: { ...DEFAULT_SHARE_PREFS },
+      }];
+    });
+  }, []);
+
+  // Get share prefs for a scenario
+  const getScenarioSharePrefs = useCallback((type: ScenarioType): SharePrefs => {
+    const scenario = scenarios.find((s) => s.scenario_type === type);
+    return scenario?.share_prefs || { ...DEFAULT_SHARE_PREFS };
+  }, [scenarios]);
+
+  // Set share prefs for a scenario
+  const setScenarioSharePrefs = useCallback((type: ScenarioType, prefs: SharePrefs) => {
+    setScenarios((prev) => {
+      const existing = prev.find((s) => s.scenario_type === type);
+      if (existing) {
+        return prev.map((s) =>
+          s.scenario_type === type ? { ...s, share_prefs: prefs } : s
+        );
+      }
+      return [...prev, {
+        scenario_type: type,
+        enabled: true,
+        contact_ids: [],
+        share_prefs: prefs,
+      }];
     });
   }, []);
 
@@ -205,6 +246,7 @@ export function usePanicSetup() {
           share_config: JSON.parse(JSON.stringify({
             contact_ids: s.contact_ids,
             check_in: checkInConfig,
+            share_prefs: s.share_prefs,
           })),
         }));
 
@@ -240,6 +282,8 @@ export function usePanicSetup() {
     toggleScenario,
     setScenarioContacts,
     setCheckInConfig,
+    getScenarioSharePrefs,
+    setScenarioSharePrefs,
     save,
     reload: loadData,
   };
