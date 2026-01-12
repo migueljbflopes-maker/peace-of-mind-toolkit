@@ -21,6 +21,7 @@ import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import Vault from "./pages/premium/Vault";
 import Plans from "./pages/premium/Plans";
+import PlansWizard from "./pages/premium/PlansWizard";
 import RedFolder from "./pages/premium/RedFolder";
 import Backup from "./pages/premium/Backup";
 import Onboarding from "./pages/premium/Onboarding";
@@ -65,6 +66,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/premium/vault" element={<Vault />} />
                 <Route path="/premium/plans" element={<Plans />} />
+                <Route path="/premium/plans/wizard" element={<PlansWizard />} />
                 <Route path="/premium/red-folder" element={<RedFolder />} />
                 <Route path="/premium/backup" element={<Backup />} />
                 <Route path="/premium/onboarding" element={<Onboarding />} />
