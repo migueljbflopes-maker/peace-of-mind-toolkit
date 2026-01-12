@@ -5,7 +5,7 @@
  * Follows unified gating order: loading → login → premium lock → content
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
@@ -17,6 +17,10 @@ import { GeneratedPlanA, GeneratedPlanB } from '@/lib/planWizard2Types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { PlanResultsView } from '@/components/planWizard2/PlanResultsView';
+import { getPlan } from '@/lib/planWizard2Store';
+import { Loader2 } from 'lucide-react';
+
+type PageMode = 'loading' | 'view' | 'wizard';
 
 export default function PlansWizard() {
   const navigate = useNavigate();
@@ -24,13 +28,47 @@ export default function PlansWizard() {
   const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
   
+  const [mode, setMode] = useState<PageMode>('loading');
   const [generatedPlans, setGeneratedPlans] = useState<{
     planA: GeneratedPlanA;
     planB: GeneratedPlanB;
   } | null>(null);
 
+  // Load existing plans on mount
+  useEffect(() => {
+    const loadExistingPlans = async () => {
+      if (!user || !isPremium) {
+        setMode('wizard');
+        return;
+      }
+      
+      try {
+        const existingPlan = await getPlan(user.id);
+        if (existingPlan?.plan_a_json && existingPlan?.plan_b_json) {
+          setGeneratedPlans({
+            planA: existingPlan.plan_a_json as GeneratedPlanA,
+            planB: existingPlan.plan_b_json as GeneratedPlanB,
+          });
+          setMode('view');
+        } else {
+          setMode('wizard');
+        }
+      } catch (error) {
+        console.error('Error loading plans:', error);
+        setMode('wizard');
+      }
+    };
+
+    if (!authLoading && !entLoading && user && isPremium) {
+      loadExistingPlans();
+    } else if (!authLoading && !entLoading) {
+      setMode('wizard');
+    }
+  }, [user, isPremium, authLoading, entLoading]);
+
   const handleComplete = useCallback((planA: GeneratedPlanA, planB: GeneratedPlanB) => {
     setGeneratedPlans({ planA, planB });
+    setMode('view');
   }, []);
 
   const handleCancel = useCallback(() => {
@@ -38,16 +76,28 @@ export default function PlansWizard() {
   }, [navigate]);
 
   const handleRegenerate = useCallback(() => {
-    setGeneratedPlans(null);
+    setMode('wizard');
   }, []);
 
+  const handleEdit = useCallback(() => {
+    setMode('wizard');
+  }, []);
+
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
+  const handleShare = useCallback(() => {
+    navigate('/premium/red-folder');
+  }, [navigate]);
+
   // Loading state
-  if (authLoading || entLoading) {
+  if (authLoading || entLoading || mode === 'loading') {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">{t.common.loading}</div>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </main>
         <Footer />
       </div>
@@ -80,8 +130,8 @@ export default function PlansWizard() {
     );
   }
 
-  // Show results if plans were generated
-  if (generatedPlans) {
+  // Show results if plans exist
+  if (mode === 'view' && generatedPlans) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
@@ -90,6 +140,9 @@ export default function PlansWizard() {
             planA={generatedPlans.planA}
             planB={generatedPlans.planB}
             onRegenerate={handleRegenerate}
+            onEdit={handleEdit}
+            onPrint={handlePrint}
+            onShare={handleShare}
             onBack={() => navigate('/premium/plans')}
           />
         </main>
