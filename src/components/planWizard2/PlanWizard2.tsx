@@ -137,7 +137,7 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
       await saveWizardInputs(user.id, inputs);
       console.log('[PlanWizard] Wizard inputs saved');
 
-      setGenerationStatus(locale === 'pt' ? 'A gerar planos com IA...' : 'Generating plans with AI...');
+      setGenerationStatus(locale === 'pt' ? 'A processar os seus planos...' : 'Processing your plans...');
       console.log('[PlanWizard] Calling edge function...');
 
       // Call edge function to generate plans
@@ -159,7 +159,7 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
 
       if (!data?.plan_a || !data?.plan_b) {
         console.error('[PlanWizard] Incomplete response:', data);
-        toast.error(locale === 'pt' ? 'Resposta incompleta da IA' : 'Incomplete AI response');
+        toast.error(locale === 'pt' ? 'Resposta incompleta' : 'Incomplete response');
         return;
       }
 
