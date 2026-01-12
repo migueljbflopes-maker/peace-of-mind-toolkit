@@ -48,6 +48,7 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
   const [currentStep, setCurrentStep] = useState(1);
   const [inputs, setInputs] = useState<PlanWizardInputs>(createEmptyWizardInputs);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState('');
   const [loadingExisting, setLoadingExisting] = useState(true);
 
   // Load existing wizard inputs on mount
@@ -127,9 +128,17 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
     if (!user) return;
     
     setIsGenerating(true);
+    setGenerationStatus(locale === 'pt' ? 'A guardar dados...' : 'Saving data...');
+    console.log('[PlanWizard] Starting generation...');
+    
     try {
       // Save all inputs first
+      console.log('[PlanWizard] Saving wizard inputs...');
       await saveWizardInputs(user.id, inputs);
+      console.log('[PlanWizard] Wizard inputs saved');
+
+      setGenerationStatus(locale === 'pt' ? 'A gerar planos com IA...' : 'Generating plans with AI...');
+      console.log('[PlanWizard] Calling edge function...');
 
       // Call edge function to generate plans
       const { data, error } = await supabase.functions.invoke('generate-plan-wizard', {
@@ -139,27 +148,37 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
         },
       });
 
+      console.log('[PlanWizard] Edge function response:', { data: !!data, error });
+
       if (error) {
-        console.error('Generation error:', error);
-        toast.error(locale === 'pt' ? 'Erro ao gerar planos' : 'Error generating plans');
+        console.error('[PlanWizard] Generation error:', error);
+        const errorMsg = error.message || (locale === 'pt' ? 'Erro ao gerar planos' : 'Error generating plans');
+        toast.error(errorMsg);
         return;
       }
 
       if (!data?.plan_a || !data?.plan_b) {
+        console.error('[PlanWizard] Incomplete response:', data);
         toast.error(locale === 'pt' ? 'Resposta incompleta da IA' : 'Incomplete AI response');
         return;
       }
 
+      setGenerationStatus(locale === 'pt' ? 'A guardar planos...' : 'Saving plans...');
+      console.log('[PlanWizard] Saving generated plans...');
+
       // Save generated plans
       await saveGeneratedPlans(user.id, data.plan_a, data.plan_b);
+      console.log('[PlanWizard] Plans saved successfully');
 
       toast.success(locale === 'pt' ? 'Planos gerados com sucesso!' : 'Plans generated successfully!');
       onComplete(data.plan_a, data.plan_b);
     } catch (error) {
-      console.error('Generation failed:', error);
-      toast.error(locale === 'pt' ? 'Falha na geração' : 'Generation failed');
+      console.error('[PlanWizard] Generation failed:', error);
+      const errorMsg = error instanceof Error ? error.message : (locale === 'pt' ? 'Falha na geração' : 'Generation failed');
+      toast.error(errorMsg);
     } finally {
       setIsGenerating(false);
+      setGenerationStatus('');
     }
   };
 
@@ -261,23 +280,32 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button 
-              onClick={handleGenerate} 
-              disabled={isGenerating || !canProceed()}
-              className="gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {locale === 'pt' ? 'A gerar...' : 'Generating...'}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  {locale === 'pt' ? 'Gerar Planos A & B' : 'Generate Plans A & B'}
-                </>
+            <div className="flex flex-col items-end gap-2">
+              <Button 
+                onClick={handleGenerate} 
+                disabled={isGenerating || !canProceed()}
+                className="gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {generationStatus || (locale === 'pt' ? 'A gerar...' : 'Generating...')}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    {locale === 'pt' ? 'Gerar Planos A & B' : 'Generate Plans A & B'}
+                  </>
+                )}
+              </Button>
+              {isGenerating && (
+                <p className="text-xs text-muted-foreground">
+                  {locale === 'pt' 
+                    ? 'Isto pode demorar 30-60 segundos' 
+                    : 'This may take 30-60 seconds'}
+                </p>
               )}
-            </Button>
+            </div>
           )}
         </div>
       </CardContent>
