@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, Users, Bell, ChevronRight, Plus, Trash2, Clock, Send, Lock } from "lucide-react";
+import { AlertCircle, Users, Bell, ChevronRight, Plus, Trash2, Clock, Send, Lock, Share2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { usePanicSetup, ScenarioType } from "@/hooks/usePanicSetup";
+import { usePreparednessReadiness, SharePrefs } from "@/hooks/usePreparednessReadiness";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useAuth } from "@/hooks/useAuth";
 import { PremiumLockedState } from "@/components/PremiumLockedState";
+import { MissingPreparednessModal } from "@/components/MissingPreparednessModal";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const SCENARIO_OPTIONS: { type: ScenarioType; label: string; description: string }[] = [
@@ -21,6 +24,14 @@ const SCENARIO_OPTIONS: { type: ScenarioType; label: string; description: string
   { type: "natural", label: "Natural Disaster", description: "Earthquake, flood, fire, etc." },
   { type: "security", label: "Security Threat", description: "Personal safety concern" },
   { type: "custom", label: "Custom Scenario", description: "Define your own trigger" },
+];
+
+const SHARE_ITEMS: { key: keyof SharePrefs; label: string }[] = [
+  { key: "location", label: "Location (live)" },
+  { key: "vault", label: "Vault data" },
+  { key: "plan_a", label: "Plan A" },
+  { key: "plan_b", label: "Plan B" },
+  { key: "red_folder", label: "Red Folder (PDF)" },
 ];
 
 const PanicSetup = () => {
@@ -40,11 +51,18 @@ const PanicSetup = () => {
     toggleScenario,
     setScenarioContacts,
     setCheckInConfig,
+    getScenarioSharePrefs,
+    setScenarioSharePrefs,
     save,
   } = usePanicSetup();
 
+  const { missingItems, loading: readinessLoading } = usePreparednessReadiness();
+
   const [customLabel, setCustomLabel] = useState("");
   const [activationMode, setActivationMode] = useState<"direct" | "checkin">("direct");
+  const [missingModalOpen, setMissingModalOpen] = useState(false);
+  const [pendingMissingItems, setPendingMissingItems] = useState<string[]>([]);
+  const [continueAfterModal, setContinueAfterModal] = useState(false);
 
   // Sync custom label with scenario data
   useEffect(() => {
@@ -67,11 +85,56 @@ const PanicSetup = () => {
     return scenarios.find((s) => s.scenario_type === type)?.contact_ids ?? [];
   };
 
+  // Handle toggling a share pref item
+  const handleSharePrefToggle = (type: ScenarioType, key: keyof SharePrefs, checked: boolean) => {
+    const currentPrefs = getScenarioSharePrefs(type);
+    const newPrefs = { ...currentPrefs, [key]: checked };
+    setScenarioSharePrefs(type, newPrefs);
+
+    // If toggling ON and item is not ready, show modal
+    if (checked && key !== "location") {
+      const missing = missingItems(newPrefs);
+      if (missing.length > 0 && missing.includes(key)) {
+        setPendingMissingItems([key]);
+        setMissingModalOpen(true);
+      }
+    }
+  };
+
+  // Collect all missing items across all enabled scenarios
+  const collectAllMissingItems = (): string[] => {
+    const allMissing = new Set<string>();
+    for (const scenario of scenarios) {
+      if (scenario.enabled) {
+        const missing = missingItems(scenario.share_prefs);
+        missing.forEach((item) => allMissing.add(item));
+      }
+    }
+    return Array.from(allMissing);
+  };
+
   const handleSave = async () => {
+    // Check for missing items before saving
+    const allMissing = collectAllMissingItems();
+    if (allMissing.length > 0 && !continueAfterModal) {
+      setPendingMissingItems(allMissing);
+      setMissingModalOpen(true);
+      return;
+    }
+
+    // Reset the continue flag
+    setContinueAfterModal(false);
+
     const success = await save();
     if (success) {
       navigate("/panic/test");
     }
+  };
+
+  const handleContinueAnyway = () => {
+    setContinueAfterModal(true);
+    // Trigger save after modal closes
+    setTimeout(() => handleSave(), 100);
   };
 
   // STEP 1: Show loading while auth or entitlements are loading
@@ -147,7 +210,7 @@ const PanicSetup = () => {
             </p>
           </div>
 
-          {isLoading ? (
+          {isLoading || readinessLoading ? (
             <div className="space-y-6">
               <Skeleton className="h-64 w-full" />
               <Skeleton className="h-48 w-full" />
@@ -241,13 +304,14 @@ const PanicSetup = () => {
                     Emergency Scenarios
                   </CardTitle>
                   <CardDescription>
-                    Choose which scenarios trigger alerts and which contacts to notify for each.
+                    Choose which scenarios trigger alerts and what to share for each.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {SCENARIO_OPTIONS.map((option) => {
                     const isEnabled = getScenarioEnabled(option.type);
                     const selectedContacts = getScenarioContacts(option.type);
+                    const sharePrefs = getScenarioSharePrefs(option.type);
 
                     return (
                       <div
@@ -325,6 +389,39 @@ const PanicSetup = () => {
                                   </p>
                                 )}
                               </div>
+                            )}
+
+                            {/* What to share section */}
+                            {isEnabled && (
+                              <Collapsible className="mt-3 pt-3 border-t border-border/50">
+                                <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
+                                  <Share2 className="h-4 w-4" />
+                                  What to share in emergency
+                                  <ChevronRight className="h-4 w-4 ml-auto transition-transform data-[state=open]:rotate-90" />
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pt-3 space-y-2">
+                                  {SHARE_ITEMS.map((item) => (
+                                    <div
+                                      key={item.key}
+                                      className="flex items-center justify-between py-1.5"
+                                    >
+                                      <Label
+                                        htmlFor={`${option.type}-${item.key}`}
+                                        className="text-sm font-normal cursor-pointer"
+                                      >
+                                        {item.label}
+                                      </Label>
+                                      <Switch
+                                        id={`${option.type}-${item.key}`}
+                                        checked={sharePrefs[item.key]}
+                                        onCheckedChange={(checked) =>
+                                          handleSharePrefToggle(option.type, item.key, checked)
+                                        }
+                                      />
+                                    </div>
+                                  ))}
+                                </CollapsibleContent>
+                              </Collapsible>
                             )}
                           </div>
                         </div>
@@ -457,14 +554,21 @@ const PanicSetup = () => {
               </div>
 
               <p className="text-xs text-muted-foreground text-center mt-6">
-                Your contacts will only be notified when you manually activate the panic button
-                or miss a check-in (if enabled).
+                Your Panic Button will share only what you select here.
               </p>
             </>
           )}
         </div>
       </main>
       <Footer />
+
+      {/* Missing preparedness modal */}
+      <MissingPreparednessModal
+        open={missingModalOpen}
+        onOpenChange={setMissingModalOpen}
+        missingItems={pendingMissingItems}
+        onContinueAnyway={handleContinueAnyway}
+      />
     </div>
   );
 };
