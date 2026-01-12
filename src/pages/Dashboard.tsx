@@ -21,11 +21,13 @@ import {
   AlertCircle,
   FolderHeart,
   Users,
+  Circle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
+import { useDashboardReadiness } from '@/hooks/useDashboardReadiness';
 import { supabase } from '@/integrations/supabase/client';
 import { PremiumBundleCard } from '@/components/PremiumBundleCard';
 import Navbar from '@/components/Navbar';
@@ -55,8 +57,16 @@ export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { isPremium, loading: entitlementsLoading, refetch, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
   const { needsOnboarding } = useOnboardingState(user?.id);
+  const { 
+    loading: readinessLoading,
+    vault: hasVault,
+    plans: hasPlans,
+    redFolder: hasRedFolder,
+    backup: hasBackup,
+    panicSetup: hasPanicSetup,
+  } = useDashboardReadiness(user?.id);
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
-  const [plans, setPlans] = useState<SuppliesPlan[]>([]);
+  const [suppliesPlans, setSuppliesPlans] = useState<SuppliesPlan[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   
   // Purchase confirmation state
@@ -189,7 +199,7 @@ export default function Dashboard() {
     ]);
 
     if (assessmentsRes.data) setAssessments(assessmentsRes.data);
-    if (plansRes.data) setPlans(plansRes.data);
+    if (plansRes.data) setSuppliesPlans(plansRes.data);
     setLoadingData(false);
   };
 
@@ -290,16 +300,16 @@ export default function Dashboard() {
   }
 
   const safeToolkitShortcuts = [
-    { label: t.premium.shortcuts.vault, href: '/premium/vault', icon: Lock },
-    { label: t.premium.shortcuts.plans, href: '/premium/plans', icon: FileText },
-    { label: t.premium.shortcuts.redFolder, href: '/premium/red-folder', icon: FolderHeart },
-    { label: t.premium.shortcuts.backup, href: '/premium/backup', icon: Archive },
+    { label: t.premium.shortcuts.vault, href: '/premium/vault', icon: Lock, ready: hasVault },
+    { label: t.premium.shortcuts.plans, href: '/premium/plans', icon: FileText, ready: hasPlans },
+    { label: t.premium.shortcuts.redFolder, href: '/premium/red-folder', icon: FolderHeart, ready: hasRedFolder },
+    { label: t.premium.shortcuts.backup, href: '/premium/backup', icon: Archive, ready: hasBackup },
   ];
 
   const panicButtonShortcuts = [
-    { label: 'Setup Contacts', href: '/panic/setup', icon: Users },
-    { label: 'Test Panic Button', href: '/panic/test', icon: AlertCircle },
-    { label: 'Activation History', href: '/panic/history', icon: Bell },
+    { label: 'Setup Contacts', href: '/panic/setup', icon: Users, ready: hasPanicSetup },
+    { label: 'Test Panic Button', href: '/panic/test', icon: AlertCircle, ready: null as boolean | null },
+    { label: 'Activation History', href: '/panic/history', icon: Bell, ready: null as boolean | null },
   ];
 
   return (
@@ -430,11 +440,11 @@ export default function Dashboard() {
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : plans.length === 0 ? (
+                  ) : suppliesPlans.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">{t.dashboard.noPlans}</p>
                   ) : (
                     <ul className="space-y-2">
-                      {plans.slice(0, 3).map((p) => (
+                      {suppliesPlans.slice(0, 3).map((p) => (
                         <li key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                           <div>
                             <p className="text-sm font-medium">{p.days}-Day Plan</p>
@@ -486,7 +496,15 @@ export default function Dashboard() {
                               <item.icon className="h-4 w-4 text-primary" />
                               <span className="text-sm font-medium">{item.label}</span>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex items-center gap-2">
+                              {!readinessLoading && item.ready === true && (
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              )}
+                              {!readinessLoading && item.ready === false && (
+                                <Circle className="h-4 w-4 text-muted-foreground/40" strokeDasharray="2 2" />
+                              )}
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
                           </div>
                         </Link>
                       ))}
@@ -514,7 +532,15 @@ export default function Dashboard() {
                               <item.icon className="h-4 w-4 text-destructive" />
                               <span className="text-sm font-medium">{item.label}</span>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex items-center gap-2">
+                              {!readinessLoading && item.ready === true && (
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              )}
+                              {!readinessLoading && item.ready === false && (
+                                <Circle className="h-4 w-4 text-muted-foreground/40" strokeDasharray="2 2" />
+                              )}
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
                           </div>
                         </Link>
                       ))}
