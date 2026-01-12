@@ -53,7 +53,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 
 // Send emergency notification to contacts
 async function sendEmergencyNotification(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   scenarioType: string
 ): Promise<void> {
@@ -74,7 +74,7 @@ async function sendEmergencyNotification(
   const { data: { user } } = await supabase.auth.admin.getUserById(userId);
   const userName = user?.email?.split("@")[0] || "Someone";
 
-  for (const contact of contacts) {
+  for (const contact of contacts as Array<{ email?: string; name: string }>) {
     if (!contact.email) continue;
 
     const subject = `🚨 EMERGENCY: ${userName} hasn't checked in`;
@@ -262,9 +262,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in checkin-cron:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

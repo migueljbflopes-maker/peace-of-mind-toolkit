@@ -133,8 +133,9 @@ Deno.serve(async (req) => {
 
     // Get contact IDs from scenario config, or all contacts if not specified
     let contactIds: string[] = [];
-    if (scenario?.share_config?.contact_ids?.length > 0) {
-      contactIds = scenario.share_config.contact_ids;
+    const shareConfig = scenario?.share_config as { contact_ids?: string[] } | null;
+    if (shareConfig?.contact_ids && shareConfig.contact_ids.length > 0) {
+      contactIds = shareConfig.contact_ids;
     }
 
     // Fetch contacts
