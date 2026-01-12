@@ -149,6 +149,95 @@ export type Database = {
         }
         Relationships: []
       }
+      checkin_reminders: {
+        Row: {
+          expires_at: string
+          id: string
+          reminder_number: number
+          responded_at: string | null
+          sent_at: string
+          session_id: string
+          status: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          id?: string
+          reminder_number: number
+          responded_at?: string | null
+          sent_at?: string
+          session_id: string
+          status?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          id?: string
+          reminder_number?: number
+          responded_at?: string | null
+          sent_at?: string
+          session_id?: string
+          status?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkin_reminders_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "checkin_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkin_sessions: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          interval_hours: number
+          missed_count: number
+          next_checkin_due: string
+          paused_at: string | null
+          scenario_type: Database["public"]["Enums"]["panic_scenario_type"]
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          interval_hours?: number
+          missed_count?: number
+          next_checkin_due: string
+          paused_at?: string | null
+          scenario_type: Database["public"]["Enums"]["panic_scenario_type"]
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          interval_hours?: number
+          missed_count?: number
+          next_checkin_due?: string
+          paused_at?: string | null
+          scenario_type?: Database["public"]["Enums"]["panic_scenario_type"]
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exports: {
         Row: {
           created_at: string
