@@ -1,48 +1,24 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { FileText, Info, WifiOff } from 'lucide-react';
+import { FileText, Info } from 'lucide-react';
 import { hasGeneratedPlans } from '@/lib/planWizard2Store';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
-import { useVaultSession } from '@/hooks/useVaultSession';
-import { usePlansSync } from '@/hooks/usePlansSync';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { LoginGateCard } from '@/components/LoginGateCard';
-import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { PlanCard } from '@/components/plans/PlanCard';
-import { PlanEditor } from '@/components/plans/PlanEditor';
-import { PlanContextWizard } from '@/components/plans/PlanContextWizard';
-import { PlanData, PlanType } from '@/lib/plansStore';
-import { generatePlanDraft, AIPlanInput } from '@/lib/aiPlanDraft';
-import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
+import { PlanType } from '@/lib/plansStore';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function Plans() {
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
-  const { t, locale } = useLocale();
-  const { isUnlocked, getPassphrase } = useVaultSession();
-  const { 
-    isOnline, 
-    planStatuses, 
-    savePlan, 
-    getPlan,
-    sync,
-    refresh 
-  } = usePlansSync();
-
+  const { t } = useLocale();
   const navigate = useNavigate();
   
-  const [editingPlan, setEditingPlan] = useState<PlanType | null>(null);
-  const [editingData, setEditingData] = useState<PlanData | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isGenerating, setIsGenerating] = useState<PlanType | null>(null);
-  const [showContextWizard, setShowContextWizard] = useState<PlanType | null>(null);
   const [wizardPlans, setWizardPlans] = useState<{ hasPlanA: boolean; hasPlanB: boolean } | null>(null);
 
   // Load wizard plan status
@@ -51,98 +27,6 @@ export default function Plans() {
       hasGeneratedPlans(user.id).then(setWizardPlans);
     }
   }, [user, isPremium]);
-
-  // Sync on mount
-  useEffect(() => {
-    if (isPremium && isUnlocked && isOnline) {
-      sync();
-    }
-  }, [isPremium, isUnlocked, isOnline, sync]);
-
-  // Load and decrypt plan for editing
-  const handleEditPlan = useCallback(async (planType: PlanType) => {
-    const passphrase = getPassphrase();
-    if (!passphrase) return;
-
-    try {
-      const cached = await getPlan(planType);
-      if (cached) {
-        const payload: EncryptedPayload = {
-          ciphertextB64: cached.ciphertextB64,
-          ivB64: cached.ivB64,
-          saltB64: cached.saltB64,
-          version: cached.version,
-        };
-        const decrypted = await decryptJSON<PlanData>(payload, passphrase);
-        setEditingData(decrypted);
-      } else {
-        setEditingData(null);
-      }
-      setEditingPlan(planType);
-    } catch {
-      toast.error(t.vault.wrongPassphrase);
-    }
-  }, [getPlan, getPassphrase, t]);
-
-  // Save plan (encrypt + store)
-  const handleSavePlan = useCallback(async (data: PlanData) => {
-    const passphrase = getPassphrase();
-    if (!passphrase) return;
-
-    setIsSaving(true);
-    try {
-      const encrypted = await encryptJSON(data, passphrase);
-      const result = await savePlan(data.meta.planType, encrypted);
-      
-      if (result.synced) {
-        toast.success(t.plans.syncedToCloud);
-      } else {
-        toast.success(t.plans.savedLocally);
-      }
-      
-      setEditingPlan(null);
-      setEditingData(null);
-      await refresh();
-    } catch {
-      toast.error('Failed to save plan');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [getPassphrase, savePlan, refresh, t]);
-
-  // Start context wizard before generating draft
-  const handleStartGenerateDraft = useCallback((planType: PlanType) => {
-    setShowContextWizard(planType);
-  }, []);
-
-  // Generate AI draft with collected context
-  const handleGenerateDraft = useCallback(async (context: AIPlanInput) => {
-    const passphrase = getPassphrase();
-    if (!passphrase || !user || !showContextWizard) return;
-
-    const planType = showContextWizard;
-    setIsGenerating(planType);
-    
-    try {
-      // Generate draft via Edge Function with rich context
-      const { plan, usedAI } = await generatePlanDraft(planType, context, user.id);
-
-      if (usedAI) {
-        toast.success(t.plans.draftGenerated);
-      } else {
-        toast.success(t.plans.draftGenerated + ' (offline template)');
-      }
-      
-      // Close wizard and open editor with draft
-      setShowContextWizard(null);
-      setEditingData(plan);
-      setEditingPlan(planType);
-    } catch {
-      toast.error('Failed to generate draft');
-    } finally {
-      setIsGenerating(null);
-    }
-  }, [getPassphrase, user, showContextWizard, t]);
 
   if (authLoading || entLoading) {
     return (
@@ -169,37 +53,6 @@ export default function Plans() {
     );
   }
 
-  // Show context wizard if collecting context
-  if (showContextWizard) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 container-wide section-padding py-8">
-          <PlanContextWizard
-            planType={showContextWizard}
-            onComplete={handleGenerateDraft}
-            onCancel={() => setShowContextWizard(null)}
-            isGenerating={isGenerating === showContextWizard}
-          />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  // Show editor if editing
-  if (editingPlan) {
-    return (
-      <PlanEditor
-        planType={editingPlan}
-        initialData={editingData}
-        onSave={handleSavePlan}
-        onCancel={() => { setEditingPlan(null); setEditingData(null); }}
-        isSaving={isSaving}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -207,10 +60,6 @@ export default function Plans() {
       <main className="flex-1">
         {!isPremium ? (
           <PremiumLockedState title={t.plans.title} />
-        ) : !isUnlocked ? (
-          <div className="container-wide section-padding py-8">
-            <VaultUnlockForm onUnlock={() => refresh()} />
-          </div>
         ) : (
           <div className="container-wide section-padding py-8">
             {/* Header */}
@@ -224,16 +73,6 @@ export default function Plans() {
               <p className="text-muted-foreground">{t.plans.subtitle}</p>
             </div>
 
-            {/* Offline banner */}
-            {!isOnline && (
-              <Alert className="mb-6 border-amber-200 bg-amber-50">
-                <WifiOff className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800">
-                  {t.vault.sync.offlineBanner}
-                </AlertDescription>
-              </Alert>
-            )}
-
             {/* Tip */}
             <Alert className="mb-6 border-muted bg-muted/30">
               <Info className="h-4 w-4 text-muted-foreground" />
@@ -245,20 +84,11 @@ export default function Plans() {
             {/* Plans Grid */}
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
               {(['A', 'B'] as PlanType[]).map((planType) => {
-                const status = planStatuses.find(s => s.planType === planType) || {
-                  planType,
-                  hasData: false,
-                  updatedAt: null,
-                  isSynced: true,
-                  status: 'not_started' as const,
-                };
                 const hasWizardPlan = planType === 'A' ? wizardPlans?.hasPlanA : wizardPlans?.hasPlanB;
                 return (
                   <PlanCard
                     key={planType}
                     planType={planType}
-                    status={status}
-                    onEdit={handleEditPlan}
                     hasGeneratedPlan={hasWizardPlan}
                     onViewPlan={() => navigate('/premium/plans/wizard')}
                     onStartWizard={() => navigate('/premium/plans/wizard')}
