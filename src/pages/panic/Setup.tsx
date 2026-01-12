@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, Users, Bell, ChevronRight, Plus, Trash2, Clock, Send, Lock, Share2 } from "lucide-react";
+import { AlertCircle, Users, Bell, ChevronRight, Plus, Trash2, Clock, Send, Lock, Share2, Power } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { PremiumLockedState } from "@/components/PremiumLockedState";
 import { MissingPreparednessModal } from "@/components/MissingPreparednessModal";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import { useCheckinSession } from "@/hooks/useCheckinSession";
+import { Badge } from "@/components/ui/badge";
 const SCENARIO_OPTIONS: { type: ScenarioType; label: string; description: string }[] = [
   { type: "medical", label: "Medical Emergency", description: "Health crisis requiring immediate help" },
   { type: "natural", label: "Natural Disaster", description: "Earthquake, flood, fire, etc." },
@@ -57,6 +58,15 @@ const PanicSetup = () => {
   } = usePanicSetup();
 
   const { missingItems, loading: readinessLoading } = usePreparednessReadiness();
+  const { 
+    activeSessions, 
+    isLoading: checkinLoading, 
+    isStarting, 
+    isStopping,
+    startSession, 
+    stopSession,
+    hasActiveSession 
+  } = useCheckinSession();
 
   const [customLabel, setCustomLabel] = useState("");
   const [activationMode, setActivationMode] = useState<"direct" | "checkin">("direct");
@@ -475,21 +485,109 @@ const PanicSetup = () => {
                     </div>
                   </div>
 
-                  {/* Check-in Mode - Coming Soon */}
-                  <div className="p-4 rounded-lg border border-border bg-muted/30 opacity-60 cursor-not-allowed">
+                  {/* Check-in Mode - Dead Man's Switch */}
+                  <div
+                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                      activationMode === "checkin"
+                        ? "border-primary/50 bg-primary/5"
+                        : "border-border bg-muted/30"
+                    }`}
+                    onClick={() => {
+                      setActivationMode("checkin");
+                      setCheckInConfig({ ...checkInConfig, enabled: true });
+                    }}
+                  >
                     <div className="flex items-start gap-3">
-                      <div className="w-4 h-4 rounded-full border-2 mt-0.5 border-muted-foreground" />
+                      <div
+                        className={`w-4 h-4 rounded-full border-2 mt-0.5 ${
+                          activationMode === "checkin"
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground"
+                        }`}
+                      />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-muted-foreground">Dead Man's Switch</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                            Coming Soon
-                          </span>
+                          <Clock className="h-4 w-4" />
+                          <span className="font-medium">Dead Man's Switch</span>
+                          {hasActiveSession() && (
+                            <Badge variant="default" className="bg-green-600 text-xs">
+                              Active
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
                           Auto-alert contacts if you don't check in within the set interval.
                         </p>
+
+                        {activationMode === "checkin" && (
+                          <div className="mt-4 pt-4 border-t border-border/50 space-y-4">
+                            <div>
+                              <Label className="text-sm">Check-in Interval</Label>
+                              <Select
+                                value={String(checkInConfig.interval_hours)}
+                                onValueChange={(v) =>
+                                  setCheckInConfig({ ...checkInConfig, interval_hours: Number(v) })
+                                }
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="12">Every 12 hours</SelectItem>
+                                  <SelectItem value="24">Every 24 hours</SelectItem>
+                                  <SelectItem value="48">Every 48 hours</SelectItem>
+                                  <SelectItem value="72">Every 72 hours</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                You'll receive email reminders. After 3 missed check-ins, your contacts are alerted.
+                              </p>
+                            </div>
+
+                            {/* Start/Stop monitoring button */}
+                            <div className="flex gap-2">
+                              {hasActiveSession() ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    stopSession();
+                                  }}
+                                  disabled={isStopping}
+                                >
+                                  <Power className="h-4 w-4" />
+                                  {isStopping ? "Stopping..." : "Stop Monitoring"}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="cta"
+                                  size="sm"
+                                  className="gap-2"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    // Find first enabled scenario or use "natural" as default
+                                    const enabledScenario = scenarios.find(s => s.enabled);
+                                    const scenarioType = enabledScenario?.scenario_type || "natural";
+                                    await startSession(scenarioType, checkInConfig.interval_hours);
+                                  }}
+                                  disabled={isStarting}
+                                >
+                                  <Power className="h-4 w-4" />
+                                  {isStarting ? "Starting..." : "Start Monitoring"}
+                                </Button>
+                              )}
+                            </div>
+
+                            {hasActiveSession() && (
+                              <p className="text-xs text-green-600 flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
+                                Monitoring active. Check your email for check-in reminders.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

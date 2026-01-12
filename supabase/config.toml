@@ -53,3 +53,15 @@ verify_jwt = false
 
 [functions.claim-guest-purchase]
 verify_jwt = true
+
+[functions.checkin-start]
+verify_jwt = false
+
+[functions.checkin-stop]
+verify_jwt = false
+
+[functions.checkin-respond]
+verify_jwt = false
+
+[functions.checkin-cron]
+verify_jwt = false
