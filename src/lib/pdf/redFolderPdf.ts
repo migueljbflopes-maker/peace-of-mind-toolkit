@@ -9,7 +9,7 @@
 
 import jsPDF from 'jspdf';
 import { Locale } from '@/i18n/translations';
-import { PlanData } from '@/lib/plansStore';
+import { GeneratedPlanA, GeneratedPlanB } from '@/lib/planWizard2Types';
 
 // Types for PDF data
 export interface RiskData {
@@ -72,8 +72,8 @@ export interface RedFolderPdfData {
   risk: RiskData | null;
   supplies: SuppliesData | null;
   vault: VaultSectionData;
-  planA: PlanData | null;
-  planB: PlanData | null;
+  planA: GeneratedPlanA | null;
+  planB: GeneratedPlanB | null;
   generatedAt: string;
 }
 
@@ -105,14 +105,24 @@ const labels = {
     medications: 'Medications',
     conditions: 'Conditions',
     notes: 'Notes',
-    // Page 4
+    // Page 4+
     plansTitle: 'Plans A & B',
     planA: 'Plan A — Shelter in Place',
     planB: 'Plan B — Leave / Relocate',
     triggers: 'Triggers',
-    firstHourSteps: 'First Hour Steps',
-    meetingPoint: 'Meeting Point',
+    firstHour: 'First Hour',
+    first24h: 'First 24 Hours',
+    firstWeek: 'First Week',
+    routes: 'Routes',
+    primaryRoute: 'Primary',
+    altRoute1: 'Alternative 1',
+    altRoute2: 'Alternative 2',
+    destinations: 'Destinations',
+    noGoZones: 'No-Go Zones',
+    meetingPoints: 'Meeting Points',
+    commsPlan: 'Communication Plan',
     noPlan: 'No plan saved',
+    overview: 'Overview',
   },
   pt: {
     title: 'Plano de Resiliência Personalizado',
@@ -140,14 +150,24 @@ const labels = {
     medications: 'Medicações',
     conditions: 'Condições',
     notes: 'Notas',
-    // Page 4
+    // Page 4+
     plansTitle: 'Planos A & B',
     planA: 'Plano A — Ficar em Casa',
-    planB: 'Plano B — Sair / Realocar',
-    triggers: 'Gatilhos',
-    firstHourSteps: 'Passos da Primeira Hora',
-    meetingPoint: 'Ponto de Encontro',
+    planB: 'Plano B — Sair / Evacuar',
+    triggers: 'Gatilhos de Ação',
+    firstHour: 'Primeira Hora',
+    first24h: 'Primeiras 24 Horas',
+    firstWeek: 'Primeira Semana',
+    routes: 'Rotas',
+    primaryRoute: 'Principal',
+    altRoute1: 'Alternativa 1',
+    altRoute2: 'Alternativa 2',
+    destinations: 'Destinos',
+    noGoZones: 'Zonas a Evitar',
+    meetingPoints: 'Pontos de Encontro',
+    commsPlan: 'Plano de Comunicação',
     noPlan: 'Sem plano guardado',
+    overview: 'Resumo',
   },
 };
 
@@ -173,6 +193,9 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
   const l = labels[locale];
   const riskLabels = riskLevelLabels[locale];
   
+  // Calculate total pages: 3 base + 1 for Plan A + 1 for Plan B if they exist
+  const totalPages = 3 + (planA ? 1 : 0) + (planB ? 1 : 0) + (planA || planB ? 0 : 1);
+  
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -184,9 +207,10 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
   const margin = 20;
   const contentWidth = pageWidth - 2 * margin;
   let y = margin;
+  let currentPage = 1;
 
   // Helper functions
-  const addPageNumber = (pageNum: number, totalPages: number) => {
+  const addPageNumber = (pageNum: number) => {
     doc.setFontSize(9);
     doc.setTextColor(128);
     doc.text(`${l.page} ${pageNum}/${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
@@ -231,6 +255,7 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
   const checkPageBreak = (needed: number = 30) => {
     if (y + needed > pageHeight - margin) {
       doc.addPage();
+      currentPage++;
       y = margin;
       return true;
     }
@@ -300,10 +325,11 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
   doc.text(disclaimerLines, margin, pageHeight - 25);
   doc.setTextColor(0);
 
-  addPageNumber(1, 4);
+  addPageNumber(1);
 
   // ==================== PAGE 2: Essentials Checklist ====================
   doc.addPage();
+  currentPage++;
   y = margin;
 
   addHeader(l.essentialsChecklist, 16);
@@ -340,10 +366,11 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
     addText(l.noSuppliesPlan);
   }
 
-  addPageNumber(2, 4);
+  addPageNumber(2);
 
   // ==================== PAGE 3: Contacts & Medical ====================
   doc.addPage();
+  currentPage++;
   y = margin;
 
   addHeader(l.contactsMedical, 16);
@@ -387,59 +414,157 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
     addText(l.notProvided);
   }
 
-  addPageNumber(3, 4);
+  addPageNumber(3);
 
-  // ==================== PAGE 4: Plans A & B ====================
+  // ==================== PAGE 4: Plan A (Shelter) ====================
   doc.addPage();
+  currentPage++;
   y = margin;
 
-  addHeader(l.plansTitle, 16);
-  addSpacer(10);
+  addHeader(l.planA, 16);
+  addSpacer(5);
 
-  // Plan A
-  addSubheader(l.planA);
-  if (planA && (planA.triggers.length > 0 || planA.stepsFirstHour.length > 0)) {
+  if (planA) {
+    // Overview
+    if (planA.overview) {
+      addText(planA.overview);
+      addSpacer(10);
+    }
+
+    // Triggers
     if (planA.triggers.length > 0) {
-      addText(`${l.triggers}:`);
-      planA.triggers.slice(0, 3).forEach(t => addBullet(t));
+      addSubheader(l.triggers);
+      planA.triggers.slice(0, 5).forEach(t => addBullet(t));
+      addSpacer(8);
     }
-    addSpacer(5);
-    if (planA.stepsFirstHour.length > 0) {
-      addText(`${l.firstHourSteps}:`);
-      planA.stepsFirstHour.slice(0, 5).forEach(s => addBullet(s));
+
+    // First hour
+    if (planA.first_hour.length > 0) {
+      checkPageBreak(30);
+      addSubheader(l.firstHour);
+      planA.first_hour.slice(0, 6).forEach(s => addBullet(s));
+      addSpacer(8);
     }
-    if (planA.meetingPoints.primary) {
-      addSpacer(3);
-      addText(`${l.meetingPoint}: ${planA.meetingPoints.primary}`);
+
+    // First 24h
+    if (planA.first_24h.length > 0) {
+      checkPageBreak(30);
+      addSubheader(l.first24h);
+      planA.first_24h.slice(0, 6).forEach(s => addBullet(s));
+      addSpacer(8);
+    }
+
+    // First week
+    if (planA.first_week.length > 0) {
+      checkPageBreak(30);
+      addSubheader(l.firstWeek);
+      planA.first_week.slice(0, 5).forEach(s => addBullet(s));
+      addSpacer(8);
+    }
+
+    // Meeting points
+    if (planA.meetup_points?.primary) {
+      checkPageBreak(20);
+      addSubheader(l.meetingPoints);
+      addBullet(`Primary: ${planA.meetup_points.primary}`);
+      if (planA.meetup_points.secondary) {
+        addBullet(`Secondary: ${planA.meetup_points.secondary}`);
+      }
+      addSpacer(8);
+    }
+
+    // Comms plan
+    if (planA.comms_plan) {
+      checkPageBreak(20);
+      addSubheader(l.commsPlan);
+      addText(planA.comms_plan);
     }
   } else {
     addText(l.noPlan);
   }
 
-  addSpacer(15);
-  checkPageBreak(50);
+  addPageNumber(currentPage);
 
-  // Plan B
-  addSubheader(l.planB);
-  if (planB && (planB.triggers.length > 0 || planB.stepsFirstHour.length > 0)) {
+  // ==================== PAGE 5: Plan B (Evacuate) ====================
+  doc.addPage();
+  currentPage++;
+  y = margin;
+
+  addHeader(l.planB, 16);
+  addSpacer(5);
+
+  if (planB) {
+    // Overview
+    if (planB.overview) {
+      addText(planB.overview);
+      addSpacer(10);
+    }
+
+    // Triggers
     if (planB.triggers.length > 0) {
-      addText(`${l.triggers}:`);
-      planB.triggers.slice(0, 3).forEach(t => addBullet(t));
+      addSubheader(l.triggers);
+      planB.triggers.slice(0, 5).forEach(t => addBullet(t));
+      addSpacer(8);
     }
-    addSpacer(5);
-    if (planB.stepsFirstHour.length > 0) {
-      addText(`${l.firstHourSteps}:`);
-      planB.stepsFirstHour.slice(0, 5).forEach(s => addBullet(s));
+
+    // Go-now checklist
+    if (planB.go_now_checklist.length > 0) {
+      checkPageBreak(30);
+      addSubheader(l.grabAndGo);
+      planB.go_now_checklist.slice(0, 8).forEach(s => addBullet(s));
+      addSpacer(8);
     }
-    if (planB.meetingPoints.primary) {
-      addSpacer(3);
-      addText(`${l.meetingPoint}: ${planB.meetingPoints.primary}`);
+
+    // Routes
+    if (planB.routes) {
+      checkPageBreak(30);
+      addSubheader(l.routes);
+      if (planB.routes.primary) addBullet(`${l.primaryRoute}: ${planB.routes.primary}`);
+      if (planB.routes.alt1) addBullet(`${l.altRoute1}: ${planB.routes.alt1}`);
+      if (planB.routes.alt2) addBullet(`${l.altRoute2}: ${planB.routes.alt2}`);
+      addSpacer(8);
+    }
+
+    // Destinations
+    if (planB.destinations_ranked && planB.destinations_ranked.length > 0) {
+      checkPageBreak(30);
+      addSubheader(l.destinations);
+      planB.destinations_ranked.slice(0, 3).forEach((dest, i) => {
+        addBullet(`${i + 1}. ${dest.label} — ${dest.reason}`);
+      });
+      addSpacer(8);
+    }
+
+    // No-go zones
+    if (planB.no_go_zones && planB.no_go_zones.length > 0) {
+      checkPageBreak(20);
+      addSubheader(l.noGoZones);
+      planB.no_go_zones.slice(0, 4).forEach(z => addBullet(z));
+      addSpacer(8);
+    }
+
+    // Meeting points
+    if (planB.meetup_points?.primary) {
+      checkPageBreak(20);
+      addSubheader(l.meetingPoints);
+      addBullet(`Primary: ${planB.meetup_points.primary}`);
+      if (planB.meetup_points.secondary) {
+        addBullet(`Secondary: ${planB.meetup_points.secondary}`);
+      }
+      addSpacer(8);
+    }
+
+    // Comms plan
+    if (planB.comms_plan) {
+      checkPageBreak(20);
+      addSubheader(l.commsPlan);
+      addText(planB.comms_plan);
     }
   } else {
     addText(l.noPlan);
   }
 
-  addPageNumber(4, 4);
+  addPageNumber(currentPage);
 
   // Return as blob
   return doc.output('blob');
