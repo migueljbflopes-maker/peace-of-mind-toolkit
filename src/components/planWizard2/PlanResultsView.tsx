@@ -27,6 +27,9 @@ import {
   MessageSquare,
   MapPin,
   FileText,
+  Pencil,
+  Printer,
+  Share2,
 } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
 import { GeneratedPlanA, GeneratedPlanB } from '@/lib/planWizard2Types';
@@ -35,6 +38,9 @@ interface PlanResultsViewProps {
   planA: GeneratedPlanA;
   planB: GeneratedPlanB;
   onRegenerate: () => void;
+  onEdit: () => void;
+  onPrint: () => void;
+  onShare?: () => void;
   onBack: () => void;
 }
 
@@ -378,13 +384,13 @@ function PlanBCard({ plan }: { plan: GeneratedPlanB }) {
   );
 }
 
-export function PlanResultsView({ planA, planB, onRegenerate, onBack }: PlanResultsViewProps) {
+export function PlanResultsView({ planA, planB, onRegenerate, onEdit, onPrint, onShare, onBack }: PlanResultsViewProps) {
   const { locale } = useLocale();
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold">
             {locale === 'pt' ? 'Os Seus Planos de Emergência' : 'Your Emergency Plans'}
@@ -395,16 +401,40 @@ export function PlanResultsView({ planA, planB, onRegenerate, onBack }: PlanResu
               : 'Personalized for your situation'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
             {locale === 'pt' ? 'Voltar' : 'Back'}
           </Button>
-          <Button variant="outline" onClick={onRegenerate}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Pencil className="h-4 w-4 mr-1" />
+            {locale === 'pt' ? 'Editar' : 'Edit'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onPrint}>
+            <Printer className="h-4 w-4 mr-1" />
+            {locale === 'pt' ? 'Imprimir' : 'Print'}
+          </Button>
+          {onShare && (
+            <Button variant="outline" size="sm" onClick={onShare}>
+              <Share2 className="h-4 w-4 mr-1" />
+              Red Folder
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onRegenerate}>
+            <RefreshCw className="h-4 w-4 mr-1" />
             {locale === 'pt' ? 'Regenerar' : 'Regenerate'}
           </Button>
         </div>
+      </div>
+
+      {/* Print Header */}
+      <div className="hidden print:block text-center mb-8">
+        <h1 className="text-3xl font-bold">
+          {locale === 'pt' ? 'Planos de Emergência' : 'Emergency Plans'}
+        </h1>
+        <p className="text-muted-foreground">
+          {locale === 'pt' ? 'Gerado em' : 'Generated on'} {new Date().toLocaleDateString(locale === 'pt' ? 'pt-PT' : 'en-GB')}
+        </p>
       </div>
 
       {/* Plans */}
@@ -414,7 +444,17 @@ export function PlanResultsView({ planA, planB, onRegenerate, onBack }: PlanResu
       </div>
 
       {/* Actions */}
-      <div className="flex justify-center gap-4 pt-4">
+      <div className="flex justify-center gap-4 pt-4 print:hidden">
+        <Button variant="outline" onClick={onPrint}>
+          <Printer className="h-4 w-4 mr-2" />
+          {locale === 'pt' ? 'Imprimir' : 'Print'}
+        </Button>
+        {onShare && (
+          <Button variant="outline" onClick={onShare}>
+            <Share2 className="h-4 w-4 mr-2" />
+            {locale === 'pt' ? 'Exportar para Red Folder' : 'Export to Red Folder'}
+          </Button>
+        )}
         <Button onClick={onBack}>
           {locale === 'pt' ? 'Concluído' : 'Done'}
         </Button>
