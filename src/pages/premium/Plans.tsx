@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, Info, WifiOff, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileText, Info, WifiOff, Sparkles, Wand2 } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
@@ -221,10 +223,28 @@ export default function Plans() {
               </Alert>
             )}
 
+            {/* New AI Wizard CTA */}
+            <Alert className="mb-6 border-primary bg-primary/5">
+              <Wand2 className="h-4 w-4 text-primary" />
+              <AlertDescription className="flex items-center justify-between">
+                <span className="text-foreground">
+                  {locale === 'pt' 
+                    ? 'Experimente o novo Assistente de Planos 2.0 com IA avançada!'
+                    : 'Try the new Plan Wizard 2.0 with advanced AI!'}
+                </span>
+                <Button asChild size="sm" className="ml-4">
+                  <Link to="/premium/plans/wizard">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {locale === 'pt' ? 'Iniciar Wizard' : 'Start Wizard'}
+                  </Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+
             {/* Tip */}
-            <Alert className="mb-6 border-primary/20 bg-primary/5">
-              <Info className="h-4 w-4 text-primary" />
-              <AlertDescription className="text-foreground">
+            <Alert className="mb-6 border-muted bg-muted/30">
+              <Info className="h-4 w-4 text-muted-foreground" />
+              <AlertDescription className="text-muted-foreground">
                 {t.plans.tip}
               </AlertDescription>
             </Alert>
