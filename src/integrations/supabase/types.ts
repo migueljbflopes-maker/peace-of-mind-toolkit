@@ -681,6 +681,63 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_plans: {
+        Row: {
+          comms_config: Json | null
+          constraints: Json | null
+          created_at: string
+          generation_version: number | null
+          home_location: Json | null
+          id: string
+          last_generated_at: string | null
+          plan_a_json: Json | null
+          plan_b_json: Json | null
+          priorities: string[] | null
+          safe_locations: Json | null
+          scenario_set: string[] | null
+          status: string
+          updated_at: string
+          user_id: string
+          wizard_inputs: Json
+        }
+        Insert: {
+          comms_config?: Json | null
+          constraints?: Json | null
+          created_at?: string
+          generation_version?: number | null
+          home_location?: Json | null
+          id?: string
+          last_generated_at?: string | null
+          plan_a_json?: Json | null
+          plan_b_json?: Json | null
+          priorities?: string[] | null
+          safe_locations?: Json | null
+          scenario_set?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          wizard_inputs?: Json
+        }
+        Update: {
+          comms_config?: Json | null
+          constraints?: Json | null
+          created_at?: string
+          generation_version?: number | null
+          home_location?: Json | null
+          id?: string
+          last_generated_at?: string | null
+          plan_a_json?: Json | null
+          plan_b_json?: Json | null
+          priorities?: string[] | null
+          safe_locations?: Json | null
+          scenario_set?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wizard_inputs?: Json
+        }
+        Relationships: []
+      }
       risk_assessments: {
         Row: {
           breakdown: Json
