@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { FileText, Info, WifiOff, Sparkles, Wand2 } from 'lucide-react';
+import { FileText, Info, WifiOff } from 'lucide-react';
+import { hasGeneratedPlans } from '@/lib/planWizard2Store';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
@@ -35,11 +36,21 @@ export default function Plans() {
     refresh 
   } = usePlansSync();
 
+  const navigate = useNavigate();
+  
   const [editingPlan, setEditingPlan] = useState<PlanType | null>(null);
   const [editingData, setEditingData] = useState<PlanData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState<PlanType | null>(null);
   const [showContextWizard, setShowContextWizard] = useState<PlanType | null>(null);
+  const [wizardPlans, setWizardPlans] = useState<{ hasPlanA: boolean; hasPlanB: boolean } | null>(null);
+
+  // Load wizard plan status
+  useEffect(() => {
+    if (user && isPremium) {
+      hasGeneratedPlans(user.id).then(setWizardPlans);
+    }
+  }, [user, isPremium]);
 
   // Sync on mount
   useEffect(() => {
@@ -223,24 +234,6 @@ export default function Plans() {
               </Alert>
             )}
 
-            {/* New AI Wizard CTA */}
-            <Alert className="mb-6 border-primary bg-primary/5">
-              <Wand2 className="h-4 w-4 text-primary" />
-              <AlertDescription className="flex items-center justify-between">
-                <span className="text-foreground">
-                  {locale === 'pt' 
-                    ? 'Experimente o novo Assistente de Planos 2.0 com IA avançada!'
-                    : 'Try the new Plan Wizard 2.0 with advanced AI!'}
-                </span>
-                <Button asChild size="sm" className="ml-4">
-                  <Link to="/premium/plans/wizard">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    {locale === 'pt' ? 'Iniciar Wizard' : 'Start Wizard'}
-                  </Link>
-                </Button>
-              </AlertDescription>
-            </Alert>
-
             {/* Tip */}
             <Alert className="mb-6 border-muted bg-muted/30">
               <Info className="h-4 w-4 text-muted-foreground" />
@@ -259,22 +252,23 @@ export default function Plans() {
                   isSynced: true,
                   status: 'not_started' as const,
                 };
+                const hasWizardPlan = planType === 'A' ? wizardPlans?.hasPlanA : wizardPlans?.hasPlanB;
                 return (
                   <PlanCard
                     key={planType}
                     planType={planType}
                     status={status}
                     onEdit={handleEditPlan}
-                    onGenerateDraft={handleStartGenerateDraft}
-                    isGenerating={isGenerating === planType}
+                    hasGeneratedPlan={hasWizardPlan}
+                    onViewPlan={() => navigate('/premium/plans/wizard')}
+                    onStartWizard={() => navigate('/premium/plans/wizard')}
                   />
                 );
               })}
             </div>
 
             {/* Premium note */}
-            <p className="mt-8 text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
-              <Sparkles className="h-4 w-4" />
+            <p className="mt-8 text-sm text-muted-foreground text-center">
               {t.plans.premiumNote}
             </p>
           </div>

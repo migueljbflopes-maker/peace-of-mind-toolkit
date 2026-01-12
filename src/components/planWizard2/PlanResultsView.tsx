@@ -391,8 +391,8 @@ export function PlanResultsView({ planA, planB, onRegenerate, onBack }: PlanResu
           </h1>
           <p className="text-muted-foreground">
             {locale === 'pt' 
-              ? 'Gerados com base no seu contexto e preferências'
-              : 'Generated based on your context and preferences'}
+              ? 'Personalizados para a sua situação'
+              : 'Personalized for your situation'}
           </p>
         </div>
         <div className="flex gap-2">

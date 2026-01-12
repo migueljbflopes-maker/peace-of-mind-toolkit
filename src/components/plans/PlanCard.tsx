@@ -6,7 +6,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Home, MapPin, Sparkles, Edit, Clock } from 'lucide-react';
+import { Home, MapPin, Edit, Clock, Eye, Plus } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
 import { PlanType } from '@/lib/plansStore';
 import { PlanStatus } from '@/hooks/usePlansSync';
@@ -16,18 +16,20 @@ interface PlanCardProps {
   planType: PlanType;
   status: PlanStatus;
   onEdit: (planType: PlanType) => void;
-  onGenerateDraft: (planType: PlanType) => void;
-  isGenerating?: boolean;
+  hasGeneratedPlan?: boolean;
+  onViewPlan?: () => void;
+  onStartWizard?: () => void;
 }
 
 export function PlanCard({ 
   planType, 
   status, 
   onEdit, 
-  onGenerateDraft,
-  isGenerating 
+  hasGeneratedPlan,
+  onViewPlan,
+  onStartWizard,
 }: PlanCardProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   
   const isPlanA = planType === 'A';
   const Icon = isPlanA ? Home : MapPin;
@@ -79,21 +81,30 @@ export function PlanCard({
         <Button 
           className="w-full gap-2"
           onClick={() => onEdit(planType)}
-          disabled={isGenerating}
         >
           <Edit className="h-4 w-4" />
           {t.plans.editPlan}
         </Button>
         
-        <Button 
-          variant="outline" 
-          className="w-full gap-2"
-          onClick={() => onGenerateDraft(planType)}
-          disabled={isGenerating}
-        >
-          <Sparkles className="h-4 w-4" />
-          {isGenerating ? t.common.loading : t.plans.generateDraft}
-        </Button>
+        {hasGeneratedPlan ? (
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            onClick={onViewPlan}
+          >
+            <Eye className="h-4 w-4" />
+            {locale === 'pt' ? 'Ver Plano' : 'View Plan'}
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            onClick={onStartWizard}
+          >
+            <Plus className="h-4 w-4" />
+            {locale === 'pt' ? 'Criar Plano' : 'Create Plan'}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
