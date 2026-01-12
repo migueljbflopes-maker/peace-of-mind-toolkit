@@ -475,30 +475,14 @@ const PanicSetup = () => {
                     </div>
                   </div>
 
-                  {/* Check-in Mode */}
-                  <div
-                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                      activationMode === "checkin"
-                        ? "border-primary/50 bg-primary/5"
-                        : "border-border bg-muted/30"
-                    }`}
-                    onClick={() => {
-                      setActivationMode("checkin");
-                      setCheckInConfig({ ...checkInConfig, enabled: true });
-                    }}
-                  >
+                  {/* Check-in Mode - Coming Soon */}
+                  <div className="p-4 rounded-lg border border-border bg-muted/30 opacity-60 cursor-not-allowed">
                     <div className="flex items-start gap-3">
-                      <div
-                        className={`w-4 h-4 rounded-full border-2 mt-0.5 ${
-                          activationMode === "checkin"
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground"
-                        }`}
-                      />
+                      <div className="w-4 h-4 rounded-full border-2 mt-0.5 border-muted-foreground" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          <span className="font-medium">Dead Man's Switch</span>
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium text-muted-foreground">Dead Man's Switch</span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                             Coming Soon
                           </span>
@@ -506,29 +490,6 @@ const PanicSetup = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           Auto-alert contacts if you don't check in within the set interval.
                         </p>
-
-                        {activationMode === "checkin" && (
-                          <div className="mt-3 pt-3 border-t border-border/50">
-                            <Label className="text-sm">Check-in Interval</Label>
-                            <Select
-                              value={String(checkInConfig.interval_hours)}
-                              onValueChange={(v) =>
-                                setCheckInConfig({ ...checkInConfig, interval_hours: Number(v) })
-                              }
-                              disabled
-                            >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="12">Every 12 hours</SelectItem>
-                                <SelectItem value="24">Every 24 hours</SelectItem>
-                                <SelectItem value="48">Every 48 hours</SelectItem>
-                                <SelectItem value="72">Every 72 hours</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
