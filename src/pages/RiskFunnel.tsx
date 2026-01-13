@@ -577,12 +577,21 @@ function ProductPopup({
 const totalSteps = 10;
 const questionSteps = [1, 2, 3, 4, 6, 7]; // Steps that are actual questions
 
+type ExpressPaySupport = {
+  ready: boolean;
+  method: 'apple_pay' | 'google_pay' | null;
+};
+
 export default function RiskFunnel() {
   const navigate = useNavigate();
   const { locale } = useLocale();
   const [step, setStep] = useState(1);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [expressPay, setExpressPay] = useState<ExpressPaySupport>({
+    ready: false,
+    method: null,
+  });
   const [data, setData] = useState<FunnelData>(() => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -591,6 +600,43 @@ export default function RiskFunnel() {
       return defaultData;
     }
   });
+
+  // Probe for Apple/Google Pay support on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const stripe = await stripePromise;
+      if (!stripe) {
+        if (!cancelled) setExpressPay({ ready: true, method: null });
+        return;
+      }
+
+      // Use the same currency/amount we charge (49 EUR => 4900)
+      const pr = stripe.paymentRequest({
+        country: 'PT',
+        currency: 'eur',
+        total: { label: 'Resilient Plan', amount: 4900 },
+        requestPayerName: true,
+        requestPayerEmail: true,
+      });
+
+      const canPay = await pr.canMakePayment();
+
+      const method =
+        canPay?.applePay ? 'apple_pay' :
+        canPay?.googlePay ? 'google_pay' :
+        null;
+
+      if (!cancelled) setExpressPay({ ready: true, method });
+    })().catch(() => {
+      if (!cancelled) setExpressPay({ ready: true, method: null });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Persist to sessionStorage
   useEffect(() => {
@@ -656,19 +702,98 @@ export default function RiskFunnel() {
   };
 
   const handleCheckout = async () => {
+    setCheckoutLoading(true);
+
     try {
-      setCheckoutLoading(true);
-      const { data: res, error } = await supabase.functions.invoke("create-guest-checkout", {
-        body: { source: "riskfunnel" },
+      const stripe = await stripePromise;
+
+      // Attempt Express Pay only if Stripe loaded and device says it supports it
+      if (stripe && expressPay.ready && expressPay.method) {
+        try {
+          // 1) Get PaymentIntent client_secret from Edge Function
+          const { data: piRes, error: piErr } = await supabase.functions.invoke(
+            'create-payment-intent',
+            { body: { guestSessionId: crypto.randomUUID() } }
+          );
+          if (piErr) throw piErr;
+
+          const clientSecret: string | undefined = piRes?.clientSecret;
+          if (!clientSecret) throw new Error('Missing PaymentIntent payload');
+
+          // 2) Build a PaymentRequest (no button rendered)
+          const pr = stripe.paymentRequest({
+            country: 'PT',
+            currency: 'eur',
+            total: { label: locale === 'pt' ? 'Plano Resilient' : 'Resilient Plan', amount: 4900 },
+            requestPayerName: true,
+            requestPayerEmail: true,
+          });
+
+          // 3) Re-check right before showing (avoid stale results)
+          const canPay = await pr.canMakePayment();
+          if (!canPay) throw new Error('Express Pay not available at runtime');
+
+          // 4) Handle the payment method event and confirm the PaymentIntent
+          pr.on('paymentmethod', async (ev) => {
+            try {
+              const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+                clientSecret,
+                { payment_method: ev.paymentMethod.id },
+                { handleActions: false }
+              );
+
+              if (confirmError) {
+                ev.complete('fail');
+                throw confirmError;
+              }
+
+              // If additional auth is required (rare for wallets, but handle it)
+              if (paymentIntent?.status === 'requires_action') {
+                const { error: actionError } = await stripe.confirmCardPayment(clientSecret);
+
+                if (actionError) {
+                  ev.complete('fail');
+                  throw actionError;
+                }
+
+                ev.complete('success');
+                // Payment success - redirect to claim page
+                navigate(`/claim?claim_code=${piRes.claimCode}`);
+                return;
+              }
+
+              ev.complete('success');
+              // Payment success - redirect to claim page
+              navigate(`/claim?claim_code=${piRes.claimCode}`);
+            } catch (err) {
+              console.error('[RiskFunnel] Express Pay confirm failed:', err);
+              toast.error(locale === 'pt' ? 'Falha no pagamento' : 'Payment failed');
+              setCheckoutLoading(false);
+            }
+          });
+
+          // 5) This MUST be called from a user gesture (your click), so it's OK here.
+          await pr.show();
+
+          // If the sheet is shown, stop here. Success/fail handled in the event above.
+          return;
+        } catch (expressErr) {
+          console.warn('[RiskFunnel] Express Pay failed; falling back to Checkout:', expressErr);
+          // fall through to Checkout Session below
+        }
+      }
+
+      // Fallback: existing Checkout Session behavior (unchanged)
+      const { data: res, error } = await supabase.functions.invoke('create-guest-checkout', {
+        body: { source: 'riskfunnel' },
       });
       if (error) throw error;
-      if (!res?.url) throw new Error("No checkout URL received");
+      if (!res?.url) throw new Error('No checkout URL received');
 
-      // Redirect to Stripe Checkout
       window.location.href = res.url;
     } catch (e) {
-      console.error("[RiskFunnel] Checkout error:", e);
-      toast.error(locale === "pt" ? "Erro ao abrir checkout" : "Error opening checkout");
+      console.error('[RiskFunnel] Checkout error:', e);
+      toast.error(locale === 'pt' ? 'Erro ao abrir checkout' : 'Error opening checkout');
       setCheckoutLoading(false);
     }
   };
