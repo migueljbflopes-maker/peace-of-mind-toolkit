@@ -1,10 +1,5 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -22,6 +17,7 @@ import {
   Shield,
   Zap,
   ChevronRight,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,6 +61,99 @@ function groupByPhase(steps: JourneyStep[]): PhaseGroup[] {
       totalCount: phaseSteps.length,
     };
   });
+}
+
+interface PhaseCardProps {
+  group: PhaseGroup;
+  isActive: boolean;
+  hasCurrent: boolean;
+  onClick: () => void;
+}
+
+function PhaseCard({ group, isActive, hasCurrent, onClick }: PhaseCardProps) {
+  const PhaseIcon = PHASE_ICONS[group.phase];
+  const isComplete = group.completedCount === group.totalCount;
+  const hasProgress = group.completedCount > 0 && !isComplete;
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 text-center w-full',
+        'hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/20',
+        isComplete && 'border-green-500 bg-green-50 dark:bg-green-950/20',
+        hasCurrent && !isComplete && 'border-primary bg-primary/5',
+        !isComplete && !hasCurrent && 'border-border bg-card hover:border-muted-foreground/30',
+        isActive && 'ring-2 ring-primary/30 shadow-lg'
+      )}
+    >
+      {/* Icon with progress ring */}
+      <div className="relative mb-2">
+        <div
+          className={cn(
+            'flex h-12 w-12 items-center justify-center rounded-full transition-colors',
+            isComplete && 'bg-green-500/20',
+            hasCurrent && !isComplete && 'bg-primary/20',
+            !isComplete && !hasCurrent && 'bg-muted'
+          )}
+        >
+          <PhaseIcon
+            className={cn(
+              'h-6 w-6',
+              isComplete && 'text-green-600 dark:text-green-400',
+              hasCurrent && !isComplete && 'text-primary',
+              !isComplete && !hasCurrent && 'text-muted-foreground'
+            )}
+          />
+        </div>
+        {/* Complete checkmark */}
+        {isComplete && (
+          <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 ring-2 ring-background">
+            <Check className="h-3 w-3 text-white" />
+          </div>
+        )}
+      </div>
+
+      {/* Phase label */}
+      <h4
+        className={cn(
+          'font-semibold text-sm mb-1',
+          isComplete && 'text-green-700 dark:text-green-400',
+          hasCurrent && !isComplete && 'text-primary',
+          !isComplete && !hasCurrent && 'text-foreground'
+        )}
+      >
+        {PHASE_LABELS[group.phase]}
+      </h4>
+
+      {/* Progress badge */}
+      <Badge
+        variant={isComplete ? 'default' : hasProgress ? 'secondary' : 'outline'}
+        className={cn(
+          'text-xs',
+          isComplete && 'bg-green-500 hover:bg-green-500'
+        )}
+      >
+        {isComplete ? (
+          <span className="flex items-center gap-1">
+            <Check className="h-3 w-3" /> Done
+          </span>
+        ) : (
+          `${group.completedCount}/${group.totalCount}`
+        )}
+      </Badge>
+
+      {/* Current indicator */}
+      {hasCurrent && !isComplete && (
+        <div className="absolute -top-1 -right-1">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+          </span>
+        </div>
+      )}
+    </button>
+  );
 }
 
 function StepRow({
@@ -193,25 +282,40 @@ export function PreparednessJourney({
   const navigate = useNavigate();
   const phaseGroups = groupByPhase(steps);
 
-  // Determine which phases should be open by default
-  const defaultOpenPhases = phaseGroups
-    .filter((g) => g.completedCount < g.totalCount || g.steps.some((s) => s.isCurrent))
-    .map((g) => g.phase);
+  // Find the first phase with a current step, or first incomplete phase
+  const initialPhase = phaseGroups.find(
+    (g) => g.steps.some((s) => s.isCurrent) || g.completedCount < g.totalCount
+  )?.phase || 'assess';
+
+  const [activePhase, setActivePhase] = useState<JourneyStep['phase'] | null>(initialPhase);
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <div className="flex-1">
-                <Skeleton className="h-5 w-24 mb-1" />
-                <Skeleton className="h-3 w-16" />
+      <div className="space-y-4">
+        {/* Phase cards skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border-2 bg-card p-4">
+              <div className="flex flex-col items-center">
+                <Skeleton className="h-12 w-12 rounded-full mb-2" />
+                <Skeleton className="h-4 w-16 mb-1" />
+                <Skeleton className="h-5 w-10" />
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        {/* Steps skeleton */}
+        <div className="rounded-lg border bg-card p-4 space-y-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 p-3">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-24 mb-1" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -220,72 +324,67 @@ export function PreparednessJourney({
     if (step.isLocked) return;
 
     if (step.isPremium && !isPremium) {
-      // Redirect to pricing with return URL
       navigate(`/pricing?return_url=${encodeURIComponent(step.href)}`);
     } else {
       navigate(step.href);
     }
   };
 
-  return (
-    <Accordion
-      type="multiple"
-      defaultValue={defaultOpenPhases}
-      className="space-y-3"
-    >
-      {phaseGroups.map((group) => {
-        const PhaseIcon = PHASE_ICONS[group.phase];
-        const isPhaseComplete = group.completedCount === group.totalCount;
+  const handlePhaseClick = (phase: JourneyStep['phase']) => {
+    setActivePhase(activePhase === phase ? null : phase);
+  };
 
-        return (
-          <AccordionItem
-            key={group.phase}
-            value={group.phase}
-            className={cn(
-              'rounded-lg border bg-card overflow-hidden',
-              isPhaseComplete && 'border-green-500/30'
-            )}
-          >
-            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-accent/50">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full',
-                    isPhaseComplete ? 'bg-green-500/10' : 'bg-primary/10'
-                  )}
-                >
-                  <PhaseIcon
-                    className={cn(
-                      'h-4 w-4',
-                      isPhaseComplete ? 'text-green-500' : 'text-primary'
-                    )}
-                  />
+  const activeGroup = phaseGroups.find((g) => g.phase === activePhase);
+
+  return (
+    <div className="space-y-4">
+      {/* Phase cards row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {phaseGroups.map((group) => {
+          const hasCurrent = group.steps.some((s) => s.isCurrent);
+          return (
+            <PhaseCard
+              key={group.phase}
+              group={group}
+              isActive={activePhase === group.phase}
+              hasCurrent={hasCurrent}
+              onClick={() => handlePhaseClick(group.phase)}
+            />
+          );
+        })}
+      </div>
+
+      {/* Expandable steps panel */}
+      {activePhase && activeGroup && (
+        <div className="animate-in slide-in-from-top-2 fade-in-0 duration-200 rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+            {(() => {
+              const PhaseIcon = PHASE_ICONS[activeGroup.phase];
+              return (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                  <PhaseIcon className="h-4 w-4 text-primary" />
                 </div>
-                <div className="text-left">
-                  <h3 className="font-semibold text-sm">
-                    {PHASE_LABELS[group.phase]}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {group.completedCount}/{group.totalCount} complete
-                  </p>
-                </div>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4">
-              <div className="space-y-2 pt-2">
-                {group.steps.map((step) => (
-                  <StepRow
-                    key={step.id}
-                    step={step}
-                    isPremium={isPremium}
-                    onClick={() => handleStepClick(step)}
-                  />
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        );
-      })}
-    </Accordion>
+              );
+            })()}
+            <h3 className="font-semibold text-foreground">
+              {PHASE_LABELS[activeGroup.phase]}
+            </h3>
+            <span className="text-sm text-muted-foreground">
+              — {activeGroup.completedCount}/{activeGroup.totalCount} complete
+            </span>
+          </div>
+          <div className="space-y-2">
+            {activeGroup.steps.map((step) => (
+              <StepRow
+                key={step.id}
+                step={step}
+                isPremium={isPremium}
+                onClick={() => handleStepClick(step)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
