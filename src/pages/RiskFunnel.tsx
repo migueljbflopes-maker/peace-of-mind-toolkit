@@ -1036,8 +1036,8 @@ export default function RiskFunnel() {
 
               <Button onClick={handleViewResults} className="w-full" size="lg">
                 {locale === "pt"
-                  ? "Ver os seus resultados & preparar-se"
-                  : "View your results & get ready"}
+                  ? "Ver Resultados & Preparar-se"
+                  : "View Results & Get Ready"}
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
