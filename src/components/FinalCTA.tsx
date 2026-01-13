@@ -34,9 +34,9 @@ const FinalCTA = () => {
             </Link>
             <Link to="/pricing">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="xl"
-                className="border-2 border-white/30 text-primary-foreground hover:bg-white/10 font-semibold"
+                className="border-2 border-white/30 bg-transparent text-white hover:bg-white/10 font-semibold"
               >
                 View Pricing
               </Button>
