@@ -1058,7 +1058,7 @@ export default function RiskFunnel() {
         />
 
         {/* DEBUG: Remove this component after fixing Apple Pay */}
-        <ConsoleLogOverlay enabled={true} title="Stripe Debug" autoOpen={true} />
+      {/* Debug overlay disabled - Apple Pay working */}
       </>
     );
   }
@@ -1417,7 +1417,7 @@ export default function RiskFunnel() {
       </div>
 
       {/* DEBUG: Remove this component after fixing Apple Pay */}
-      <ConsoleLogOverlay enabled={true} title="Stripe Debug" autoOpen={true} />
+      {/* Debug overlay disabled - Apple Pay working */}
     </div>
   );
 }
