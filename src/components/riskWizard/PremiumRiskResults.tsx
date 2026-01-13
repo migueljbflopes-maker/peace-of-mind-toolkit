@@ -58,6 +58,7 @@ interface PremiumRiskResultsProps {
   inputs: Record<string, unknown>;
   existingInsights?: AiInsights | LegacyAiInsights | null;
   onSaved?: () => void;
+  onRetake?: () => void;
 }
 
 const getRiskLevelColor = (level: string) => {
@@ -83,52 +84,28 @@ export function PremiumRiskResults({
   breakdown,
   inputs,
   existingInsights,
-  onSaved
+  onSaved,
+  onRetake
 }: PremiumRiskResultsProps) {
   const navigate = useNavigate();
   const [insights, setInsights] = useState<AiInsights | null>(null);
   const [loading, setLoading] = useState(!existingInsights);
   const [saving, setSaving] = useState(false);
+  const [hasSaved, setHasSaved] = useState(!!existingInsights);
 
   // Check if insights are in new format
   const isNewFormat = (data: unknown): data is AiInsights => {
     return data !== null && typeof data === 'object' && 'infrastructure_analysis' in data;
   };
 
-  useEffect(() => {
-    if (existingInsights && isNewFormat(existingInsights)) {
-      setInsights(existingInsights);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch new insights if none exist or old format
-    const fetchInsights = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('generate-risk-insights', {
-          body: { score, riskLevel, city, country, breakdown, inputs }
-        });
-
-        if (error) throw error;
-        setInsights(data);
-      } catch (err) {
-        console.error('Failed to fetch AI insights:', err);
-        toast.error('Could not load AI insights. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInsights();
-  }, [score, riskLevel, city, country, breakdown, inputs, existingInsights]);
-
-  const handleSaveAndGetReady = async () => {
-    setSaving(true);
+  // Auto-save function (silent, no navigation)
+  const autoSaveAssessment = async (aiInsights: AiInsights) => {
+    if (hasSaved) return;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) return;
 
-      // Check for existing assessment
       const { data: existing } = await supabase
         .from('risk_assessments')
         .select('id')
@@ -143,32 +120,68 @@ export function PremiumRiskResults({
         risk_level: riskLevel,
         inputs: JSON.parse(JSON.stringify(inputs)),
         breakdown: JSON.parse(JSON.stringify(breakdown)),
-        ai_insights: insights ? JSON.parse(JSON.stringify(insights)) : null,
+        ai_insights: JSON.parse(JSON.stringify(aiInsights)),
         updated_at: new Date().toISOString()
       };
 
       if (existing) {
-        const { error } = await supabase
+        await supabase
           .from('risk_assessments')
           .update(assessmentData)
           .eq('id', existing.id);
-        if (error) throw error;
       } else {
-        const { error } = await supabase
+        await supabase
           .from('risk_assessments')
           .insert(assessmentData);
-        if (error) throw error;
       }
 
-      toast.success('Assessment saved!');
+      setHasSaved(true);
+      toast.success('Assessment saved automatically');
       onSaved?.();
-      navigate('/tools/supplies');
     } catch (err) {
-      console.error('Failed to save:', err);
-      toast.error('Failed to save assessment');
-    } finally {
-      setSaving(false);
+      console.error('Auto-save failed:', err);
     }
+  };
+
+  useEffect(() => {
+    if (existingInsights && isNewFormat(existingInsights)) {
+      setInsights(existingInsights);
+      setLoading(false);
+      setHasSaved(true);
+      return;
+    }
+
+    // Fetch new insights if none exist or old format
+    const fetchInsights = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-risk-insights', {
+          body: { score, riskLevel, city, country, breakdown, inputs }
+        });
+
+        if (error) throw error;
+        setInsights(data);
+        
+        // Auto-save when new insights are fetched
+        if (data) {
+          autoSaveAssessment(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch AI insights:', err);
+        toast.error('Could not load AI insights. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, [score, riskLevel, city, country, breakdown, inputs, existingInsights]);
+
+  // Manual save for cases where auto-save didn't trigger
+  const handleManualSave = async () => {
+    if (hasSaved || !insights) return;
+    setSaving(true);
+    await autoSaveAssessment(insights);
+    setSaving(false);
   };
 
   const nextSteps = [
@@ -448,21 +461,34 @@ export function PremiumRiskResults({
         </Card>
       )}
 
-      {/* Save & Get Ready Button */}
-      <div className="pt-4">
+      {/* Action Buttons */}
+      <div className="pt-4 space-y-3">
         <Button 
           size="lg" 
           className="w-full h-14 text-lg font-semibold gap-3"
-          onClick={handleSaveAndGetReady}
-          disabled={saving || loading}
+          onClick={() => navigate('/dashboard')}
+          disabled={loading}
         >
-          <Save className="h-5 w-5" />
-          {saving ? 'Saving...' : 'Save & Get Ready'}
+          Continue to Dashboard
           <ArrowRight className="h-5 w-5" />
         </Button>
-        <p className="text-center text-sm text-muted-foreground mt-2">
-          Saves your assessment and takes you to the Supplies Planner
-        </p>
+        
+        {onRetake && (
+          <Button 
+            variant="outline"
+            size="lg" 
+            className="w-full"
+            onClick={onRetake}
+          >
+            Retake Assessment
+          </Button>
+        )}
+        
+        {hasSaved && (
+          <p className="text-center text-sm text-muted-foreground">
+            ✓ Assessment saved automatically
+          </p>
+        )}
       </div>
 
       {/* Next Steps */}
