@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLocale } from "@/i18n/useLocale";
 import { Button } from "@/components/ui/button";
@@ -606,7 +606,31 @@ export default function RiskFunnel() {
     }
   });
 
-  // Probe for Apple/Google Pay support on mount
+  // Express Pay: prepare PaymentRequest once, so `show()` can be called immediately on click (required by Apple Pay)
+  const paymentRequestRef = useRef<any>(null);
+  const guestSessionIdRef = useRef<string | null>(null);
+  const localeRef = useRef(locale);
+  const navigateRef = useRef(navigate);
+
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
+
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
+
+  const getOrCreateGuestSessionId = () => {
+    if (guestSessionIdRef.current) return guestSessionIdRef.current;
+    const key = "resilient_guest_session_id";
+    const existing = localStorage.getItem(key);
+    const id = existing || crypto.randomUUID();
+    if (!existing) localStorage.setItem(key, id);
+    guestSessionIdRef.current = id;
+    return id;
+  };
+
+  // Probe for Apple/Google Pay support on mount and build a reusable PaymentRequest instance
   useEffect(() => {
     let cancelled = false;
 
@@ -640,10 +664,75 @@ export default function RiskFunnel() {
         requestPayerEmail: true,
       });
 
+      // Attach handlers once. IMPORTANT: do not do async work before `pr.show()` in the click handler.
+      pr.on("cancel", () => {
+        console.log("[RiskFunnel] Express Pay: user cancelled sheet");
+        setCheckoutLoading(false);
+      });
+
+      pr.on("paymentmethod", async (ev: any) => {
+        console.log("[RiskFunnel] Express Pay: paymentmethod event received");
+
+        try {
+          // Create PI *after* the sheet is shown (keeps user-gesture requirement intact)
+          console.log("[RiskFunnel] Express Pay: creating PaymentIntent...");
+          const { data: piRes, error: piErr } = await supabase.functions.invoke("create-payment-intent", {
+            body: { guestSessionId: getOrCreateGuestSessionId() },
+          });
+          if (piErr) throw piErr;
+
+          const clientSecret: string | undefined = piRes?.clientSecret;
+          console.log("[RiskFunnel] Express Pay: clientSecret received:", !!clientSecret);
+          if (!clientSecret) throw new Error("Missing PaymentIntent clientSecret");
+
+          const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+            clientSecret,
+            { payment_method: ev.paymentMethod.id },
+            { handleActions: false },
+          );
+
+          const currentLocale = localeRef.current;
+
+          if (confirmError) {
+            console.error("[RiskFunnel] Express Pay: confirm error:", confirmError);
+            ev.complete("fail");
+            toast.error(currentLocale === "pt" ? "Falha no pagamento" : "Payment failed");
+            setCheckoutLoading(false);
+            return;
+          }
+
+          if (paymentIntent?.status === "requires_action") {
+            console.log("[RiskFunnel] Express Pay: requires_action, confirming...");
+            const { error: actionError } = await stripe.confirmCardPayment(clientSecret);
+            if (actionError) {
+              console.error("[RiskFunnel] Express Pay: action error:", actionError);
+              ev.complete("fail");
+              toast.error(currentLocale === "pt" ? "Falha no pagamento" : "Payment failed");
+              setCheckoutLoading(false);
+              return;
+            }
+          }
+
+          ev.complete("success");
+          console.log("[RiskFunnel] Express Pay: success, navigating to claim");
+          navigateRef.current(`/claim?claim_code=${piRes?.claimCode}`);
+        } catch (err) {
+          console.error("[RiskFunnel] Express Pay: paymentmethod handler failed:", err);
+          try {
+            ev.complete("fail");
+          } catch {
+            // ignore
+          }
+          const currentLocale = localeRef.current;
+          toast.error(currentLocale === "pt" ? "Falha no pagamento" : "Payment failed");
+          setCheckoutLoading(false);
+        }
+      });
+
+      paymentRequestRef.current = pr;
+
       console.log("[RiskFunnel] PaymentRequest created, calling canMakePayment()...");
-
       const canPay = await pr.canMakePayment();
-
       console.log("[RiskFunnel] canMakePayment() returned:", JSON.stringify(canPay));
 
       if (canPay === null) {
@@ -744,83 +833,21 @@ export default function RiskFunnel() {
       stripeAvailable: !!stripePromise,
       expressPayReady: expressPay.ready,
       expressPayMethod: expressPay.method,
+      hasPreparedPaymentRequest: !!paymentRequestRef.current,
     });
 
     try {
       const stripe = stripePromise ? await stripePromise : null;
 
-      // Attempt Express Pay only if Stripe loaded and device says it supports it
-      if (stripe && expressPay.ready && expressPay.method) {
+      // IMPORTANT: Apple Pay sheet must be shown immediately from a user gesture.
+      // So if Express Pay is available, call `show()` first (no awaits before it).
+      if (stripe && expressPay.ready && expressPay.method && paymentRequestRef.current) {
         console.log("[RiskFunnel] Attempting Express Pay with:", expressPay.method);
         try {
-          // 1) Get PaymentIntent client_secret from Edge Function
-          const { data: piRes, error: piErr } = await supabase.functions.invoke("create-payment-intent", {
-            body: { guestSessionId: crypto.randomUUID() },
-          });
-          if (piErr) throw piErr;
-
-          const clientSecret: string | undefined = piRes?.clientSecret;
-          if (!clientSecret) throw new Error("Missing PaymentIntent payload");
-
-          // 2) Build a PaymentRequest (no button rendered)
-          const pr = stripe.paymentRequest({
-            country: "PT",
-            currency: "eur",
-            total: { label: locale === "pt" ? "Plano Resilient" : "Resilient Plan", amount: 4900 },
-            requestPayerName: true,
-            requestPayerEmail: true,
-          });
-
-          // 3) Re-check right before showing (avoid stale results)
-          const canPay = await pr.canMakePayment();
-          if (!canPay) throw new Error("Express Pay not available at runtime");
-
-          // 4) Handle the payment method event and confirm the PaymentIntent
-          pr.on("paymentmethod", async (ev) => {
-            try {
-              const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
-                clientSecret,
-                { payment_method: ev.paymentMethod.id },
-                { handleActions: false },
-              );
-
-              if (confirmError) {
-                ev.complete("fail");
-                throw confirmError;
-              }
-
-              // If additional auth is required (rare for wallets, but handle it)
-              if (paymentIntent?.status === "requires_action") {
-                const { error: actionError } = await stripe.confirmCardPayment(clientSecret);
-
-                if (actionError) {
-                  ev.complete("fail");
-                  throw actionError;
-                }
-
-                ev.complete("success");
-                // Payment success - redirect to claim page
-                navigate(`/claim?claim_code=${piRes.claimCode}`);
-                return;
-              }
-
-              ev.complete("success");
-              // Payment success - redirect to claim page
-              navigate(`/claim?claim_code=${piRes.claimCode}`);
-            } catch (err) {
-              console.error("[RiskFunnel] Express Pay confirm failed:", err);
-              toast.error(locale === "pt" ? "Falha no pagamento" : "Payment failed");
-              setCheckoutLoading(false);
-            }
-          });
-
-          // 5) This MUST be called from a user gesture (your click), so it's OK here.
-          await pr.show();
-
-          // If the sheet is shown, stop here. Success/fail handled in the event above.
-          return;
-        } catch (expressErr) {
-          console.warn("[RiskFunnel] Express Pay failed; falling back to Checkout:", expressErr);
+          paymentRequestRef.current.show();
+          return; // success/fail handled by paymentmethod/cancel listeners
+        } catch (err) {
+          console.warn("[RiskFunnel] Express Pay show() failed; falling back to Checkout:", err);
           // fall through to Checkout Session below
         }
       }
