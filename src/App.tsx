@@ -32,6 +32,7 @@ import PanicTest from "./pages/panic/Test";
 import PanicHistory from "./pages/panic/History";
 import NotFound from "./pages/NotFound";
 import RiskFunnel from "./pages/RiskFunnel";
+import RiskFunnel1 from "./pages/RiskFunnel1";
 import PurchaseSuccess from "./pages/PurchaseSuccess";
 import Claim from "./pages/Claim";
 
@@ -78,6 +79,7 @@ const App = () => (
                 <Route path="/panic/history" element={<PanicHistory />} />
                 {/* Standalone funnel (no navbar/footer) */}
                 <Route path="/riskfunnel" element={<RiskFunnel />} />
+                <Route path="/riskfunnel1" element={<RiskFunnel1 />} />
                 <Route path="/purchase-success" element={<PurchaseSuccess />} />
                 <Route path="/claim" element={<Claim />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
