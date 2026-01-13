@@ -95,10 +95,10 @@ serve(async (req) => {
       });
     }
 
-    // Use Lovable AI Gateway
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY not configured');
+    // Use OpenAI API directly
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      console.error('OPENAI_API_KEY not configured');
       return new Response(JSON.stringify({ error: 'AI service not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -120,16 +120,17 @@ Key guidelines:
 
     const contextSummary = JSON.stringify(wizard_inputs, null, 2);
 
-    // Generate Plan A using Lovable AI Gateway
-    console.log('Generating Plan A...');
-    const planAResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Generate Plan A using OpenAI
+    console.log('Generating Plan A with OpenAI...');
+    const planAResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gpt-4.1-mini-2025-04-14',
+        max_completion_tokens: 1400,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Generate Plan A (Shelter in Place / Stay Home) for this context:\n${contextSummary}\n\nPlan A focuses on staying safely at home during disruptions. Include scenario-specific triggers that would indicate when to switch to Plan B, timelines (first hour, 24h, week), and practical checklists by category. Output in ${isPt ? 'Portuguese' : 'English'}. Be exhaustive and actionable.` }
@@ -152,9 +153,15 @@ Key guidelines:
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (planAResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }), {
-          status: 402,
+      if (planAResponse.status === 401) {
+        return new Response(JSON.stringify({ error: 'Invalid API key. Please check configuration.' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      if (planAResponse.status === 503) {
+        return new Response(JSON.stringify({ error: 'AI service temporarily unavailable. Please try again.' }), {
+          status: 503,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
@@ -177,16 +184,17 @@ Key guidelines:
       });
     }
 
-    // Generate Plan B using Lovable AI Gateway
-    console.log('Generating Plan B...');
-    const planBResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Generate Plan B using OpenAI
+    console.log('Generating Plan B with OpenAI...');
+    const planBResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gpt-4.1-mini-2025-04-14',
+        max_completion_tokens: 1400,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Generate Plan B (Evacuate / Leave) for this context:\n${contextSummary}\n\nPlan B focuses on leaving home safely. Include strategic routes based on the safe destinations provided (not turn-by-turn navigation), ranking of destinations with reasons, go-now checklist, triggers that indicate when Plan B should be activated, no-go zones to avoid, and border crossing notes if applicable. Output in ${isPt ? 'Portuguese' : 'English'}. Be exhaustive and actionable.` }
@@ -209,9 +217,15 @@ Key guidelines:
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (planBResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }), {
-          status: 402,
+      if (planBResponse.status === 401) {
+        return new Response(JSON.stringify({ error: 'Invalid API key. Please check configuration.' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      if (planBResponse.status === 503) {
+        return new Response(JSON.stringify({ error: 'AI service temporarily unavailable. Please try again.' }), {
+          status: 503,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
@@ -234,7 +248,7 @@ Key guidelines:
       });
     }
 
-    console.log('Plans generated successfully');
+    console.log('Plans generated successfully with OpenAI');
 
     return new Response(JSON.stringify({ plan_a: planA, plan_b: planB }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
