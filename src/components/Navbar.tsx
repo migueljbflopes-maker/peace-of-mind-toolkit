@@ -81,7 +81,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center group">
-            <img src={logoNew} alt="am-I-ready" className="h-8 w-auto" />
+            <img src={logoNew} alt="am-I-ready" className="h-10 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}
