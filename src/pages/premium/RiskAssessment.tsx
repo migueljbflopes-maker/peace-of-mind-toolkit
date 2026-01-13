@@ -219,6 +219,7 @@ export default function RiskAssessment() {
             inputs={existingResult.inputs as unknown as Record<string, unknown>}
             existingInsights={existingAiInsights}
             onSaved={() => setShowWizard(false)}
+            onRetake={handleRetake}
           />
         ) : (
           <Card className="text-center py-12">
