@@ -27,6 +27,7 @@ type RiskOfferModalProps = {
   priceWas?: number; // default 120
   ctaText?: { en: string; pt: string }; // optional custom CTA text
   offerBadge?: { en: string; pt: string }; // optional custom offer badge (replaces "Limited-time launch offer • €49")
+  pricingVariant?: 'standard' | 'trial'; // 'trial' shows free trial messaging
 };
 
 function pad2(n: number) {
@@ -44,6 +45,7 @@ export function RiskOfferModal({
   priceWas = 120,
   ctaText,
   offerBadge,
+  pricingVariant = 'standard',
 }: RiskOfferModalProps) {
   const { locale } = useLocale();
   const initialSeconds = useMemo(() => minutes * 60, [minutes]);
@@ -162,14 +164,27 @@ export function RiskOfferModal({
             ))}
           </div>
 
-          {/* Pricing (smaller) */}
+          {/* Pricing */}
           <div className="text-center mb-5">
-            <p className="text-sm text-muted-foreground">
-              {locale === 'pt' ? 'Pagamento único' : 'One-time'}{" "}
-              <span className="line-through text-muted-foreground/60">€{priceWas}</span>{" "}
-              <span className="text-2xl font-bold text-foreground">€{priceNow}</span>
-              <span className="text-muted-foreground"> · {locale === 'pt' ? 'Sem subscrições' : 'No subscriptions'}</span>
-            </p>
+            {pricingVariant === 'trial' ? (
+              <>
+                <p className="text-lg font-semibold text-foreground">
+                  {locale === 'pt' ? 'Acesso gratuito por 24 horas' : 'Free access for 24 hours'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {locale === 'pt' 
+                    ? 'e depois uma taxa única de €49 para acesso vitalício. Sem subscrições'
+                    : 'and then a one-time fee of €49 for lifetime access. No subscriptions'}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {locale === 'pt' ? 'Pagamento único' : 'One-time'}{" "}
+                <span className="line-through text-muted-foreground/60">€{priceWas}</span>{" "}
+                <span className="text-2xl font-bold text-foreground">€{priceNow}</span>
+                <span className="text-muted-foreground"> · {locale === 'pt' ? 'Sem subscrições' : 'No subscriptions'}</span>
+              </p>
+            )}
           </div>
 
           {/* CTA */}
