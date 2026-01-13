@@ -70,12 +70,12 @@ export function RiskOfferModal({
     { title: "Plano 72h", subtitle: "Passos e checklists personalizados", icon: Timer },
     { title: "Risk Radar", subtitle: "Para a tua cidade", icon: Radar },
     { title: "Vault", subtitle: "Cofre encriptado para documentos,\ncontactos e instruções", icon: Lock },
-    { title: "Botão Pânico", subtitle: "Alertar família", icon: Siren },
+    { title: "Botão Pânico", subtitle: "Alertar pessoas-chave e partilhar\ninformação crítica", icon: Siren },
   ] : [
     { title: "72h Plan", subtitle: "Personalized steps and checklists", icon: Timer },
     { title: "Risk Radar", subtitle: "For your city", icon: Radar },
     { title: "Vault", subtitle: "Encrypted vault for documents,\ncontacts, and instructions", icon: Lock },
-    { title: "Panic Button", subtitle: "Alert family", icon: Siren },
+    { title: "Panic Button", subtitle: "Alert key people instantly and share\ncritical information", icon: Siren },
   ];
 
   const isUrgent = secondsLeft <= 60;
