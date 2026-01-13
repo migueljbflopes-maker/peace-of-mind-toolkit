@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { 
   Shield, MapPin, Users, Car, Package, 
   Hospital, Siren, ShoppingCart, Zap,
   AlertTriangle, CheckCircle, ArrowRight,
-  Save, Sparkles, Target
+  Save, Sparkles, Target, Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -76,6 +77,15 @@ const getScoreColor = (score: number) => {
   return 'text-red-600';
 };
 
+const LOADING_MESSAGES = [
+  'Analyzing your location...',
+  'Checking regional infrastructure...',
+  'Evaluating natural hazards...',
+  'Assessing geopolitical risks...',
+  'Generating personalized insights...',
+  'Preparing your report...'
+];
+
 export function PremiumRiskResults({
   score,
   riskLevel,
@@ -92,6 +102,30 @@ export function PremiumRiskResults({
   const [loading, setLoading] = useState(!existingInsights);
   const [saving, setSaving] = useState(false);
   const [hasSaved, setHasSaved] = useState(!!existingInsights);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
+
+  // Animate loading progress
+  useEffect(() => {
+    if (!loading) {
+      setLoadingProgress(0);
+      return;
+    }
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 1.5;
+      if (progress >= 95) {
+        clearInterval(interval);
+        return;
+      }
+      setLoadingProgress(progress);
+      const msgIndex = Math.min(Math.floor(progress / 17), LOADING_MESSAGES.length - 1);
+      setLoadingMessage(LOADING_MESSAGES[msgIndex]);
+    }, 150);
+    
+    return () => clearInterval(interval);
+  }, [loading]);
 
   // Check if insights are in new format
   const isNewFormat = (data: unknown): data is AiInsights => {
@@ -210,16 +244,31 @@ export function PremiumRiskResults({
         </CardContent>
       </Card>
 
-      {/* AI Summary */}
-      {loading ? (
-        <Card>
-          <CardContent className="pt-6 space-y-3">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-5/6" />
+      {/* Loading Progress Bar */}
+      {loading && (
+        <Card className="border-primary/20">
+          <CardContent className="py-10">
+            <div className="flex flex-col items-center gap-6">
+              <div className="relative">
+                <Shield className="h-12 w-12 text-primary animate-pulse" />
+                <Loader2 className="absolute -bottom-1 -right-1 h-5 w-5 text-primary animate-spin" />
+              </div>
+              <div className="w-full max-w-md space-y-3">
+                <Progress value={loadingProgress} className="h-2" />
+                <p className="text-center text-sm text-muted-foreground animate-pulse">
+                  {loadingMessage}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Analyzing {city}, {country}...
+              </p>
+            </div>
           </CardContent>
         </Card>
-      ) : insights?.summary && (
+      )}
+
+      {/* AI Summary */}
+      {!loading && insights?.summary && (
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -234,19 +283,7 @@ export function PremiumRiskResults({
       )}
 
       {/* Infrastructure Analysis */}
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i}>
-              <CardContent className="pt-4">
-                <Skeleton className="h-8 w-8 rounded mb-2" />
-                <Skeleton className="h-4 w-20 mb-1" />
-                <Skeleton className="h-3 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : insights?.infrastructure_analysis && (
+      {!loading && insights?.infrastructure_analysis && (
         <>
           <h3 className="text-lg font-semibold flex items-center gap-2 mt-8">
             <MapPin className="h-5 w-5 text-primary" />
@@ -286,13 +323,7 @@ export function PremiumRiskResults({
       )}
 
       {/* Regional Risks */}
-      {loading ? (
-        <Card>
-          <CardContent className="pt-6 space-y-2">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
-          </CardContent>
-        </Card>
-      ) : insights?.regional_risks && insights.regional_risks.length > 0 && (
+      {!loading && insights?.regional_risks && insights.regional_risks.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -319,19 +350,7 @@ export function PremiumRiskResults({
       )}
 
       {/* Dimension Breakdown */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i}>
-              <CardContent className="pt-4">
-                <Skeleton className="h-5 w-24 mb-2" />
-                <Skeleton className="h-3 w-full mb-1" />
-                <Skeleton className="h-3 w-3/4" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : insights?.dimension_insights && (
+      {!loading && insights?.dimension_insights && (
         <>
           <h3 className="text-lg font-semibold flex items-center gap-2 mt-8">
             <Target className="h-5 w-5 text-primary" />
