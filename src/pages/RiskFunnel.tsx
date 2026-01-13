@@ -38,7 +38,11 @@ import { toast } from "sonner";
 import { RiskOfferModal } from "@/components/RiskOfferModal";
 import { loadStripe } from "@stripe/stripe-js";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+// Only initialize Stripe if the publishable key is available
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+
+console.log('[RiskFunnel] Stripe publishable key available:', !!stripePublishableKey);
 
 const STORAGE_KEY = "resilient_risk_funnel";
 
@@ -606,11 +610,22 @@ export default function RiskFunnel() {
     let cancelled = false;
 
     (async () => {
-      const stripe = await stripePromise;
-      if (!stripe) {
+      console.log('[RiskFunnel] Starting Express Pay support check...');
+      
+      if (!stripePromise) {
+        console.log('[RiskFunnel] Stripe not initialized (missing publishable key)');
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
+
+      const stripe = await stripePromise;
+      if (!stripe) {
+        console.log('[RiskFunnel] Stripe failed to load');
+        if (!cancelled) setExpressPay({ ready: true, method: null });
+        return;
+      }
+
+      console.log('[RiskFunnel] Stripe loaded successfully, checking payment methods...');
 
       // Use the same currency/amount we charge (49 EUR => 4900)
       const pr = stripe.paymentRequest({
@@ -622,14 +637,22 @@ export default function RiskFunnel() {
       });
 
       const canPay = await pr.canMakePayment();
+      console.log('[RiskFunnel] canMakePayment result:', canPay);
 
       const method =
         canPay?.applePay ? 'apple_pay' :
         canPay?.googlePay ? 'google_pay' :
         null;
 
+      console.log('[RiskFunnel] Express Pay support:', {
+        applePay: !!canPay?.applePay,
+        googlePay: !!canPay?.googlePay,
+        selectedMethod: method,
+      });
+
       if (!cancelled) setExpressPay({ ready: true, method });
-    })().catch(() => {
+    })().catch((err) => {
+      console.error('[RiskFunnel] Express Pay check failed:', err);
       if (!cancelled) setExpressPay({ ready: true, method: null });
     });
 
@@ -704,11 +727,18 @@ export default function RiskFunnel() {
   const handleCheckout = async () => {
     setCheckoutLoading(true);
 
+    console.log('[RiskFunnel] Starting checkout...', {
+      stripeAvailable: !!stripePromise,
+      expressPayReady: expressPay.ready,
+      expressPayMethod: expressPay.method,
+    });
+
     try {
-      const stripe = await stripePromise;
+      const stripe = stripePromise ? await stripePromise : null;
 
       // Attempt Express Pay only if Stripe loaded and device says it supports it
       if (stripe && expressPay.ready && expressPay.method) {
+        console.log('[RiskFunnel] Attempting Express Pay with:', expressPay.method);
         try {
           // 1) Get PaymentIntent client_secret from Edge Function
           const { data: piRes, error: piErr } = await supabase.functions.invoke(
@@ -784,12 +814,14 @@ export default function RiskFunnel() {
       }
 
       // Fallback: existing Checkout Session behavior (unchanged)
+      console.log('[RiskFunnel] Using standard Checkout Session (Express Pay not available or failed)');
       const { data: res, error } = await supabase.functions.invoke('create-guest-checkout', {
         body: { source: 'riskfunnel' },
       });
       if (error) throw error;
       if (!res?.url) throw new Error('No checkout URL received');
 
+      console.log('[RiskFunnel] Redirecting to Stripe Checkout:', res.url);
       window.location.href = res.url;
     } catch (e) {
       console.error('[RiskFunnel] Checkout error:', e);
