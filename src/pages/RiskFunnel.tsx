@@ -36,10 +36,10 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RiskOfferModal } from "@/components/RiskOfferModal";
+
 import { loadStripe } from "@stripe/stripe-js";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-
 const STORAGE_KEY = "resilient_risk_funnel";
 
 // Avatar photos for social proof
