@@ -1,5 +1,6 @@
 import { useState, forwardRef } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -80,9 +81,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
       <div className="container-wide section-padding">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center group">
-            <img src={logoNew} alt="am-I-ready" className="h-10 w-auto" />
-          </Link>
+          <Logo size="md" showText linkTo="/" />
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-1">

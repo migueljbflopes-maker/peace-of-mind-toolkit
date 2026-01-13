@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { Link } from "react-router-dom";
-import logoNew from "@/assets/logo-new.png";
+import { Logo } from "@/components/Logo";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   const currentYear = new Date().getFullYear();
@@ -11,9 +11,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center mb-4">
-              <img src={logoNew} alt="am-I-ready" className="h-8 w-auto" />
-            </Link>
+            <div className="mb-4">
+              <Logo size="sm" showText linkTo="/" />
+            </div>
             <p className="text-sm text-muted-foreground max-w-sm mb-4">
               Your offline-first preparedness toolkit. Be prepared, even when the internet is down.
             </p>
