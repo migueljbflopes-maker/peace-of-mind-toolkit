@@ -347,26 +347,6 @@ export default function Dashboard() {
             </Card>
           )}
 
-          {/* Onboarding CTA for Premium users */}
-          {isPremium && needsOnboarding && (
-            <Card className="mb-6 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-base">{t.onboarding.finishSetup}</CardTitle>
-                </div>
-                <CardDescription>{t.onboarding.finishSetupDesc}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link to="/premium/onboarding">
-                  <Button className="w-full">
-                    {t.common.continue}
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Preparedness Journey */}
           <div className="mb-8">
