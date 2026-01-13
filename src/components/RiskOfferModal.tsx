@@ -68,12 +68,12 @@ export function RiskOfferModal({
 
   const features = locale === 'pt' ? [
     { title: "Plano 72h", subtitle: "Passos e checklists personalizados", icon: Timer },
-    { title: "Risk Radar", subtitle: "Consultar especialistas", icon: Radar },
+    { title: "Triggers e Orientação", subtitle: "Consultar especialistas", icon: Radar },
     { title: "Vault", subtitle: "Cofre encriptado para documentos,\ncontactos e instruções", icon: Lock },
     { title: "Botão Pânico", subtitle: "Alertar pessoas-chave e partilhar\ninformação crítica", icon: Siren },
   ] : [
     { title: "72h Plan", subtitle: "Personalized steps and checklists", icon: Timer },
-    { title: "Risk Radar", subtitle: "Consult experts for guidance", icon: Radar },
+    { title: "Safe Triggers and Guidance", subtitle: "Consult experts for guidance", icon: Radar },
     { title: "Vault", subtitle: "Encrypted vault for documents,\ncontacts, and instructions", icon: Lock },
     { title: "Panic Button", subtitle: "Alert key people instantly and share\ncritical information", icon: Siren },
   ];
