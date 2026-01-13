@@ -20,6 +20,29 @@ interface RiskInput {
   inputs: Record<string, unknown>;
 }
 
+interface RiskInsightsOutput {
+  summary: string;
+  infrastructure_analysis: {
+    hospitals: string;
+    emergency_services: string;
+    supply_chains: string;
+    utilities: string;
+  };
+  regional_risks: Array<{
+    risk: string;
+    level: 'low' | 'medium' | 'high';
+    details: string;
+  }>;
+  dimension_insights: {
+    location: { score: number; analysis: string; recommendations: string[] };
+    household: { score: number; analysis: string; recommendations: string[] };
+    mobility: { score: number; analysis: string; recommendations: string[] };
+    supplies: { score: number; analysis: string; recommendations: string[] };
+  };
+  top_priorities: string[];
+  watchlist: string[];
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -34,29 +57,66 @@ serve(async (req) => {
     const input: RiskInput = await req.json();
     const { score, riskLevel, city, country, breakdown, inputs } = input;
 
-    const systemPrompt = `You are a calm emergency preparedness advisor. Analyze the user's risk assessment and provide personalized insights. Be reassuring, practical, and action-oriented. Do not use fear language. Always be encouraging about their preparedness journey.
+    const systemPrompt = `You are a calm emergency preparedness advisor analyzing someone's risk profile for ${city}, ${country}.
 
-Respond in JSON format only with this exact structure:
+IMPORTANT: Be reassuring, practical, and action-oriented. Do not use fear language. Always be encouraging.
+
+Provide a comprehensive analysis including:
+
+1. INFRASTRUCTURE ANALYSIS for ${city}:
+   - Hospitals/medical facilities: typical access, distance estimates, capacity insights
+   - Emergency services: fire, police, ambulance coverage and response times
+   - Supply chains: supermarket density, logistics reliability
+   - Utilities: power grid stability, water supply reliability, communication networks
+
+2. REGIONAL RISK FACTORS specific to ${city}, ${country}:
+   - Natural hazards: floods, earthquakes, storms, heatwaves, wildfires (rate each as low/medium/high)
+   - Infrastructure vulnerabilities: power outages, communication disruptions
+   - Consider climate patterns, geography, and urban density
+
+3. DIMENSION-BY-DIMENSION ANALYSIS based on their scores:
+   - Location (${breakdown.location_context}%): analyze their home type, floor level, neighborhood
+   - Household (${breakdown.household_complexity}%): family size, special needs, pets
+   - Mobility (${breakdown.mobility_constraints}%): evacuation options, vehicle access, physical constraints
+   - Supplies (${breakdown.preparedness_autonomy}%): current preparedness level, gaps
+
+Respond in JSON format ONLY with this exact structure:
 {
-  "explanation": "2-3 sentences about their risk profile in a calm, supportive tone",
-  "top_priorities": ["priority 1", "priority 2", "priority 3"],
-  "watchlist": ["signal to watch 1", "signal to watch 2", "signal to watch 3"],
-  "location_insights": ["location-specific insight 1", "location-specific insight 2"]
+  "summary": "2-3 sentences overview of their risk profile in a calm, supportive tone",
+  "infrastructure_analysis": {
+    "hospitals": "Analysis of medical facility access for their location",
+    "emergency_services": "Fire/police/ambulance coverage assessment",
+    "supply_chains": "Supermarket and logistics access analysis",
+    "utilities": "Power, water, and communication reliability"
+  },
+  "regional_risks": [
+    { "risk": "Risk name", "level": "low|medium|high", "details": "Brief explanation" }
+  ],
+  "dimension_insights": {
+    "location": { "score": ${breakdown.location_context}, "analysis": "Their location situation", "recommendations": ["Specific action 1", "Specific action 2"] },
+    "household": { "score": ${breakdown.household_complexity}, "analysis": "Their household situation", "recommendations": ["Specific action 1", "Specific action 2"] },
+    "mobility": { "score": ${breakdown.mobility_constraints}, "analysis": "Their mobility situation", "recommendations": ["Specific action 1", "Specific action 2"] },
+    "supplies": { "score": ${breakdown.preparedness_autonomy}, "analysis": "Their supplies situation", "recommendations": ["Specific action 1", "Specific action 2"] }
+  },
+  "top_priorities": ["Priority 1", "Priority 2", "Priority 3"],
+  "watchlist": ["Signal to watch 1", "Signal to watch 2", "Signal to watch 3"]
 }`;
 
-    const userPrompt = `Analyze this risk assessment for someone in ${city}, ${country}:
+    const userPrompt = `Analyze this risk assessment:
 
-Readiness Score: ${score}/100 (${riskLevel} risk level)
+Location: ${city}, ${country}
+Readiness Score: ${score}/100 (${riskLevel})
 
-Breakdown:
+Breakdown Scores:
 - Location Context: ${breakdown.location_context}%
 - Household Complexity: ${breakdown.household_complexity}%
 - Mobility Constraints: ${breakdown.mobility_constraints}%
 - Preparedness Autonomy: ${breakdown.preparedness_autonomy}%
 
-User Inputs: ${JSON.stringify(inputs, null, 2)}
+Detailed User Inputs:
+${JSON.stringify(inputs, null, 2)}
 
-Provide personalized insights focusing on their specific location and situation.`;
+Provide a comprehensive, personalized analysis with specific infrastructure details for ${city}, regional risks, and actionable recommendations for each dimension.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -70,7 +130,7 @@ Provide personalized insights focusing on their specific location and situation.
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_completion_tokens: 500,
+        max_completion_tokens: 1500,
         temperature: 0.7,
       }),
     });

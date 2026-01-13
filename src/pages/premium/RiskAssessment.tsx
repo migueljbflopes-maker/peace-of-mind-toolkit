@@ -11,7 +11,7 @@ import { useEntitlements } from '@/contexts/EntitlementsContext';
 import { useLocale } from '@/i18n/useLocale';
 import { supabase } from '@/integrations/supabase/client';
 import RiskWizardUI from '@/components/riskWizard/RiskWizardUI';
-import PremiumRiskResults from '@/components/riskWizard/PremiumRiskResults';
+import { PremiumRiskResults } from '@/components/riskWizard/PremiumRiskResults';
 import { WizardResult, WizardAnswers } from '@/components/riskWizard/types';
 import { computeWizardResult } from '@/components/riskWizard/adapter';
 

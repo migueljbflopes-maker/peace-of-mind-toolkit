@@ -1,368 +1,484 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Sparkles, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle2, 
-  ChevronRight,
-  Package,
-  Lock,
-  FileText,
-  FolderOpen,
-  Save,
-  RefreshCw,
-  MapPin,
-  Eye,
-  Lightbulb
-} from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { WizardResult } from './types';
-import { useLocale } from '@/i18n/useLocale';
+  Shield, MapPin, Users, Car, Package, 
+  Hospital, Siren, ShoppingCart, Zap,
+  AlertTriangle, CheckCircle, ArrowRight,
+  Save, Sparkles, Target
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AiInsights {
-  explanation: string;
+  summary: string;
+  infrastructure_analysis: {
+    hospitals: string;
+    emergency_services: string;
+    supply_chains: string;
+    utilities: string;
+  };
+  regional_risks: Array<{
+    risk: string;
+    level: 'low' | 'medium' | 'high';
+    details: string;
+  }>;
+  dimension_insights: {
+    location: { score: number; analysis: string; recommendations: string[] };
+    household: { score: number; analysis: string; recommendations: string[] };
+    mobility: { score: number; analysis: string; recommendations: string[] };
+    supplies: { score: number; analysis: string; recommendations: string[] };
+  };
   top_priorities: string[];
   watchlist: string[];
-  location_insights: string[];
+}
+
+// Fallback for old format
+interface LegacyAiInsights {
+  explanation?: string;
+  top_priorities?: string[];
+  watchlist?: string[];
+  location_insights?: string[];
 }
 
 interface PremiumRiskResultsProps {
-  result: WizardResult;
-  userId: string;
-  onRetake: () => void;
+  score: number;
+  riskLevel: string;
+  city: string;
+  country: string;
+  breakdown: {
+    location_context: number;
+    household_complexity: number;
+    mobility_constraints: number;
+    preparedness_autonomy: number;
+  };
+  inputs: Record<string, unknown>;
+  existingInsights?: AiInsights | LegacyAiInsights | null;
+  onSaved?: () => void;
 }
 
-export default function PremiumRiskResults({ result, userId, onRetake }: PremiumRiskResultsProps) {
+const getRiskLevelColor = (level: string) => {
+  switch (level.toLowerCase()) {
+    case 'low': return 'bg-green-100 text-green-800 border-green-200';
+    case 'medium': return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'high': return 'bg-red-100 text-red-800 border-red-200';
+    default: return 'bg-muted text-muted-foreground';
+  }
+};
+
+const getScoreColor = (score: number) => {
+  if (score >= 70) return 'text-green-600';
+  if (score >= 40) return 'text-amber-600';
+  return 'text-red-600';
+};
+
+export function PremiumRiskResults({
+  score,
+  riskLevel,
+  city,
+  country,
+  breakdown,
+  inputs,
+  existingInsights,
+  onSaved
+}: PremiumRiskResultsProps) {
   const navigate = useNavigate();
-  const { locale } = useLocale();
-  const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
-  const [isLoadingInsights, setIsLoadingInsights] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasSaved, setHasSaved] = useState(false);
+  const [insights, setInsights] = useState<AiInsights | null>(null);
+  const [loading, setLoading] = useState(!existingInsights);
+  const [saving, setSaving] = useState(false);
 
-  const t = locale === 'pt' ? {
-    aiInsights: 'Insights Personalizados',
-    loading: 'A analisar a sua situação...',
-    topPriorities: 'Principais Prioridades',
-    watchlist: 'Sinais a Monitorizar',
-    locationInsights: 'Insights da Localização',
-    save: 'Guardar Avaliação',
-    saved: 'Guardado!',
-    saving: 'A guardar...',
-    retake: 'Refazer Avaliação',
-    nextSteps: 'Próximos Passos',
-    supplies: 'Provisões 14 Dias',
-    suppliesDesc: 'Planear mantimentos',
-    vault: 'Cofre Seguro',
-    vaultDesc: 'Proteger documentos',
-    plans: 'Planos A/B',
-    plansDesc: 'Criar estratégias',
-    redFolder: 'Red Folder',
-    redFolderDesc: 'Exportar PDF',
-    readinessScore: 'Pontuação de Preparação',
-    riskLevel: 'Nível de Risco',
-    low: 'Baixo',
-    medium: 'Médio',
-    high: 'Alto',
-  } : {
-    aiInsights: 'Personalized Insights',
-    loading: 'Analyzing your situation...',
-    topPriorities: 'Top Priorities',
-    watchlist: 'Signals to Watch',
-    locationInsights: 'Location Insights',
-    save: 'Save Assessment',
-    saved: 'Saved!',
-    saving: 'Saving...',
-    retake: 'Retake Assessment',
-    nextSteps: 'Next Steps',
-    supplies: '14-Day Supplies',
-    suppliesDesc: 'Plan essentials',
-    vault: 'Secure Vault',
-    vaultDesc: 'Protect documents',
-    plans: 'Plans A/B',
-    plansDesc: 'Create strategies',
-    redFolder: 'Red Folder',
-    redFolderDesc: 'Export PDF',
-    readinessScore: 'Readiness Score',
-    riskLevel: 'Risk Level',
-    low: 'Low',
-    medium: 'Medium',
-    high: 'High',
+  // Check if insights are in new format
+  const isNewFormat = (data: unknown): data is AiInsights => {
+    return data !== null && typeof data === 'object' && 'infrastructure_analysis' in data;
   };
-
-  const riskLevelLabel = result.riskLevel === 'Low' ? t.low : result.riskLevel === 'Medium' ? t.medium : t.high;
 
   useEffect(() => {
-    fetchAiInsights();
-  }, []);
-
-  const fetchAiInsights = async () => {
-    setIsLoadingInsights(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-risk-insights', {
-        body: {
-          score: result.readinessScore,
-          riskLevel: result.riskLevel,
-          city: result.inputs.city || 'Unknown',
-          country: result.inputs.country_code || 'Unknown',
-          breakdown: result.breakdown,
-          inputs: result.inputs,
-        },
-      });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      setAiInsights(data);
-    } catch (error) {
-      console.error('Failed to fetch AI insights:', error);
-      toast.error(locale === 'pt' ? 'Erro ao obter insights' : 'Failed to get insights');
-    } finally {
-      setIsLoadingInsights(false);
+    if (existingInsights && isNewFormat(existingInsights)) {
+      setInsights(existingInsights);
+      setLoading(false);
+      return;
     }
-  };
 
-  const handleSave = async () => {
-    setIsSaving(true);
+    // Fetch new insights if none exist or old format
+    const fetchInsights = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-risk-insights', {
+          body: { score, riskLevel, city, country, breakdown, inputs }
+        });
+
+        if (error) throw error;
+        setInsights(data);
+      } catch (err) {
+        console.error('Failed to fetch AI insights:', err);
+        toast.error('Could not load AI insights. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, [score, riskLevel, city, country, breakdown, inputs, existingInsights]);
+
+  const handleSaveAndGetReady = async () => {
+    setSaving(true);
     try {
-      // First check if record exists
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Check for existing assessment
       const { data: existing } = await supabase
         .from('risk_assessments')
         .select('id')
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .maybeSingle();
 
+      const assessmentData = {
+        user_id: user.id,
+        city,
+        country,
+        score,
+        risk_level: riskLevel,
+        inputs: JSON.parse(JSON.stringify(inputs)),
+        breakdown: JSON.parse(JSON.stringify(breakdown)),
+        ai_insights: insights ? JSON.parse(JSON.stringify(insights)) : null,
+        updated_at: new Date().toISOString()
+      };
+
       if (existing) {
-        // Update existing
         const { error } = await supabase
           .from('risk_assessments')
-          .update({
-            country: result.inputs.country_code,
-            city: result.inputs.city,
-            score: result.readinessScore,
-            risk_level: result.riskLevel,
-            inputs: JSON.parse(JSON.stringify(result.inputs)),
-            breakdown: JSON.parse(JSON.stringify(result.breakdown)),
-            ai_insights: aiInsights ? JSON.parse(JSON.stringify(aiInsights)) : null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId);
+          .update(assessmentData)
+          .eq('id', existing.id);
         if (error) throw error;
       } else {
-        // Insert new
         const { error } = await supabase
           .from('risk_assessments')
-          .insert([{
-            user_id: userId,
-            country: result.inputs.country_code,
-            city: result.inputs.city,
-            score: result.readinessScore,
-            risk_level: result.riskLevel,
-            inputs: JSON.parse(JSON.stringify(result.inputs)),
-            breakdown: JSON.parse(JSON.stringify(result.breakdown)),
-            ai_insights: aiInsights ? JSON.parse(JSON.stringify(aiInsights)) : null,
-          }]);
+          .insert(assessmentData);
         if (error) throw error;
       }
 
-      setHasSaved(true);
-      toast.success(locale === 'pt' ? 'Avaliação guardada!' : 'Assessment saved!');
-    } catch (error) {
-      console.error('Failed to save:', error);
-      toast.error(locale === 'pt' ? 'Erro ao guardar' : 'Failed to save');
+      toast.success('Assessment saved!');
+      onSaved?.();
+      navigate('/tools/supplies');
+    } catch (err) {
+      console.error('Failed to save:', err);
+      toast.error('Failed to save assessment');
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const getScoreColor = () => {
-    if (result.readinessScore >= 70) return 'text-emerald-600';
-    if (result.readinessScore >= 40) return 'text-amber-600';
-    return 'text-red-600';
-  };
-
-  const getScoreBg = () => {
-    if (result.readinessScore >= 70) return 'bg-emerald-50 border-emerald-200';
-    if (result.readinessScore >= 40) return 'bg-amber-50 border-amber-200';
-    return 'bg-red-50 border-red-200';
-  };
-
   const nextSteps = [
-    { icon: Package, label: t.supplies, desc: t.suppliesDesc, path: '/tools/supplies' },
-    { icon: Lock, label: t.vault, desc: t.vaultDesc, path: '/premium/vault' },
-    { icon: FileText, label: t.plans, desc: t.plansDesc, path: '/premium/plans' },
-    { icon: FolderOpen, label: t.redFolder, desc: t.redFolderDesc, path: '/premium/red-folder' },
+    { icon: Package, label: 'Supplies Planner', path: '/tools/supplies', desc: 'Build your 14-day kit' },
+    { icon: Shield, label: 'Vault', path: '/premium/vault', desc: 'Secure documents' },
+    { icon: Target, label: 'Emergency Plans', path: '/premium/plans', desc: 'Create A/B plans' },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Score Card */}
-      <Card className={`border-2 ${getScoreBg()}`}>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Score Hero */}
+      <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/30">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className={`text-5xl font-bold ${getScoreColor()}`}>
-                {result.readinessScore}
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t.readinessScore}</p>
-                <Badge variant={result.riskLevel === 'Low' ? 'default' : result.riskLevel === 'Medium' ? 'secondary' : 'destructive'}>
-                  {t.riskLevel}: {riskLevelLabel}
-                </Badge>
-              </div>
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 border-4 border-primary/20">
+              <span className={`text-4xl font-bold ${getScoreColor(score)}`}>{score}</span>
             </div>
-
-            {result.inputs.city && (
-              <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="text-center md:text-left flex-1">
+              <h2 className="text-2xl font-bold text-foreground">{riskLevel}</h2>
+              <div className="flex items-center justify-center md:justify-start gap-2 mt-1 text-muted-foreground">
                 <MapPin className="h-4 w-4" />
-                <span>{result.inputs.city}, {result.inputs.country_code}</span>
+                <span>{city}, {country}</span>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* AI Insights */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">{t.aiInsights}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {isLoadingInsights ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>{t.loading}</span>
-              </div>
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-24 w-full" />
             </div>
-          ) : aiInsights ? (
-            <>
-              {/* Explanation */}
-              <p className="text-muted-foreground leading-relaxed">
-                {aiInsights.explanation}
-              </p>
-
-              {/* Top Priorities */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <h4 className="font-medium">{t.topPriorities}</h4>
-                </div>
-                <ul className="space-y-2">
-                  {aiInsights.top_priorities.map((priority, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{priority}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Watchlist */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Eye className="h-4 w-4 text-blue-600" />
-                  <h4 className="font-medium">{t.watchlist}</h4>
-                </div>
-                <ul className="space-y-2">
-                  {aiInsights.watchlist.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <Shield className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-muted-foreground">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Location Insights */}
-              {aiInsights.location_insights.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Lightbulb className="h-4 w-4 text-amber-500" />
-                    <h4 className="font-medium">{t.locationInsights}</h4>
-                  </div>
-                  <ul className="space-y-2">
-                    {aiInsights.location_insights.map((insight, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-muted-foreground">{insight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          ) : (
-            <Button variant="outline" onClick={fetchAiInsights}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {locale === 'pt' ? 'Tentar novamente' : 'Try again'}
-            </Button>
-          )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button 
-          onClick={handleSave} 
-          disabled={isSaving || hasSaved || isLoadingInsights}
-          className="flex-1"
-        >
-          {hasSaved ? (
-            <>
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              {t.saved}
-            </>
-          ) : isSaving ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              {t.saving}
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              {t.save}
-            </>
-          )}
-        </Button>
-        <Button variant="outline" onClick={onRetake}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          {t.retake}
-        </Button>
-      </div>
+      {/* AI Summary */}
+      {loading ? (
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-5/6" />
+          </CardContent>
+        </Card>
+      ) : insights?.summary && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Personalized Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground leading-relaxed">{insights.summary}</p>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Next Steps Grid */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">{t.nextSteps}</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {nextSteps.map((step) => (
-            <Card 
-              key={step.path}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate(step.path)}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <step.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{step.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{step.desc}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      {/* Infrastructure Analysis */}
+      {loading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardContent className="pt-4">
+                <Skeleton className="h-8 w-8 rounded mb-2" />
+                <Skeleton className="h-4 w-20 mb-1" />
+                <Skeleton className="h-3 w-full" />
               </CardContent>
             </Card>
+          ))}
+        </div>
+      ) : insights?.infrastructure_analysis && (
+        <>
+          <h3 className="text-lg font-semibold flex items-center gap-2 mt-8">
+            <MapPin className="h-5 w-5 text-primary" />
+            Infrastructure in {city}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="pt-4">
+                <Hospital className="h-6 w-6 text-red-500 mb-2" />
+                <h4 className="font-medium text-sm">Medical</h4>
+                <p className="text-xs text-muted-foreground mt-1">{insights.infrastructure_analysis.hospitals}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <Siren className="h-6 w-6 text-blue-500 mb-2" />
+                <h4 className="font-medium text-sm">Emergency Services</h4>
+                <p className="text-xs text-muted-foreground mt-1">{insights.infrastructure_analysis.emergency_services}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <ShoppingCart className="h-6 w-6 text-green-500 mb-2" />
+                <h4 className="font-medium text-sm">Supply Chains</h4>
+                <p className="text-xs text-muted-foreground mt-1">{insights.infrastructure_analysis.supply_chains}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <Zap className="h-6 w-6 text-amber-500 mb-2" />
+                <h4 className="font-medium text-sm">Utilities</h4>
+                <p className="text-xs text-muted-foreground mt-1">{insights.infrastructure_analysis.utilities}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* Regional Risks */}
+      {loading ? (
+        <Card>
+          <CardContent className="pt-6 space-y-2">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+          </CardContent>
+        </Card>
+      ) : insights?.regional_risks && insights.regional_risks.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Regional Risk Factors
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {insights.regional_risks.map((risk, idx) => (
+                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Badge className={`${getRiskLevelColor(risk.level)} capitalize shrink-0`}>
+                    {risk.level}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium">{risk.risk}</span>
+                    <p className="text-sm text-muted-foreground mt-0.5">{risk.details}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dimension Breakdown */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardContent className="pt-4">
+                <Skeleton className="h-5 w-24 mb-2" />
+                <Skeleton className="h-3 w-full mb-1" />
+                <Skeleton className="h-3 w-3/4" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : insights?.dimension_insights && (
+        <>
+          <h3 className="text-lg font-semibold flex items-center gap-2 mt-8">
+            <Target className="h-5 w-5 text-primary" />
+            Your Assessment Breakdown
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Location */}
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Location</span>
+                  </div>
+                  <span className={`text-sm font-bold ${getScoreColor(insights.dimension_insights.location.score)}`}>
+                    {insights.dimension_insights.location.score}%
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{insights.dimension_insights.location.analysis}</p>
+                <ul className="space-y-1">
+                  {insights.dimension_insights.location.recommendations.map((rec, i) => (
+                    <li key={i} className="text-xs flex items-start gap-1.5">
+                      <CheckCircle className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Household */}
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Household</span>
+                  </div>
+                  <span className={`text-sm font-bold ${getScoreColor(insights.dimension_insights.household.score)}`}>
+                    {insights.dimension_insights.household.score}%
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{insights.dimension_insights.household.analysis}</p>
+                <ul className="space-y-1">
+                  {insights.dimension_insights.household.recommendations.map((rec, i) => (
+                    <li key={i} className="text-xs flex items-start gap-1.5">
+                      <CheckCircle className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Mobility */}
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Mobility</span>
+                  </div>
+                  <span className={`text-sm font-bold ${getScoreColor(insights.dimension_insights.mobility.score)}`}>
+                    {insights.dimension_insights.mobility.score}%
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{insights.dimension_insights.mobility.analysis}</p>
+                <ul className="space-y-1">
+                  {insights.dimension_insights.mobility.recommendations.map((rec, i) => (
+                    <li key={i} className="text-xs flex items-start gap-1.5">
+                      <CheckCircle className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Supplies */}
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Supplies</span>
+                  </div>
+                  <span className={`text-sm font-bold ${getScoreColor(insights.dimension_insights.supplies.score)}`}>
+                    {insights.dimension_insights.supplies.score}%
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{insights.dimension_insights.supplies.analysis}</p>
+                <ul className="space-y-1">
+                  {insights.dimension_insights.supplies.recommendations.map((rec, i) => (
+                    <li key={i} className="text-xs flex items-start gap-1.5">
+                      <CheckCircle className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* Top Priorities */}
+      {!loading && insights?.top_priorities && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Top 3 Priorities
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-2">
+              {insights.top_priorities.map((priority, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span className="text-sm">{priority}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Save & Get Ready Button */}
+      <div className="pt-4">
+        <Button 
+          size="lg" 
+          className="w-full h-14 text-lg font-semibold gap-3"
+          onClick={handleSaveAndGetReady}
+          disabled={saving || loading}
+        >
+          <Save className="h-5 w-5" />
+          {saving ? 'Saving...' : 'Save & Get Ready'}
+          <ArrowRight className="h-5 w-5" />
+        </Button>
+        <p className="text-center text-sm text-muted-foreground mt-2">
+          Saves your assessment and takes you to the Supplies Planner
+        </p>
+      </div>
+
+      {/* Next Steps */}
+      <div className="pt-4">
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Continue Your Journey</h3>
+        <div className="grid grid-cols-3 gap-3">
+          {nextSteps.map((step) => (
+            <Button
+              key={step.path}
+              variant="outline"
+              className="h-auto py-3 flex flex-col items-center gap-1"
+              onClick={() => navigate(step.path)}
+            >
+              <step.icon className="h-5 w-5 text-primary" />
+              <span className="text-xs font-medium">{step.label}</span>
+            </Button>
           ))}
         </div>
       </div>
