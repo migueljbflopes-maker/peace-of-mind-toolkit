@@ -26,7 +26,7 @@ const ProductPillars = () => {
                 <CardTitle className="text-xl">Assess & Prepare</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground">
-                Your secure, encrypted hub for critical information.
+                Check your readiness. Identify risks, discover gaps, and know exactly what steps to take next. Then prepare a plan that works for you:
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -34,22 +34,22 @@ const ProductPillars = () => {
                 <div className="flex items-start gap-3">
                   <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Encrypted Vault</p>
-                    <p className="text-xs text-muted-foreground">IDs, contacts, medical info — encrypted locally</p>
+                    <p className="text-sm font-medium text-foreground">Readiness</p>
+                    <p className="text-xs text-muted-foreground">Organize contacts, instructions, and key information​</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Plan A & Plan B</p>
-                    <p className="text-xs text-muted-foreground">Action plans for staying or relocating</p>
+                    <p className="text-xs text-muted-foreground">Build Plan A and Plan B for different scenarios​</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <FolderHeart className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Red Folder PDF</p>
-                    <p className="text-xs text-muted-foreground">Printable offline document</p>
+                    <p className="text-sm font-medium text-foreground">Checklist</p>
+                    <p className="text-xs text-muted-foreground">Create actionable steps that are simple to follow​</p>
                   </div>
                 </div>
               </div>
