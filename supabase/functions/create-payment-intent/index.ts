@@ -50,7 +50,7 @@ serve(async (req) => {
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Create PaymentIntent
+    // Create PaymentIntent with automatic_payment_methods for Apple/Google Pay
     const paymentIntent = await stripe.paymentIntents.create({
       amount: 4900,
       currency: "eur",
@@ -60,6 +60,7 @@ serve(async (req) => {
         claim_code: claimCode,
         guest_session_id: guestSessionId,
         source: "riskfunnel",
+        product: "resilient_premium",
       },
     });
     logStep("PaymentIntent created", { piId: paymentIntent.id });
