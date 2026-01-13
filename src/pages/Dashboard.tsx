@@ -28,6 +28,9 @@ import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useDashboardReadiness } from '@/hooks/useDashboardReadiness';
+import { usePreparednessJourney } from '@/hooks/usePreparednessJourney';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { PreparednessJourney } from '@/components/dashboard/PreparednessJourney';
 import { supabase } from '@/integrations/supabase/client';
 import { PremiumBundleCard } from '@/components/PremiumBundleCard';
 import Navbar from '@/components/Navbar';
@@ -65,6 +68,10 @@ export default function Dashboard() {
     backup: hasBackup,
     panicSetup: hasPanicSetup,
   } = useDashboardReadiness(user?.id);
+  
+  // Preparedness Journey hook
+  const journey = usePreparednessJourney(user?.id, isPremium);
+  
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [suppliesPlans, setSuppliesPlans] = useState<SuppliesPlan[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -360,6 +367,23 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           )}
+
+          {/* Preparedness Journey */}
+          <div className="mb-8">
+            <DashboardHeader
+              completedCount={journey.completedCount}
+              totalCount={journey.totalCount}
+              progressPercent={journey.progressPercent}
+              loading={journey.loading}
+            />
+            <div className="mt-4">
+              <PreparednessJourney
+                steps={journey.steps}
+                isPremium={isPremium}
+                loading={journey.loading}
+              />
+            </div>
+          </div>
 
           {/* Section 1: Free Tools - Risk Calculator & Supplies Planner */}
           <div className="mb-8">
