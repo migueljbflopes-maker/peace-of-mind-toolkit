@@ -1390,9 +1390,11 @@ export default function RiskFunnel() {
         </div>
       </div>
 
+      {/* DEBUG: Remove this component after fixing Apple Pay */}
       <ConsoleLogOverlay
-        enabled={import.meta.env.DEV && new URLSearchParams(window.location.search).has("uilogs")}
-        title="RiskFunnel Logs"
+        enabled={true}
+        title="Stripe Debug"
+        autoOpen={true}
       />
     </div>
   );

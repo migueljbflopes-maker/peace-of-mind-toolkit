@@ -47,12 +47,14 @@ export default function ConsoleLogOverlay({
   enabled,
   title = "Debug Logs",
   maxEntries = 250,
+  autoOpen = false,
 }: {
   enabled: boolean;
   title?: string;
   maxEntries?: number;
+  autoOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [entries, setEntries] = useState<LogEntry[]>([]);
 
   // Keep original console funcs stable.
