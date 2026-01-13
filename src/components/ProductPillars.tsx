@@ -72,7 +72,7 @@ const ProductPillars = () => {
                 <div className="p-2.5 rounded-xl bg-destructive/10">
                   <AlertCircle className="h-6 w-6 text-destructive" />
                 </div>
-                <CardTitle className="text-xl">Panic Button</CardTitle>
+                <CardTitle className="text-xl">Secure & Activate</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground">
                 One-action emergency response and continuity.
