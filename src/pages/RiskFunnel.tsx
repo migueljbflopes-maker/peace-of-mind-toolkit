@@ -1,70 +1,94 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLocale } from '@/i18n/useLocale';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Check, ChevronRight, Shield, Star, MapPin, Home, Users, Package, Info, ChevronDown, CheckCircle2, Loader2, Lock, FileText, FolderHeart, Zap, Bell, Clock, AlertTriangle, Route } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { RiskOfferModal } from '@/components/RiskOfferModal';
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useLocale } from "@/i18n/useLocale";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Check,
+  ChevronRight,
+  Shield,
+  Star,
+  MapPin,
+  Home,
+  Users,
+  Package,
+  Info,
+  ChevronDown,
+  CheckCircle2,
+  Loader2,
+  Lock,
+  FileText,
+  FolderHeart,
+  Zap,
+  Bell,
+  Clock,
+  AlertTriangle,
+  Route,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { RiskOfferModal } from "@/components/RiskOfferModal";
+import { loadStripe } from "@stripe/stripe-js";
 
-const STORAGE_KEY = 'resilient_risk_funnel';
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+const STORAGE_KEY = "resilient_risk_funnel";
 
 // Avatar photos for social proof
 const AVATAR_PHOTOS = [
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
 ];
 
 // Countries list (subset for demo)
 const COUNTRIES = [
-  { code: 'PT', name: 'Portugal' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'FR', name: 'France' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'UK', name: 'United Kingdom' },
-  { code: 'US', name: 'United States' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'BE', name: 'Belgium' },
+  { code: "PT", name: "Portugal" },
+  { code: "ES", name: "Spain" },
+  { code: "FR", name: "France" },
+  { code: "DE", name: "Germany" },
+  { code: "IT", name: "Italy" },
+  { code: "UK", name: "United Kingdom" },
+  { code: "US", name: "United States" },
+  { code: "BR", name: "Brazil" },
+  { code: "NL", name: "Netherlands" },
+  { code: "BE", name: "Belgium" },
 ];
 
 interface FunnelData {
   country: string;
   city: string;
   postalCode: string;
-  homeType: 'apartment' | 'house' | '';
+  homeType: "apartment" | "house" | "";
   floorLevel: string;
   householdTags: string[];
-  emergencyExperience: 'never' | 'once' | 'multiple' | '';
-  hasKit: 'yes' | 'partly' | 'no' | '';
-  hasEvacuationPlan: 'yes' | 'somewhat' | 'no' | '';
+  emergencyExperience: "never" | "once" | "multiple" | "";
+  hasKit: "yes" | "partly" | "no" | "";
+  hasEvacuationPlan: "yes" | "somewhat" | "no" | "";
   hasWater3Days: boolean;
   hasPowerBackup: boolean;
   hasEmergencyContacts: boolean;
 }
 
 const defaultData: FunnelData = {
-  country: '',
-  city: '',
-  postalCode: '',
-  homeType: '',
-  floorLevel: '',
+  country: "",
+  city: "",
+  postalCode: "",
+  homeType: "",
+  floorLevel: "",
   householdTags: [],
-  emergencyExperience: '',
-  hasKit: '',
-  hasEvacuationPlan: '',
+  emergencyExperience: "",
+  hasKit: "",
+  hasEvacuationPlan: "",
   hasWater3Days: false,
   hasPowerBackup: false,
   hasEmergencyContacts: false,
@@ -74,28 +98,28 @@ const defaultData: FunnelData = {
 const whyWeAskContent = {
   location: {
     pt: "Usamos a tua localização apenas para adaptar orientações - as tuas respostas ficam privadas a menos que escolhas guardar.",
-    en: "We use your location only to tailor guidance - your answers stay private unless you choose to save."
+    en: "We use your location only to tailor guidance - your answers stay private unless you choose to save.",
   },
   home: {
     pt: "O tipo de habitação afeta rotas de evacuação, autonomia energética e acesso a recursos.",
-    en: "Home type affects evacuation routes, energy autonomy, and resource access."
+    en: "Home type affects evacuation routes, energy autonomy, and resource access.",
   },
   household: {
     pt: "Cada membro tem necessidades únicas - isto ajuda-nos a personalizar o plano.",
-    en: "Each member has unique needs - this helps us personalize your plan."
+    en: "Each member has unique needs - this helps us personalize your plan.",
   },
   experience: {
     pt: "Experiência prévia influencia a tua capacidade de resposta em situações reais.",
-    en: "Past experience influences your ability to respond in real situations."
+    en: "Past experience influences your ability to respond in real situations.",
   },
   preparedness: {
     pt: "Perceber o que já tens ajuda a focar nas lacunas prioritárias.",
-    en: "Understanding what you already have helps focus on priority gaps."
+    en: "Understanding what you already have helps focus on priority gaps.",
   },
   evacuation: {
     pt: "Ter um plano claro pode fazer a diferença nos primeiros minutos críticos.",
-    en: "Having a clear plan can make the difference in the first critical minutes."
-  }
+    en: "Having a clear plan can make the difference in the first critical minutes.",
+  },
 };
 
 // Scoring logic - adjusted to always give moderate or high
@@ -107,27 +131,27 @@ function calculateScore(data: FunnelData): { exposure: number; preparednessGap: 
   // Location always adds points (everyone has location risk)
   exposure += 10;
 
-  if (data.homeType === 'apartment') {
+  if (data.homeType === "apartment") {
     exposure += 12;
     const floor = parseInt(data.floorLevel) || 0;
     if (floor >= 5) exposure += 8;
     else if (floor >= 3) exposure += 5;
-  } else if (data.homeType === 'house') {
+  } else if (data.homeType === "house") {
     exposure += 8;
   }
 
   const tags = data.householdTags;
-  if (tags.includes('kids')) exposure += 8;
-  if (tags.includes('elderly')) exposure += 10;
-  if (tags.includes('medical')) exposure += 12;
-  if (tags.includes('pets')) exposure += 5;
-  if (tags.includes('alone')) exposure += 6;
+  if (tags.includes("kids")) exposure += 8;
+  if (tags.includes("elderly")) exposure += 10;
+  if (tags.includes("medical")) exposure += 12;
+  if (tags.includes("pets")) exposure += 5;
+  if (tags.includes("alone")) exposure += 6;
 
   exposure = Math.min(70, exposure);
 
-  if (data.hasKit === 'no') {
+  if (data.hasKit === "no") {
     preparednessGap += 12;
-  } else if (data.hasKit === 'partly') {
+  } else if (data.hasKit === "partly") {
     preparednessGap += 6;
   }
 
@@ -136,14 +160,14 @@ function calculateScore(data: FunnelData): { exposure: number; preparednessGap: 
   if (!data.hasEmergencyContacts) preparednessGap += 4;
 
   // Emergency experience scoring
-  if (data.emergencyExperience === 'never') {
+  if (data.emergencyExperience === "never") {
     preparednessGap += 4;
   }
 
   // Evacuation plan scoring
-  if (data.hasEvacuationPlan === 'no') {
+  if (data.hasEvacuationPlan === "no") {
     preparednessGap += 8;
-  } else if (data.hasEvacuationPlan === 'somewhat') {
+  } else if (data.hasEvacuationPlan === "somewhat") {
     preparednessGap += 4;
   }
 
@@ -156,71 +180,79 @@ function calculateScore(data: FunnelData): { exposure: number; preparednessGap: 
   };
 }
 
-function getRiskLevel(score: number): 'low' | 'moderate' | 'high' {
+function getRiskLevel(score: number): "low" | "moderate" | "high" {
   // Adjusted thresholds - low is now harder to achieve
-  if (score <= 40) return 'low';
-  if (score <= 65) return 'moderate';
-  return 'high';
+  if (score <= 40) return "low";
+  if (score <= 65) return "moderate";
+  return "high";
 }
 
 function getReasons(data: FunnelData, score: { exposure: number; preparednessGap: number }): string[] {
   const reasons: string[] = [];
   const { locale } = useLocale();
-  const isPortuguese = locale === 'pt';
+  const isPortuguese = locale === "pt";
 
   // Location is ALWAYS first
   if (data.city) {
-    reasons.push(isPortuguese 
-      ? `Localização em ${data.city} apresenta riscos específicos`
-      : `Location in ${data.city} presents specific risks`);
+    reasons.push(
+      isPortuguese
+        ? `Localização em ${data.city} apresenta riscos específicos`
+        : `Location in ${data.city} presents specific risks`,
+    );
   } else {
-    reasons.push(isPortuguese
-      ? 'A tua localização geográfica influencia o perfil de risco'
-      : 'Your geographic location influences your risk profile');
+    reasons.push(
+      isPortuguese
+        ? "A tua localização geográfica influencia o perfil de risco"
+        : "Your geographic location influences your risk profile",
+    );
   }
 
   // Then add other factors
-  if (data.homeType === 'apartment' && parseInt(data.floorLevel) >= 5) {
-    reasons.push(isPortuguese 
-      ? 'Habitação em andar alto pode complicar evacuação'
-      : 'High-rise living may complicate evacuation');
+  if (data.homeType === "apartment" && parseInt(data.floorLevel) >= 5) {
+    reasons.push(
+      isPortuguese ? "Habitação em andar alto pode complicar evacuação" : "High-rise living may complicate evacuation",
+    );
   }
 
-  if (data.householdTags.includes('elderly')) {
-    reasons.push(isPortuguese 
-      ? 'Membros idosos precisam de planeamento extra'
-      : 'Elderly household members need extra planning');
+  if (data.householdTags.includes("elderly")) {
+    reasons.push(
+      isPortuguese ? "Membros idosos precisam de planeamento extra" : "Elderly household members need extra planning",
+    );
   }
-  if (data.householdTags.includes('medical')) {
-    reasons.push(isPortuguese 
-      ? 'Necessidades médicas requerem reservas de backup'
-      : 'Medical needs require backup supplies');
+  if (data.householdTags.includes("medical")) {
+    reasons.push(
+      isPortuguese ? "Necessidades médicas requerem reservas de backup" : "Medical needs require backup supplies",
+    );
   }
-  if (data.householdTags.includes('kids')) {
-    reasons.push(isPortuguese 
-      ? 'Crianças precisam de planeamento de emergência especializado'
-      : 'Children need specialized emergency planning');
+  if (data.householdTags.includes("kids")) {
+    reasons.push(
+      isPortuguese
+        ? "Crianças precisam de planeamento de emergência especializado"
+        : "Children need specialized emergency planning",
+    );
   }
-  if (data.householdTags.includes('alone')) {
-    reasons.push(isPortuguese 
-      ? 'Viver sozinho significa que auto-suficiência é crítica'
-      : 'Living alone means self-reliance is critical');
+  if (data.householdTags.includes("alone")) {
+    reasons.push(
+      isPortuguese
+        ? "Viver sozinho significa que auto-suficiência é crítica"
+        : "Living alone means self-reliance is critical",
+    );
   }
 
-  if (data.hasKit === 'no') {
-    reasons.push(isPortuguese 
-      ? 'Sem kit de emergência aumenta vulnerabilidade'
-      : 'No emergency kit increases vulnerability');
+  if (data.hasKit === "no") {
+    reasons.push(
+      isPortuguese ? "Sem kit de emergência aumenta vulnerabilidade" : "No emergency kit increases vulnerability",
+    );
   }
   if (!data.hasWater3Days) {
-    reasons.push(isPortuguese 
-      ? 'Reserva de água para 3+ dias é essencial'
-      : 'Water supply for 3+ days is essential');
+    reasons.push(isPortuguese ? "Reserva de água para 3+ dias é essencial" : "Water supply for 3+ days is essential");
   }
   if (!data.hasEmergencyContacts) {
-    reasons.push(isPortuguese 
-      ? 'Contactos de emergência devem estar acessíveis'
-      : 'Emergency contacts should be readily available');
+    reasons.push(
+      isPortuguese
+        ? "Contactos de emergência devem estar acessíveis"
+        : "Emergency contacts should be readily available",
+    );
   }
 
   return reasons.slice(0, 3);
@@ -230,17 +262,17 @@ function getReasons(data: FunnelData, score: { exposure: number; preparednessGap
 function WhyWeAsk({ textPt, textEn }: { textPt: string; textEn: string }) {
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
-  
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="mt-4">
       <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full justify-center">
         <Info className="h-4 w-4" />
-        <span>{locale === 'pt' ? 'Porque perguntamos' : 'Why we ask'}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span>{locale === "pt" ? "Porque perguntamos" : "Why we ask"}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-2">
         <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 text-center">
-          {locale === 'pt' ? textPt : textEn}
+          {locale === "pt" ? textPt : textEn}
         </p>
       </CollapsibleContent>
     </Collapsible>
@@ -248,57 +280,57 @@ function WhyWeAsk({ textPt, textEn }: { textPt: string; textEn: string }) {
 }
 
 // Interstitial Component
-function FunnelInterstitial({ 
-  titlePt, 
-  titleEn, 
-  subtitlePt, 
-  subtitleEn, 
-  color = 'violet',
+function FunnelInterstitial({
+  titlePt,
+  titleEn,
+  subtitlePt,
+  subtitleEn,
+  color = "violet",
   onComplete,
-  duration = 2500
-}: { 
-  titlePt: string; 
-  titleEn: string; 
-  subtitlePt: string; 
+  duration = 2500,
+}: {
+  titlePt: string;
+  titleEn: string;
+  subtitlePt: string;
   subtitleEn: string;
-  color?: 'violet' | 'emerald';
+  color?: "violet" | "emerald";
   onComplete: () => void;
   duration?: number;
 }) {
   const { locale } = useLocale();
   const [progress, setProgress] = useState(0);
-  
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           return 100;
         }
-        return prev + (100 / (duration / 50));
+        return prev + 100 / (duration / 50);
       });
     }, 50);
-    
+
     const timer = setTimeout(() => {
       onComplete();
     }, duration);
-    
+
     return () => {
       clearInterval(interval);
       clearTimeout(timer);
     };
   }, [duration, onComplete]);
-  
+
   const colorClasses = {
-    violet: 'from-violet-500/20 to-violet-600/10 border-violet-500/30',
-    emerald: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30'
+    violet: "from-violet-500/20 to-violet-600/10 border-violet-500/30",
+    emerald: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30",
   };
-  
+
   const iconColorClasses = {
-    violet: 'text-violet-500',
-    emerald: 'text-emerald-500'
+    violet: "text-violet-500",
+    emerald: "text-emerald-500",
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <Card className={`w-full max-w-md p-6 bg-gradient-to-br ${colorClasses[color]} border shadow-lg`}>
@@ -306,23 +338,19 @@ function FunnelInterstitial({
           <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-background/80 flex items-center justify-center">
             <CheckCircle2 className={`h-8 w-8 ${iconColorClasses[color]}`} />
           </div>
-          
-          <h2 className="text-xl font-semibold mb-2">
-            {locale === 'pt' ? titlePt : titleEn}
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            {locale === 'pt' ? subtitlePt : subtitleEn}
-          </p>
-          
+
+          <h2 className="text-xl font-semibold mb-2">{locale === "pt" ? titlePt : titleEn}</h2>
+          <p className="text-muted-foreground mb-6">{locale === "pt" ? subtitlePt : subtitleEn}</p>
+
           <div className="w-full max-w-xs mx-auto">
             <Progress value={progress} className="h-1.5" />
           </div>
-          
-          <button 
+
+          <button
             onClick={onComplete}
             className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            {locale === 'pt' ? 'Saltar' : 'Skip'}
+            {locale === "pt" ? "Saltar" : "Skip"}
           </button>
         </div>
       </Card>
@@ -331,54 +359,57 @@ function FunnelInterstitial({
 }
 
 // Analyzing Screen Component
-function FunnelAnalyzingScreen({ 
-  onComplete, 
+function FunnelAnalyzingScreen({
+  onComplete,
   city,
-  duration = 4000 
-}: { 
-  onComplete: () => void; 
+  duration = 4000,
+}: {
+  onComplete: () => void;
   city?: string;
   duration?: number;
 }) {
   const { locale } = useLocale();
   const [progress, setProgress] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
-  
+
   const steps = [
-    { id: 'scoring', labelPt: 'A avaliar a tua prontidão', labelEn: 'Scoring your readiness' },
-    { id: 'location', labelPt: 'A verificar contexto local', labelEn: 'Checking location context' },
-    { id: 'profile', labelPt: 'A construir o teu perfil', labelEn: 'Building your profile' }
+    { id: "scoring", labelPt: "A avaliar a tua prontidão", labelEn: "Scoring your readiness" },
+    { id: "location", labelPt: "A verificar contexto local", labelEn: "Checking location context" },
+    { id: "profile", labelPt: "A construir o teu perfil", labelEn: "Building your profile" },
   ];
-  
+
   useEffect(() => {
     const stepDuration = duration / steps.length;
-    
+
     const interval = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           return 100;
         }
-        return prev + (100 / (duration / 50));
+        return prev + 100 / (duration / 50);
       });
     }, 50);
-    
+
     steps.forEach((step, index) => {
-      setTimeout(() => {
-        setCompletedSteps(prev => [...prev, step.id]);
-      }, stepDuration * (index + 1));
+      setTimeout(
+        () => {
+          setCompletedSteps((prev) => [...prev, step.id]);
+        },
+        stepDuration * (index + 1),
+      );
     });
-    
+
     const timer = setTimeout(() => {
       onComplete();
     }, duration + 300);
-    
+
     return () => {
       clearInterval(interval);
       clearTimeout(timer);
     };
   }, [duration, onComplete]);
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-6 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 shadow-lg">
@@ -387,18 +418,16 @@ function FunnelAnalyzingScreen({
             <Shield className="h-10 w-10 text-emerald-500" />
             <div className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-ping" />
           </div>
-          
+
           <h2 className="text-xl font-semibold mb-1">
-            {locale === 'pt' ? 'A analisar o teu risco...' : 'Analyzing your risk...'}
+            {locale === "pt" ? "A analisar o teu risco..." : "Analyzing your risk..."}
           </h2>
-          {city && (
-            <p className="text-muted-foreground mb-6">{city}</p>
-          )}
-          
+          {city && <p className="text-muted-foreground mb-6">{city}</p>}
+
           <div className="w-full max-w-xs mx-auto mb-6">
             <Progress value={progress} className="h-2" />
           </div>
-          
+
           <div className="space-y-3 text-left max-w-xs mx-auto">
             {steps.map((step) => {
               const isComplete = completedSteps.includes(step.id);
@@ -409,8 +438,8 @@ function FunnelAnalyzingScreen({
                   ) : (
                     <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
                   )}
-                  <span className={isComplete ? 'text-foreground' : 'text-muted-foreground'}>
-                    {locale === 'pt' ? step.labelPt : step.labelEn}
+                  <span className={isComplete ? "text-foreground" : "text-muted-foreground"}>
+                    {locale === "pt" ? step.labelPt : step.labelEn}
                   </span>
                 </div>
               );
@@ -425,76 +454,69 @@ function FunnelAnalyzingScreen({
 // Social Proof Component (Trustpilot style with real photos)
 function SocialProof() {
   const { locale } = useLocale();
-  
+
   return (
     <div className="mt-6 text-center">
       {/* Avatars with real photos */}
       <div className="flex justify-center -space-x-2 mb-3">
         {AVATAR_PHOTOS.map((photo, i) => (
-          <img 
-            key={i}
-            src={photo}
-            alt=""
-            className="w-8 h-8 rounded-full border-2 border-white object-cover"
-          />
+          <img key={i} src={photo} alt="" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
         ))}
       </div>
-      
+
       {/* Text */}
       <p className="text-sm text-muted-foreground mb-3">
-        {locale === 'pt' 
-          ? 'Mais de 4.000 utilizadores ativos que confiam nas nossas orientações.'
-          : 'Over 4,000 active users who trust our preparedness guidance.'}
+        {locale === "pt"
+          ? "Mais de 4.000 utilizadores ativos que confiam nas nossas orientações."
+          : "Over 4,000 active users who trust our preparedness guidance."}
       </p>
-      
+
       {/* Excellent text */}
-      <p className="font-semibold text-foreground mb-2">
-        {locale === 'pt' ? 'Excelente' : 'Excellent'}
-      </p>
-      
+      <p className="font-semibold text-foreground mb-2">{locale === "pt" ? "Excelente" : "Excellent"}</p>
+
       {/* Green stars (Trustpilot style) */}
       <div className="flex justify-center gap-0.5 mb-2">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div 
-            key={i} 
-            className="w-6 h-6 bg-[#00b67a] flex items-center justify-center"
-          >
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="w-6 h-6 bg-[#00b67a] flex items-center justify-center">
             <Star className="h-4 w-4 fill-white text-white" />
           </div>
         ))}
       </div>
-      
+
       {/* Review count */}
       <p className="text-xs text-muted-foreground">
-        {locale === 'pt' ? 'Baseado em 56.334 avaliações' : 'Based on 56,334 reviews'}
+        {locale === "pt" ? "Baseado em 56.334 avaliações" : "Based on 56,334 reviews"}
       </p>
     </div>
   );
 }
 
 // Product Popup Component - High Conversion Version
-function ProductPopup({ 
-  open, 
-  onClose, 
+function ProductPopup({
+  open,
+  onClose,
   onCheckout,
   loading,
-  city
-}: { 
-  open: boolean; 
+  city,
+}: {
+  open: boolean;
   onClose: () => void;
   onCheckout: () => void;
   loading: boolean;
   city?: string;
 }) {
   const { locale } = useLocale();
-  
+
   const benefits = [
-    { labelPt: 'O teu plano de ação personalizado para 72h', labelEn: 'Your personalized 72h action plan' },
-    { labelPt: city ? `Análise de risco específica para ${city}` : 'Análise de risco da tua cidade', labelEn: city ? `City-specific risk analysis for ${city}` : 'City-specific risk analysis' },
-    { labelPt: 'Vault de emergência & Red Folder PDF', labelEn: 'Emergency vault & Red Folder PDF' },
-    { labelPt: 'Botão de pânico para alertar a família', labelEn: 'One-tap panic button for your family' },
+    { labelPt: "O teu plano de ação personalizado para 72h", labelEn: "Your personalized 72h action plan" },
+    {
+      labelPt: city ? `Análise de risco específica para ${city}` : "Análise de risco da tua cidade",
+      labelEn: city ? `City-specific risk analysis for ${city}` : "City-specific risk analysis",
+    },
+    { labelPt: "Vault de emergência & Red Folder PDF", labelEn: "Emergency vault & Red Folder PDF" },
+    { labelPt: "Botão de pânico para alertar a família", labelEn: "One-tap panic button for your family" },
   ];
-  
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -504,12 +526,12 @@ function ProductPopup({
             <CheckCircle2 className="h-7 w-7 text-emerald-600" />
           </div>
           <DialogTitle className="text-xl font-semibold">
-            {locale === 'pt' ? 'O teu plano personalizado está pronto' : 'Your personalized plan is ready'}
+            {locale === "pt" ? "O teu plano personalizado está pronto" : "Your personalized plan is ready"}
           </DialogTitle>
           <DialogDescription className="mt-1">
-            {locale === 'pt' 
-              ? 'Desbloqueia acesso instantâneo a tudo o que precisas'
-              : 'Unlock instant access to everything you need'}
+            {locale === "pt"
+              ? "Desbloqueia acesso instantâneo a tudo o que precisas"
+              : "Unlock instant access to everything you need"}
           </DialogDescription>
         </div>
 
@@ -518,25 +540,22 @@ function ProductPopup({
           {benefits.map((benefit, i) => (
             <li key={i} className="flex items-center gap-3">
               <Check className="h-5 w-5 text-emerald-500 shrink-0" />
-              <span className="text-sm">{locale === 'pt' ? benefit.labelPt : benefit.labelEn}</span>
+              <span className="text-sm">{locale === "pt" ? benefit.labelPt : benefit.labelEn}</span>
             </li>
           ))}
         </ul>
 
         {/* CTA with price inline */}
-        <Button 
-          onClick={onCheckout}
-          disabled={loading}
-          className="w-full"
-          size="lg"
-        >
+        <Button onClick={onCheckout} disabled={loading} className="w-full" size="lg">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {locale === 'pt' ? 'A processar...' : 'Processing...'}
+              {locale === "pt" ? "A processar..." : "Processing..."}
             </>
+          ) : locale === "pt" ? (
+            "Obter o Meu Plano — €49"
           ) : (
-            locale === 'pt' ? 'Obter o Meu Plano — €49' : 'Get My Plan — €49'
+            "Get My Plan — €49"
           )}
         </Button>
 
@@ -544,10 +563,10 @@ function ProductPopup({
         <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-3">
           <span className="flex items-center gap-1">
             <Lock className="h-3 w-3" />
-            {locale === 'pt' ? 'Checkout seguro' : 'Secure checkout'}
+            {locale === "pt" ? "Checkout seguro" : "Secure checkout"}
           </span>
           <span>•</span>
-          <span>{locale === 'pt' ? 'Sem subscrição' : 'No subscription'}</span>
+          <span>{locale === "pt" ? "Sem subscrição" : "No subscription"}</span>
         </div>
       </DialogContent>
     </Dialog>
@@ -594,14 +613,14 @@ export default function RiskFunnel() {
   }, [step]);
 
   const updateData = <K extends keyof FunnelData>(key: K, value: FunnelData[K]) => {
-    setData(prev => ({ ...prev, [key]: value }));
+    setData((prev) => ({ ...prev, [key]: value }));
   };
 
   const toggleHouseholdTag = (tag: string) => {
-    setData(prev => ({
+    setData((prev) => ({
       ...prev,
       householdTags: prev.householdTags.includes(tag)
-        ? prev.householdTags.filter(t => t !== tag)
+        ? prev.householdTags.filter((t) => t !== tag)
         : [...prev.householdTags, tag],
     }));
   };
@@ -644,12 +663,12 @@ export default function RiskFunnel() {
       });
       if (error) throw error;
       if (!res?.url) throw new Error("No checkout URL received");
-      
+
       // Redirect to Stripe Checkout
       window.location.href = res.url;
     } catch (e) {
-      console.error('[RiskFunnel] Checkout error:', e);
-      toast.error(locale === 'pt' ? 'Erro ao abrir checkout' : 'Error opening checkout');
+      console.error("[RiskFunnel] Checkout error:", e);
+      toast.error(locale === "pt" ? "Erro ao abrir checkout" : "Error opening checkout");
       setCheckoutLoading(false);
     }
   };
@@ -660,76 +679,88 @@ export default function RiskFunnel() {
   // Get reasons with locale context
   const reasons = useMemo(() => {
     const reasonsList: string[] = [];
-    const isPortuguese = locale === 'pt';
+    const isPortuguese = locale === "pt";
 
     // Location is ALWAYS first
     if (data.city) {
-      reasonsList.push(isPortuguese 
-        ? `Localização em ${data.city} apresenta riscos específicos`
-        : `Location in ${data.city} presents specific risks`);
+      reasonsList.push(
+        isPortuguese
+          ? `Localização em ${data.city} apresenta riscos específicos`
+          : `Location in ${data.city} presents specific risks`,
+      );
     } else {
-      reasonsList.push(isPortuguese
-        ? 'A tua localização geográfica influencia o perfil de risco'
-        : 'Your geographic location influences your risk profile');
+      reasonsList.push(
+        isPortuguese
+          ? "A tua localização geográfica influencia o perfil de risco"
+          : "Your geographic location influences your risk profile",
+      );
     }
 
     // Then add other factors
-    if (data.homeType === 'apartment' && parseInt(data.floorLevel) >= 5) {
-      reasonsList.push(isPortuguese 
-        ? 'Habitação em andar alto pode complicar evacuação'
-        : 'High-rise living may complicate evacuation');
+    if (data.homeType === "apartment" && parseInt(data.floorLevel) >= 5) {
+      reasonsList.push(
+        isPortuguese
+          ? "Habitação em andar alto pode complicar evacuação"
+          : "High-rise living may complicate evacuation",
+      );
     }
 
-    if (data.householdTags.includes('elderly')) {
-      reasonsList.push(isPortuguese 
-        ? 'Membros idosos precisam de planeamento extra'
-        : 'Elderly household members need extra planning');
+    if (data.householdTags.includes("elderly")) {
+      reasonsList.push(
+        isPortuguese ? "Membros idosos precisam de planeamento extra" : "Elderly household members need extra planning",
+      );
     }
-    if (data.householdTags.includes('medical')) {
-      reasonsList.push(isPortuguese 
-        ? 'Necessidades médicas requerem reservas de backup'
-        : 'Medical needs require backup supplies');
+    if (data.householdTags.includes("medical")) {
+      reasonsList.push(
+        isPortuguese ? "Necessidades médicas requerem reservas de backup" : "Medical needs require backup supplies",
+      );
     }
-    if (data.householdTags.includes('kids')) {
-      reasonsList.push(isPortuguese 
-        ? 'Crianças precisam de planeamento de emergência especializado'
-        : 'Children need specialized emergency planning');
+    if (data.householdTags.includes("kids")) {
+      reasonsList.push(
+        isPortuguese
+          ? "Crianças precisam de planeamento de emergência especializado"
+          : "Children need specialized emergency planning",
+      );
     }
-    if (data.householdTags.includes('alone')) {
-      reasonsList.push(isPortuguese 
-        ? 'Viver sozinho significa que auto-suficiência é crítica'
-        : 'Living alone means self-reliance is critical');
+    if (data.householdTags.includes("alone")) {
+      reasonsList.push(
+        isPortuguese
+          ? "Viver sozinho significa que auto-suficiência é crítica"
+          : "Living alone means self-reliance is critical",
+      );
     }
 
-    if (data.hasKit === 'no') {
-      reasonsList.push(isPortuguese 
-        ? 'Sem kit de emergência aumenta vulnerabilidade'
-        : 'No emergency kit increases vulnerability');
+    if (data.hasKit === "no") {
+      reasonsList.push(
+        isPortuguese ? "Sem kit de emergência aumenta vulnerabilidade" : "No emergency kit increases vulnerability",
+      );
     }
     if (!data.hasWater3Days) {
-      reasonsList.push(isPortuguese 
-        ? 'Reserva de água para 3+ dias é essencial'
-        : 'Water supply for 3+ days is essential');
+      reasonsList.push(
+        isPortuguese ? "Reserva de água para 3+ dias é essencial" : "Water supply for 3+ days is essential",
+      );
     }
     if (!data.hasEmergencyContacts) {
-      reasonsList.push(isPortuguese 
-        ? 'Contactos de emergência devem estar acessíveis'
-        : 'Emergency contacts should be readily available');
+      reasonsList.push(
+        isPortuguese
+          ? "Contactos de emergência devem estar acessíveis"
+          : "Emergency contacts should be readily available",
+      );
     }
 
     return reasonsList.slice(0, 3);
   }, [data, locale]);
 
   const riskLevelLabel = {
-    low: locale === 'pt' ? 'Baixo' : 'Low',
-    moderate: locale === 'pt' ? 'Moderado' : 'Moderate',
-    high: locale === 'pt' ? 'Alto' : 'High',
+    low: locale === "pt" ? "Baixo" : "Low",
+    moderate: locale === "pt" ? "Moderado" : "Moderate",
+    high: locale === "pt" ? "Alto" : "High",
   };
 
   const riskLevelColor = {
-    low: 'text-green-600',
-    moderate: 'text-amber-600',
-    high: 'text-red-600',
+    low: "text-green-600",
+    moderate: "text-amber-600",
+    high: "text-red-600",
   };
 
   // Render interstitial after Emergency Experience (step 5)
@@ -762,12 +793,7 @@ export default function RiskFunnel() {
 
   // Render analyzing screen (step 9)
   if (step === 9) {
-    return (
-      <FunnelAnalyzingScreen
-        city={data.city}
-        onComplete={handleNext}
-      />
-    );
+    return <FunnelAnalyzingScreen city={data.city} onComplete={handleNext} />;
   }
 
   // Render results (step 10)
@@ -782,30 +808,24 @@ export default function RiskFunnel() {
                   <Shield className="h-8 w-8 text-primary" />
                 </div>
                 <h2 className="text-xl font-semibold">
-                  {locale === 'pt' 
-                    ? 'O teu perfil de risco está pronto' 
-                    : 'Your risk profile is ready'}
+                  {locale === "pt" ? "O teu perfil de risco está pronto" : "Your risk profile is ready"}
                 </h2>
               </div>
 
               {/* Risk level display */}
               <div className="text-center py-4 px-6 bg-muted/50 rounded-xl">
                 <p className="text-sm text-muted-foreground mb-1">
-                  {locale === 'pt' ? 'Categoria de Risco' : 'Risk Category'}
+                  {locale === "pt" ? "Categoria de Risco" : "Risk Category"}
                 </p>
-                <p className={cn('text-2xl font-bold', riskLevelColor[riskLevel])}>
-                  {riskLevelLabel[riskLevel]}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Score: {score.total}/100
-                </p>
+                <p className={cn("text-2xl font-bold", riskLevelColor[riskLevel])}>{riskLevelLabel[riskLevel]}</p>
+                <p className="text-xs text-muted-foreground mt-1">Score: {score.total}/100</p>
               </div>
 
               {/* Reasons */}
               {reasons.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-center">
-                    {locale === 'pt' ? 'Principais fatores:' : 'Key factors:'}
+                    {locale === "pt" ? "Principais fatores:" : "Key factors:"}
                   </p>
                   <ul className="space-y-2">
                     {reasons.map((reason, i) => (
@@ -818,20 +838,18 @@ export default function RiskFunnel() {
                 </div>
               )}
 
-              <Button 
-                onClick={handleViewResults}
-                className="w-full"
-                size="lg"
-              >
-                {locale === 'pt' ? 'Ver Resultados Personalizados & Preparar-me' : 'View Personalized Results & Get Ready'}
+              <Button onClick={handleViewResults} className="w-full" size="lg">
+                {locale === "pt"
+                  ? "Ver Resultados Personalizados & Preparar-me"
+                  : "View Personalized Results & Get Ready"}
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </Card>
-          
+
           <SocialProof />
         </div>
-        
+
         <RiskOfferModal
           open={showOfferModal}
           onOpenChange={setShowOfferModal}
@@ -852,10 +870,12 @@ export default function RiskFunnel() {
       {/* Progress header */}
       <div className="w-full max-w-md mx-auto px-4 pt-6 pb-4">
         <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-          <span>{currentQuestionNumber}/{questionSteps.length}</span>
+          <span>
+            {currentQuestionNumber}/{questionSteps.length}
+          </span>
           <span className="flex items-center gap-1">
             <Shield className="h-4 w-4" />
-            {locale === 'pt' ? 'Avaliação de Risco' : 'Risk Assessment'}
+            {locale === "pt" ? "Avaliação de Risco" : "Risk Assessment"}
           </span>
         </div>
         <Progress value={progressPercent} className="h-2" />
@@ -870,57 +890,52 @@ export default function RiskFunnel() {
               <div className="space-y-6">
                 <div className="text-center space-y-2">
                   <MapPin className="h-10 w-10 mx-auto text-primary" />
-                  <h2 className="text-xl font-semibold">
-                    {locale === 'pt' ? 'Onde vives?' : 'Where do you live?'}
-                  </h2>
+                  <h2 className="text-xl font-semibold">{locale === "pt" ? "Onde vives?" : "Where do you live?"}</h2>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>{locale === 'pt' ? 'País' : 'Country'}</Label>
-                    <Select value={data.country} onValueChange={v => updateData('country', v)}>
+                    <Label>{locale === "pt" ? "País" : "Country"}</Label>
+                    <Select value={data.country} onValueChange={(v) => updateData("country", v)}>
                       <SelectTrigger className="bg-background">
-                        <SelectValue placeholder={locale === 'pt' ? 'Selecionar país' : 'Select country'} />
+                        <SelectValue placeholder={locale === "pt" ? "Selecionar país" : "Select country"} />
                       </SelectTrigger>
                       <SelectContent className="bg-background">
-                        {COUNTRIES.map(c => (
-                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        {COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.name}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>{locale === 'pt' ? 'Cidade' : 'City'}</Label>
+                    <Label>{locale === "pt" ? "Cidade" : "City"}</Label>
                     <Input
                       value={data.city}
-                      onChange={e => updateData('city', e.target.value)}
-                      placeholder={locale === 'pt' ? 'Ex: Lisboa' : 'e.g., Lisbon'}
+                      onChange={(e) => updateData("city", e.target.value)}
+                      placeholder={locale === "pt" ? "Ex: Lisboa" : "e.g., Lisbon"}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>{locale === 'pt' ? 'Código Postal' : 'Postal Code'} <span className="text-muted-foreground">(opcional)</span></Label>
+                    <Label>
+                      {locale === "pt" ? "Código Postal" : "Postal Code"}{" "}
+                      <span className="text-muted-foreground">(opcional)</span>
+                    </Label>
                     <Input
                       value={data.postalCode}
-                      onChange={e => updateData('postalCode', e.target.value)}
-                      placeholder={locale === 'pt' ? 'Ex: 1000-001' : 'e.g., 1000-001'}
+                      onChange={(e) => updateData("postalCode", e.target.value)}
+                      placeholder={locale === "pt" ? "Ex: 1000-001" : "e.g., 1000-001"}
                     />
                   </div>
                 </div>
 
-                <WhyWeAsk 
-                  textPt={whyWeAskContent.location.pt}
-                  textEn={whyWeAskContent.location.en}
-                />
+                <WhyWeAsk textPt={whyWeAskContent.location.pt} textEn={whyWeAskContent.location.en} />
 
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!canProceed}
-                  className="w-full"
-                  size="lg"
-                >
-                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                <Button onClick={handleNext} disabled={!canProceed} className="w-full" size="lg">
+                  {locale === "pt" ? "Continuar" : "Continue"}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -931,72 +946,62 @@ export default function RiskFunnel() {
               <div className="space-y-6">
                 <div className="text-center space-y-2">
                   <Home className="h-10 w-10 mx-auto text-primary" />
-                  <h2 className="text-xl font-semibold">
-                    {locale === 'pt' ? 'Tipo de habitação?' : 'Type of home?'}
-                  </h2>
+                  <h2 className="text-xl font-semibold">{locale === "pt" ? "Tipo de habitação?" : "Type of home?"}</h2>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => updateData('homeType', 'apartment')}
+                    onClick={() => updateData("homeType", "apartment")}
                     className={cn(
-                      'p-4 rounded-lg border-2 text-center transition-all',
-                      data.homeType === 'apartment'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
+                      "p-4 rounded-lg border-2 text-center transition-all",
+                      data.homeType === "apartment"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50",
                     )}
                   >
                     <div className="text-2xl mb-1">🏢</div>
-                    <div className="font-medium">{locale === 'pt' ? 'Apartamento' : 'Apartment'}</div>
+                    <div className="font-medium">{locale === "pt" ? "Apartamento" : "Apartment"}</div>
                   </button>
                   <button
-                    onClick={() => updateData('homeType', 'house')}
+                    onClick={() => updateData("homeType", "house")}
                     className={cn(
-                      'p-4 rounded-lg border-2 text-center transition-all',
-                      data.homeType === 'house'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
+                      "p-4 rounded-lg border-2 text-center transition-all",
+                      data.homeType === "house"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50",
                     )}
                   >
                     <div className="text-2xl mb-1">🏠</div>
-                    <div className="font-medium">{locale === 'pt' ? 'Moradia' : 'House'}</div>
+                    <div className="font-medium">{locale === "pt" ? "Moradia" : "House"}</div>
                   </button>
                 </div>
 
-                {data.homeType === 'apartment' && (
+                {data.homeType === "apartment" && (
                   <div className="space-y-2">
-                    <Label>{locale === 'pt' ? 'Andar (opcional)' : 'Floor level (optional)'}</Label>
+                    <Label>{locale === "pt" ? "Andar (opcional)" : "Floor level (optional)"}</Label>
                     <div className="flex flex-wrap gap-2">
-                      {['0', '1', '2', '3', '4', '5+'].map(floor => (
+                      {["0", "1", "2", "3", "4", "5+"].map((floor) => (
                         <button
                           key={floor}
-                          onClick={() => updateData('floorLevel', floor === '5+' ? '5' : floor)}
+                          onClick={() => updateData("floorLevel", floor === "5+" ? "5" : floor)}
                           className={cn(
-                            'px-4 py-2 rounded-full text-sm border transition-all',
-                            (data.floorLevel === floor || (floor === '5+' && parseInt(data.floorLevel) >= 5))
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border hover:border-primary/50'
+                            "px-4 py-2 rounded-full text-sm border transition-all",
+                            data.floorLevel === floor || (floor === "5+" && parseInt(data.floorLevel) >= 5)
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border hover:border-primary/50",
                           )}
                         >
-                          {floor === '0' ? (locale === 'pt' ? 'R/C' : 'Ground') : floor}
+                          {floor === "0" ? (locale === "pt" ? "R/C" : "Ground") : floor}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <WhyWeAsk 
-                  textPt={whyWeAskContent.home.pt}
-                  textEn={whyWeAskContent.home.en}
-                />
+                <WhyWeAsk textPt={whyWeAskContent.home.pt} textEn={whyWeAskContent.home.en} />
 
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!canProceed}
-                  className="w-full"
-                  size="lg"
-                >
-                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                <Button onClick={handleNext} disabled={!canProceed} className="w-full" size="lg">
+                  {locale === "pt" ? "Continuar" : "Continue"}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -1008,29 +1013,29 @@ export default function RiskFunnel() {
                 <div className="text-center space-y-2">
                   <Users className="h-10 w-10 mx-auto text-primary" />
                   <h2 className="text-xl font-semibold">
-                    {locale === 'pt' ? 'O teu agregado inclui...' : 'Your household includes...'}
+                    {locale === "pt" ? "O teu agregado inclui..." : "Your household includes..."}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    {locale === 'pt' ? 'Seleciona todos os que se aplicam' : 'Select all that apply'}
+                    {locale === "pt" ? "Seleciona todos os que se aplicam" : "Select all that apply"}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-center">
                   {[
-                    { id: 'kids', label: locale === 'pt' ? '👶 Crianças' : '👶 Kids' },
-                    { id: 'elderly', label: locale === 'pt' ? '👴 Idosos' : '👴 Elderly' },
-                    { id: 'medical', label: locale === 'pt' ? '💊 Necessidades médicas' : '💊 Medical needs' },
-                    { id: 'pets', label: locale === 'pt' ? '🐕 Animais' : '🐕 Pets' },
-                    { id: 'alone', label: locale === 'pt' ? '🧍 Vivo sozinho' : '🧍 Living alone' },
-                  ].map(tag => (
+                    { id: "kids", label: locale === "pt" ? "👶 Crianças" : "👶 Kids" },
+                    { id: "elderly", label: locale === "pt" ? "👴 Idosos" : "👴 Elderly" },
+                    { id: "medical", label: locale === "pt" ? "💊 Necessidades médicas" : "💊 Medical needs" },
+                    { id: "pets", label: locale === "pt" ? "🐕 Animais" : "🐕 Pets" },
+                    { id: "alone", label: locale === "pt" ? "🧍 Vivo sozinho" : "🧍 Living alone" },
+                  ].map((tag) => (
                     <button
                       key={tag.id}
                       onClick={() => toggleHouseholdTag(tag.id)}
                       className={cn(
-                        'px-4 py-2 rounded-full text-sm border transition-all',
+                        "px-4 py-2 rounded-full text-sm border transition-all",
                         data.householdTags.includes(tag.id)
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-primary/50'
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50",
                       )}
                     >
                       {tag.label}
@@ -1039,17 +1044,10 @@ export default function RiskFunnel() {
                   ))}
                 </div>
 
-                <WhyWeAsk 
-                  textPt={whyWeAskContent.household.pt}
-                  textEn={whyWeAskContent.household.en}
-                />
+                <WhyWeAsk textPt={whyWeAskContent.household.pt} textEn={whyWeAskContent.household.en} />
 
-                <Button 
-                  onClick={handleNext} 
-                  className="w-full"
-                  size="lg"
-                >
-                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                <Button onClick={handleNext} className="w-full" size="lg">
+                  {locale === "pt" ? "Continuar" : "Continue"}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -1061,24 +1059,30 @@ export default function RiskFunnel() {
                 <div className="text-center space-y-2">
                   <AlertTriangle className="h-10 w-10 mx-auto text-primary" />
                   <h2 className="text-xl font-semibold">
-                    {locale === 'pt' ? 'Já passaste por uma emergência real?' : 'Have you been through a real emergency?'}
+                    {locale === "pt"
+                      ? "Já passaste por uma emergência real?"
+                      : "Have you been through a real emergency?"}
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { value: 'multiple' as const, label: locale === 'pt' ? 'Sim, várias vezes' : 'Yes, multiple times', emoji: '🔁' },
-                    { value: 'once' as const, label: locale === 'pt' ? 'Sim, uma vez' : 'Yes, once', emoji: '✅' },
-                    { value: 'never' as const, label: locale === 'pt' ? 'Nunca' : 'Never', emoji: '❌' },
-                  ].map(opt => (
+                    {
+                      value: "multiple" as const,
+                      label: locale === "pt" ? "Sim, várias vezes" : "Yes, multiple times",
+                      emoji: "🔁",
+                    },
+                    { value: "once" as const, label: locale === "pt" ? "Sim, uma vez" : "Yes, once", emoji: "✅" },
+                    { value: "never" as const, label: locale === "pt" ? "Nunca" : "Never", emoji: "❌" },
+                  ].map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => updateData('emergencyExperience', opt.value)}
+                      onClick={() => updateData("emergencyExperience", opt.value)}
                       className={cn(
-                        'p-4 rounded-lg border-2 text-left transition-all flex items-center gap-3',
+                        "p-4 rounded-lg border-2 text-left transition-all flex items-center gap-3",
                         data.emergencyExperience === opt.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50",
                       )}
                     >
                       <span className="text-xl">{opt.emoji}</span>
@@ -1087,18 +1091,10 @@ export default function RiskFunnel() {
                   ))}
                 </div>
 
-                <WhyWeAsk 
-                  textPt={whyWeAskContent.experience.pt}
-                  textEn={whyWeAskContent.experience.en}
-                />
+                <WhyWeAsk textPt={whyWeAskContent.experience.pt} textEn={whyWeAskContent.experience.en} />
 
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!canProceed}
-                  className="w-full"
-                  size="lg"
-                >
-                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                <Button onClick={handleNext} disabled={!canProceed} className="w-full" size="lg">
+                  {locale === "pt" ? "Continuar" : "Continue"}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -1110,24 +1106,24 @@ export default function RiskFunnel() {
                 <div className="text-center space-y-2">
                   <Package className="h-10 w-10 mx-auto text-primary" />
                   <h2 className="text-xl font-semibold">
-                    {locale === 'pt' ? 'Tens um kit de emergência?' : 'Do you have an emergency kit?'}
+                    {locale === "pt" ? "Tens um kit de emergência?" : "Do you have an emergency kit?"}
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { value: 'yes' as const, label: locale === 'pt' ? 'Sim' : 'Yes', emoji: '✅' },
-                    { value: 'partly' as const, label: locale === 'pt' ? 'Parcial' : 'Partly', emoji: '🔶' },
-                    { value: 'no' as const, label: locale === 'pt' ? 'Não' : 'No', emoji: '❌' },
-                  ].map(opt => (
+                    { value: "yes" as const, label: locale === "pt" ? "Sim" : "Yes", emoji: "✅" },
+                    { value: "partly" as const, label: locale === "pt" ? "Parcial" : "Partly", emoji: "🔶" },
+                    { value: "no" as const, label: locale === "pt" ? "Não" : "No", emoji: "❌" },
+                  ].map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => updateData('hasKit', opt.value)}
+                      onClick={() => updateData("hasKit", opt.value)}
                       className={cn(
-                        'p-3 rounded-lg border-2 text-center transition-all',
+                        "p-3 rounded-lg border-2 text-center transition-all",
                         data.hasKit === opt.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50",
                       )}
                     >
                       <div className="text-xl mb-1">{opt.emoji}</div>
@@ -1138,46 +1134,34 @@ export default function RiskFunnel() {
 
                 <div className="space-y-3 pt-2">
                   <p className="text-sm text-muted-foreground text-center">
-                    {locale === 'pt' ? 'Verificações rápidas (opcional):' : 'Quick checks (optional):'}
+                    {locale === "pt" ? "Verificações rápidas (opcional):" : "Quick checks (optional):"}
                   </p>
-                  
+
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm">{locale === 'pt' ? '💧 Água para 3+ dias' : '💧 Water for 3+ days'}</span>
-                    <Switch
-                      checked={data.hasWater3Days}
-                      onCheckedChange={v => updateData('hasWater3Days', v)}
-                    />
+                    <span className="text-sm">{locale === "pt" ? "💧 Água para 3+ dias" : "💧 Water for 3+ days"}</span>
+                    <Switch checked={data.hasWater3Days} onCheckedChange={(v) => updateData("hasWater3Days", v)} />
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm">{locale === 'pt' ? '🔋 Backup de energia' : '🔋 Power backup'}</span>
-                    <Switch
-                      checked={data.hasPowerBackup}
-                      onCheckedChange={v => updateData('hasPowerBackup', v)}
-                    />
+                    <span className="text-sm">{locale === "pt" ? "🔋 Backup de energia" : "🔋 Power backup"}</span>
+                    <Switch checked={data.hasPowerBackup} onCheckedChange={(v) => updateData("hasPowerBackup", v)} />
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm">{locale === 'pt' ? '📞 Contactos de emergência' : '📞 Emergency contacts'}</span>
+                    <span className="text-sm">
+                      {locale === "pt" ? "📞 Contactos de emergência" : "📞 Emergency contacts"}
+                    </span>
                     <Switch
                       checked={data.hasEmergencyContacts}
-                      onCheckedChange={v => updateData('hasEmergencyContacts', v)}
+                      onCheckedChange={(v) => updateData("hasEmergencyContacts", v)}
                     />
                   </div>
                 </div>
 
-                <WhyWeAsk 
-                  textPt={whyWeAskContent.preparedness.pt}
-                  textEn={whyWeAskContent.preparedness.en}
-                />
+                <WhyWeAsk textPt={whyWeAskContent.preparedness.pt} textEn={whyWeAskContent.preparedness.en} />
 
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!canProceed}
-                  className="w-full"
-                  size="lg"
-                >
-                  {locale === 'pt' ? 'Continuar' : 'Continue'}
+                <Button onClick={handleNext} disabled={!canProceed} className="w-full" size="lg">
+                  {locale === "pt" ? "Continuar" : "Continue"}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -1189,24 +1173,28 @@ export default function RiskFunnel() {
                 <div className="text-center space-y-2">
                   <Route className="h-10 w-10 mx-auto text-primary" />
                   <h2 className="text-xl font-semibold">
-                    {locale === 'pt' ? 'Tens um plano de evacuação?' : 'Do you have an evacuation plan?'}
+                    {locale === "pt" ? "Tens um plano de evacuação?" : "Do you have an evacuation plan?"}
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { value: 'yes' as const, label: locale === 'pt' ? 'Sim, toda a família sabe' : 'Yes, everyone knows it', emoji: '✅' },
-                    { value: 'somewhat' as const, label: locale === 'pt' ? 'Mais ou menos' : 'Somewhat', emoji: '🔶' },
-                    { value: 'no' as const, label: locale === 'pt' ? 'Não temos' : 'We don\'t have one', emoji: '❌' },
-                  ].map(opt => (
+                    {
+                      value: "yes" as const,
+                      label: locale === "pt" ? "Sim, toda a família sabe" : "Yes, everyone knows it",
+                      emoji: "✅",
+                    },
+                    { value: "somewhat" as const, label: locale === "pt" ? "Mais ou menos" : "Somewhat", emoji: "🔶" },
+                    { value: "no" as const, label: locale === "pt" ? "Não temos" : "We don't have one", emoji: "❌" },
+                  ].map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => updateData('hasEvacuationPlan', opt.value)}
+                      onClick={() => updateData("hasEvacuationPlan", opt.value)}
                       className={cn(
-                        'p-4 rounded-lg border-2 text-left transition-all flex items-center gap-3',
+                        "p-4 rounded-lg border-2 text-left transition-all flex items-center gap-3",
                         data.hasEvacuationPlan === opt.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50",
                       )}
                     >
                       <span className="text-xl">{opt.emoji}</span>
@@ -1215,24 +1203,16 @@ export default function RiskFunnel() {
                   ))}
                 </div>
 
-                <WhyWeAsk 
-                  textPt={whyWeAskContent.evacuation.pt}
-                  textEn={whyWeAskContent.evacuation.en}
-                />
+                <WhyWeAsk textPt={whyWeAskContent.evacuation.pt} textEn={whyWeAskContent.evacuation.en} />
 
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!canProceed}
-                  className="w-full"
-                  size="lg"
-                >
-                  {locale === 'pt' ? 'Ver resultados' : 'See results'}
+                <Button onClick={handleNext} disabled={!canProceed} className="w-full" size="lg">
+                  {locale === "pt" ? "Ver resultados" : "See results"}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             )}
           </Card>
-          
+
           <SocialProof />
         </div>
       </div>
