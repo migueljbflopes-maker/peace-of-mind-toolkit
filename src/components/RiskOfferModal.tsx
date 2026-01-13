@@ -174,7 +174,7 @@ export function RiskOfferModal({
                 {locale === 'pt' ? 'A preparar pagamento...' : 'Preparing secure payment…'}
               </>
             ) : (
-              locale === 'pt' ? 'Desbloquear o meu plano' : 'Unlock my plan now'
+              locale === 'pt' ? 'COMEÇAR AGORA' : 'START NOW'
             )}
           </Button>
 
