@@ -2,13 +2,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, AlertCircle, CheckCircle } from "lucide-react";
 import heroSplitBg from "@/assets/hero-split-bg.png";
-
 const NewHero = () => {
-  return (
-    <section 
-      className="relative min-h-[85vh] md:min-h-[80vh] flex items-center justify-center bg-cover bg-center"
-      style={{ backgroundImage: `url(${heroSplitBg})` }}
-    >
+  return <section className="relative min-h-[85vh] md:min-h-[80vh] flex items-center justify-center bg-cover bg-center" style={{
+    backgroundImage: `url(${heroSplitBg})`
+  }}>
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
       
@@ -27,29 +24,18 @@ const NewHero = () => {
           <span className="text-primary-foreground/90">Stay calm when it matters.</span>
         </h1>
         
-        <p className="text-lg sm:text-xl md:text-2xl text-white/85 mb-8 drop-shadow-md max-w-2xl mx-auto">
-          Two tools for complete peace of mind: a secure toolkit for your important info, 
-          and an emergency button for when seconds count.
-        </p>
+        <p className="text-lg sm:text-xl md:text-2xl text-white/85 mb-8 drop-shadow-md max-w-2xl mx-auto">Life can change in an instant. We help you plan, protect, and act — so you can face uncertainty with confidence.</p>
         
         {/* Two Primary CTAs */}
         <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
           <Link to="/toolkit">
-            <Button 
-              variant="cta" 
-              size="lg" 
-              className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all gap-2"
-            >
+            <Button variant="cta" size="lg" className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all gap-2">
               <Shield className="h-5 w-5" />
               Create my Safe Toolkit
             </Button>
           </Link>
           <Link to="/panic/setup">
-            <Button 
-              variant="hero-outline" 
-              size="lg" 
-              className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all bg-white/10 backdrop-blur-sm border-white text-white hover:bg-white hover:text-foreground gap-2"
-            >
+            <Button variant="hero-outline" size="lg" className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all bg-white/10 backdrop-blur-sm border-white text-white hover:bg-white hover:text-foreground gap-2">
               <AlertCircle className="h-5 w-5" />
               Set up Panic Button
             </Button>
@@ -72,8 +58,6 @@ const NewHero = () => {
           </span>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default NewHero;
