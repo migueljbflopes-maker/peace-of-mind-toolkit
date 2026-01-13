@@ -32,7 +32,7 @@ import {
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocale } from "@/i18n/useLocale";
-import logoIcon from "@/assets/logo-icon.png";
+import logoPulse from "@/assets/logo-pulse.png";
 
 const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -81,7 +81,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={logoIcon} alt="am-I-ready" className="h-8 w-8" />
+            <img src={logoPulse} alt="am-I-ready" className="h-8 w-8" />
             <span className="font-semibold text-foreground">am-I-ready.com</span>
           </Link>
 
