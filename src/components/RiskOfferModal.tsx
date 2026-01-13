@@ -25,6 +25,7 @@ type RiskOfferModalProps = {
   minutes?: number; // default 10
   priceNow?: number; // default 49
   priceWas?: number; // default 120
+  ctaText?: { en: string; pt: string }; // optional custom CTA text
 };
 
 function pad2(n: number) {
@@ -40,6 +41,7 @@ export function RiskOfferModal({
   minutes = 5,
   priceNow = 49,
   priceWas = 120,
+  ctaText,
 }: RiskOfferModalProps) {
   const { locale } = useLocale();
   const initialSeconds = useMemo(() => minutes * 60, [minutes]);
@@ -174,7 +176,7 @@ export function RiskOfferModal({
                 {locale === 'pt' ? 'A preparar pagamento...' : 'Preparing secure payment…'}
               </>
             ) : (
-              locale === 'pt' ? 'COMEÇAR AGORA' : 'START NOW'
+              ctaText ? (locale === 'pt' ? ctaText.pt : ctaText.en) : (locale === 'pt' ? 'COMEÇAR AGORA' : 'START NOW')
             )}
           </Button>
 
