@@ -32,7 +32,16 @@ interface RiskInsightsOutput {
     risk: string;
     level: 'low' | 'medium' | 'high';
     details: string;
+    category: 'natural' | 'infrastructure' | 'geopolitical';
   }>;
+  war_scenario: {
+    summary: string;
+    infrastructure_impact: string;
+    transportation: string;
+    communication: string;
+    supply_disruption: string;
+    recommended_actions: string[];
+  };
   dimension_insights: {
     location: { score: number; analysis: string; recommendations: string[] };
     household: { score: number; analysis: string; recommendations: string[] };
@@ -69,23 +78,31 @@ Provide a comprehensive analysis including:
    - Supply chains: supermarket density, logistics reliability
    - Utilities: power grid stability, water supply reliability, communication networks
 
-2. REGIONAL RISK FACTORS specific to ${city}, ${country}:
-   A) Natural Hazards:
-      - Floods, earthquakes, storms, heatwaves, wildfires (rate each as low/medium/high)
+2. REGIONAL RISK FACTORS specific to ${city}, ${country} - MUST include category field for each:
+   A) Natural Hazards (category: "natural"):
+      - Floods, earthquakes, storms, heatwaves, wildfires, tsunamis
       - Climate patterns and seasonal risks
-   B) Infrastructure Vulnerabilities:
+   B) Infrastructure Vulnerabilities (category: "infrastructure"):
       - Power grid reliability and outage frequency
       - Communication network resilience
       - Water supply dependencies
-   C) Geopolitical & Security Risks:
+      - Transportation network fragility
+   C) Geopolitical & Security Risks (category: "geopolitical"):
       - Nuclear: Proximity to nuclear facilities, regional nuclear tensions, fallout zone risk
       - Cyber: Critical infrastructure cyber vulnerability, digital dependency risks
       - Military/Conflict: Regional tensions, border proximity, military installations nearby
       - Terrorism: Urban terrorism risk assessment, proximity to symbolic targets
       - Civil Unrest: Political stability, protest patterns, social tensions
-   Consider geography, urban density, and current geopolitical context.
 
-3. DIMENSION-BY-DIMENSION ANALYSIS based on their scores:
+3. WAR & CONFLICT SCENARIO for ${city}, ${country}:
+   Analyze what would happen in case of armed conflict/war affecting the region:
+   - Infrastructure impact: power plants, water treatment, hospitals under stress
+   - Transportation: roads, highways, bridges, rail - likely disruptions, military use
+   - Communication: internet, mobile networks, broadcasting disruptions
+   - Supply chains: food, fuel, medicine availability and distribution challenges
+   - Provide 3-5 specific preparedness actions for this scenario
+
+4. DIMENSION-BY-DIMENSION ANALYSIS based on their scores:
    - Location (${breakdown.location_context}%): analyze their home type, floor level, neighborhood
    - Household (${breakdown.household_complexity}%): family size, special needs, pets
    - Mobility (${breakdown.mobility_constraints}%): evacuation options, vehicle access, physical constraints
@@ -101,8 +118,16 @@ Respond in JSON format ONLY with this exact structure:
     "utilities": "Power, water, and communication reliability"
   },
   "regional_risks": [
-    { "risk": "Risk name", "level": "low|medium|high", "details": "Brief explanation" }
+    { "risk": "Risk name", "level": "low|medium|high", "details": "Brief explanation", "category": "natural|infrastructure|geopolitical" }
   ],
+  "war_scenario": {
+    "summary": "Brief overview of conflict scenario likelihood and general impact for ${city}",
+    "infrastructure_impact": "How power, water, hospitals would be affected",
+    "transportation": "Roads, bridges, highways - military use, damage, blockades",
+    "communication": "Internet, mobile, radio - expected disruptions",
+    "supply_disruption": "Food, fuel, medicine availability",
+    "recommended_actions": ["Action 1", "Action 2", "Action 3"]
+  },
   "dimension_insights": {
     "location": { "score": ${breakdown.location_context}, "analysis": "Their location situation", "recommendations": ["Specific action 1", "Specific action 2"] },
     "household": { "score": ${breakdown.household_complexity}, "analysis": "Their household situation", "recommendations": ["Specific action 1", "Specific action 2"] },
