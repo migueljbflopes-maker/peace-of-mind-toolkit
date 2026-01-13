@@ -35,6 +35,8 @@ import RiskFunnel from "./pages/RiskFunnel";
 import RiskFunnel1 from "./pages/RiskFunnel1";
 import PurchaseSuccess from "./pages/PurchaseSuccess";
 import Claim from "./pages/Claim";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 // DEV-only: Lazy load AuthDebugPanel
 const AuthDebugPanel = import.meta.env.DEV 
@@ -82,6 +84,9 @@ const App = () => (
                 <Route path="/riskfunnel1" element={<RiskFunnel1 />} />
                 <Route path="/purchase-success" element={<PurchaseSuccess />} />
                 <Route path="/claim" element={<Claim />} />
+                {/* Legal pages */}
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
