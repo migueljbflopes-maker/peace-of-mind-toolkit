@@ -292,17 +292,27 @@ const PanicSetup = () => {
                               onChange={(e) => updateContact(index, { email: e.target.value })}
                             />
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
 
-                  {contacts.length < maxContacts && (
-                    <Button variant="outline" onClick={addContact} className="w-full gap-2">
-                      <Plus className="h-4 w-4" />
-                      Add Contact ({contacts.length}/{maxContacts})
-                    </Button>
-                  )}
+                                  {contacts.length < maxContacts && (
+                                    <Button variant="outline" onClick={addContact} className="w-full gap-2">
+                                      <Plus className="h-4 w-4" />
+                                      Add Contact ({contacts.length}/{maxContacts})
+                                    </Button>
+                                  )}
+
+                                  {/* Third-party data disclaimer */}
+                                  <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                                    ⚠️ By adding emergency contacts, you confirm you have their permission to share 
+                                    their details with am-i-ready.com. In an emergency, they may receive your 
+                                    location and selected personal information. See our{' '}
+                                    <a href="/privacy" target="_blank" className="text-primary hover:underline">
+                                      Privacy Policy
+                                    </a>.
+                                  </p>
                 </CardContent>
               </Card>
 

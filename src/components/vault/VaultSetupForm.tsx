@@ -7,10 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { KeyRound, AlertTriangle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { KeyRound, AlertTriangle, ShieldCheck, Eye, EyeOff, Heart } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface VaultSetupFormProps {
   onSetup: () => void;
@@ -23,8 +26,9 @@ export function VaultSetupForm({ onSetup }: VaultSetupFormProps) {
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [sensitiveDataConsent, setSensitiveDataConsent] = useState(false);
 
-  const isValid = passphrase.length >= 6 && passphrase === confirmPassphrase;
+  const isValid = passphrase.length >= 6 && passphrase === confirmPassphrase && sensitiveDataConsent;
 
   const handleSetup = async () => {
     if (!isValid) return;
@@ -116,6 +120,35 @@ export function VaultSetupForm({ onSetup }: VaultSetupFormProps) {
             <ShieldCheck className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
             <span>{t.vault.setup.securityNote}</span>
           </div>
+
+          {/* GDPR Art. 9 Sensitive Data Consent */}
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50">
+            <Heart className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+              <p className="mb-3">
+                The Vault stores <strong>sensitive personal data</strong> including health information 
+                (allergies, medications), identity documents, and financial details. This data is encrypted 
+                on your device before storage.
+              </p>
+              <div className="flex items-start gap-3 mt-2 pt-2 border-t border-amber-300 dark:border-amber-800">
+                <Checkbox
+                  id="sensitive-consent"
+                  checked={sensitiveDataConsent}
+                  onCheckedChange={(checked) => setSensitiveDataConsent(!!checked)}
+                  className="mt-0.5 border-amber-400"
+                />
+                <Label 
+                  htmlFor="sensitive-consent" 
+                  className="text-amber-900 dark:text-amber-100 cursor-pointer leading-relaxed"
+                >
+                  I understand and consent to storing my sensitive health and identity data under{' '}
+                  <Link to="/privacy" className="underline hover:text-primary" target="_blank">
+                    GDPR Article 9
+                  </Link>
+                </Label>
+              </div>
+            </AlertDescription>
+          </Alert>
 
           <Button 
             className="w-full" 

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Mail, CheckCircle2, ArrowLeft, RefreshCw, Eye, EyeOff, Lock } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/hooks/useAuth';
@@ -38,6 +39,7 @@ export default function Auth() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('magic-link');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -300,8 +302,34 @@ export default function Auth() {
                             </div>
                           </div>
                         )}
+
+                        {/* Terms consent for signup */}
+                        {authMode === 'signup' && (
+                          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                            <Checkbox
+                              id="terms-consent"
+                              checked={termsAccepted}
+                              onCheckedChange={(checked) => setTermsAccepted(!!checked)}
+                              className="mt-0.5"
+                            />
+                            <Label htmlFor="terms-consent" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
+                              I agree to the{' '}
+                              <Link to="/privacy" className="text-primary hover:underline" target="_blank">
+                                Privacy Policy
+                              </Link>{' '}
+                              and{' '}
+                              <Link to="/terms" className="text-primary hover:underline" target="_blank">
+                                Terms of Service
+                              </Link>
+                            </Label>
+                          </div>
+                        )}
                         
-                        <Button type="submit" className="w-full" disabled={loading}>
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={loading || (authMode === 'signup' && !termsAccepted)}
+                        >
                           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           {authMode === 'login' ? t.auth.login : t.auth.signup}
                         </Button>
@@ -312,7 +340,10 @@ export default function Auth() {
                               {t.auth.noAccount}{' '}
                               <button
                                 type="button"
-                                onClick={() => setAuthMode('signup')}
+                                onClick={() => {
+                                  setAuthMode('signup');
+                                  setTermsAccepted(false);
+                                }}
                                 className="text-primary hover:underline font-medium"
                               >
                                 {t.auth.signup}
