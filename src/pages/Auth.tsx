@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Mail, CheckCircle2, ArrowLeft, RefreshCw, Eye, EyeOff, Lock } from 'lucide-react';
-import logoNew from "@/assets/logo-new.png";
+import { Logo } from '@/components/Logo';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
 import { useToast } from '@/hooks/use-toast';
@@ -147,8 +147,8 @@ export default function Auth() {
         <div className="w-full max-w-4xl grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left side - Branding and benefits */}
           <div className="hidden lg:block">
-            <div className="flex items-center mb-6">
-              <img src={logoNew} alt="am-I-ready" className="h-12 w-auto" />
+            <div className="mb-6">
+              <Logo size="lg" showText />
             </div>
             
             <h1 className="text-3xl font-bold text-foreground mb-4">
@@ -179,7 +179,7 @@ export default function Auth() {
           <Card className="w-full shadow-lg border-border/50">
             <CardHeader className="text-center pb-2">
               <div className="lg:hidden mx-auto mb-4">
-                <img src={logoNew} alt="am-I-ready" className="h-10 w-auto" />
+                <Logo size="md" showText />
               </div>
               <CardTitle className="text-xl">
                 {emailSent ? t.auth.checkYourInbox : t.auth.signInTitle}
