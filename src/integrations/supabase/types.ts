@@ -740,6 +740,7 @@ export type Database = {
       }
       risk_assessments: {
         Row: {
+          ai_insights: Json | null
           breakdown: Json
           city: string | null
           country: string | null
@@ -752,6 +753,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_insights?: Json | null
           breakdown?: Json
           city?: string | null
           country?: string | null
@@ -764,6 +766,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_insights?: Json | null
           breakdown?: Json
           city?: string | null
           country?: string | null
