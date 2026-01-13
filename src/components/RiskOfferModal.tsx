@@ -26,6 +26,7 @@ type RiskOfferModalProps = {
   priceNow?: number; // default 49
   priceWas?: number; // default 120
   ctaText?: { en: string; pt: string }; // optional custom CTA text
+  offerBadge?: { en: string; pt: string }; // optional custom offer badge (replaces "Limited-time launch offer • €49")
 };
 
 function pad2(n: number) {
@@ -42,6 +43,7 @@ export function RiskOfferModal({
   priceNow = 49,
   priceWas = 120,
   ctaText,
+  offerBadge,
 }: RiskOfferModalProps) {
   const { locale } = useLocale();
   const initialSeconds = useMemo(() => minutes * 60, [minutes]);
@@ -130,9 +132,16 @@ export function RiskOfferModal({
 
             <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 font-medium mb-2">
               <Sparkles className="h-3.5 w-3.5" />
-              {locale === 'pt' ? 'Oferta de lançamento' : 'Limited-time launch offer'}
-              <span className="text-muted-foreground">•</span>
-              <span>€{priceNow}</span>
+              {offerBadge 
+                ? (locale === 'pt' ? offerBadge.pt : offerBadge.en)
+                : (
+                  <>
+                    {locale === 'pt' ? 'Oferta de lançamento' : 'Limited-time launch offer'}
+                    <span className="text-muted-foreground">•</span>
+                    <span>€{priceNow}</span>
+                  </>
+                )
+              }
             </div>
 
             <h2 className="text-xl font-semibold">
