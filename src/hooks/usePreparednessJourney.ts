@@ -38,6 +38,15 @@ const STEP_DEFINITIONS = [
     isPremium: false,
   },
   {
+    id: 'risk-insights',
+    phase: 'assess' as const,
+    phaseLabel: 'Assess',
+    label: 'AI Risk Insights',
+    description: 'Get personalized AI-powered analysis',
+    href: '/premium/risk',
+    isPremium: true,
+  },
+  {
     id: 'supplies-plan',
     phase: 'prepare' as const,
     phaseLabel: 'Prepare',
@@ -104,6 +113,7 @@ const STEP_DEFINITIONS = [
 
 interface CompletionStatus {
   riskAssessment: boolean;
+  riskInsights: boolean;
   suppliesPlan: boolean;
   planAB: boolean;
   vault: boolean;
@@ -120,6 +130,7 @@ export function usePreparednessJourney(
   const [loading, setLoading] = useState(true);
   const [completion, setCompletion] = useState<CompletionStatus>({
     riskAssessment: false,
+    riskInsights: false,
     suppliesPlan: false,
     planAB: false,
     vault: false,
@@ -141,6 +152,7 @@ export function usePreparednessJourney(
       // Batch all queries in parallel
       const [
         riskRes,
+        riskWithInsightsRes,
         suppliesRes,
         plansStatus,
         vaultSections,
@@ -153,6 +165,12 @@ export function usePreparednessJourney(
           .from('risk_assessments')
           .select('id')
           .eq('user_id', userId)
+          .limit(1),
+        supabase
+          .from('risk_assessments')
+          .select('id, ai_insights')
+          .eq('user_id', userId)
+          .not('ai_insights', 'is', null)
           .limit(1),
         supabase
           .from('supplies_plans')
@@ -192,6 +210,7 @@ export function usePreparednessJourney(
 
       setCompletion({
         riskAssessment: (riskRes.data?.length ?? 0) > 0,
+        riskInsights: (riskWithInsightsRes.data?.length ?? 0) > 0,
         suppliesPlan: (suppliesRes.data?.length ?? 0) > 0,
         planAB: plansStatus.hasPlanA && plansStatus.hasPlanB,
         vault: vaultWithData.length > 0,
@@ -222,6 +241,13 @@ export function usePreparednessJourney(
     switch (def.id) {
       case 'risk-assessment':
         isComplete = completion.riskAssessment;
+        break;
+      case 'risk-insights':
+        isComplete = completion.riskInsights;
+        // Soft warning if basic risk assessment not done
+        if (!completion.riskAssessment && !isComplete) {
+          warning = 'Recommended: complete Risk Assessment first';
+        }
         break;
       case 'supplies-plan':
         isComplete = completion.suppliesPlan;

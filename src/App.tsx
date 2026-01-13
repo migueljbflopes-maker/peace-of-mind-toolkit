@@ -25,6 +25,7 @@ import PlansWizard from "./pages/premium/PlansWizard";
 import RedFolder from "./pages/premium/RedFolder";
 import Backup from "./pages/premium/Backup";
 import Onboarding from "./pages/premium/Onboarding";
+import RiskAssessment from "./pages/premium/RiskAssessment";
 import Toolkit from "./pages/Toolkit";
 import Panic from "./pages/Panic";
 import PanicSetup from "./pages/panic/Setup";
@@ -73,6 +74,7 @@ const App = () => (
                 <Route path="/premium/red-folder" element={<RedFolder />} />
                 <Route path="/premium/backup" element={<Backup />} />
                 <Route path="/premium/onboarding" element={<Onboarding />} />
+                <Route path="/premium/risk" element={<RiskAssessment />} />
                 {/* New product pillars */}
                 <Route path="/toolkit" element={<Toolkit />} />
                 <Route path="/panic" element={<Panic />} />
