@@ -1029,6 +1029,9 @@ export default function RiskFunnel() {
           priceWas={120}
           priceNow={49}
         />
+
+        {/* DEBUG: Remove this component after fixing Apple Pay */}
+        <ConsoleLogOverlay enabled={true} title="Stripe Debug" autoOpen={true} />
       </>
     );
   }
