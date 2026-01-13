@@ -23,7 +23,7 @@ const ProductPillars = () => {
                 <div className="p-2.5 rounded-xl bg-primary/10">
                   <Shield className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Safe Toolkit</CardTitle>
+                <CardTitle className="text-xl">Assess & Prepare</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground">
                 Your secure, encrypted hub for critical information.
