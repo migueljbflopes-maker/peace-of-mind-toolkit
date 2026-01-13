@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { Link } from "react-router-dom";
-import { Shield } from "lucide-react";
+import logoIcon from "@/assets/logo-icon.png";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   const currentYear = new Date().getFullYear();
@@ -12,17 +12,15 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-semibold text-foreground">Resilient.app</span>
+              <img src={logoIcon} alt="am-I-ready" className="h-8 w-8" />
+              <span className="font-semibold text-foreground">am-I-ready.com</span>
             </Link>
             <p className="text-sm text-muted-foreground max-w-sm mb-4">
               Your offline-first preparedness toolkit. Be prepared, even when the internet is down.
             </p>
             <p className="text-xs text-muted-foreground/70">
               ⚠️ Disclaimer: Always follow guidance from your local civil protection authorities. 
-              Resilient.app provides general information and should not replace official emergency instructions.
+              am-I-ready.com provides general information and should not replace official emergency instructions.
             </p>
           </div>
 
@@ -78,7 +76,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
         <div className="mt-10 pt-6 border-t border-border">
           <p className="text-sm text-muted-foreground text-center">
-            © {currentYear} Resilient.app. All rights reserved.
+            © {currentYear} am-I-ready.com. All rights reserved.
           </p>
         </div>
       </div>

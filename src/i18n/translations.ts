@@ -361,7 +361,7 @@ export const translations = {
       // Magic Link
       magicLinkTitle: 'Save your progress',
       magicLinkSubtitle: 'Sign in with a magic link sent to your email. No password needed.',
-      signInTitle: 'Sign in to Resilient.app',
+      signInTitle: 'Sign in to am-I-ready.com',
       signInDesc: 'We\'ll email you a secure sign-in link.',
       sendMagicLink: 'Send magic link',
       magicLinkNote: 'We\'ll email you a sign-in link. No password needed.',
@@ -811,7 +811,7 @@ export const translations = {
       // Magic Link
       magicLinkTitle: 'Guarda o teu progresso',
       magicLinkSubtitle: 'Entra com um link mágico enviado para o teu email. Sem palavra-passe.',
-      signInTitle: 'Entrar em Resilient.app',
+      signInTitle: 'Entrar em am-I-ready.com',
       signInDesc: 'Enviamos-te um link seguro de início de sessão.',
       sendMagicLink: 'Enviar link mágico',
       magicLinkNote: 'Enviamos-te um link de início de sessão. Sem palavra-passe.',
