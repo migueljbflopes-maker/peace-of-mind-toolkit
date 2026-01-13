@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RiskOfferModal } from "@/components/RiskOfferModal";
+import ConsoleLogOverlay from "@/components/ConsoleLogOverlay";
 import { loadStripe } from "@stripe/stripe-js";
 
 // Only initialize Stripe if the publishable key is available
@@ -1388,6 +1389,11 @@ export default function RiskFunnel() {
           <SocialProof />
         </div>
       </div>
+
+      <ConsoleLogOverlay
+        enabled={import.meta.env.DEV && new URLSearchParams(window.location.search).has("uilogs")}
+        title="RiskFunnel Logs"
+      />
     </div>
   );
 }
