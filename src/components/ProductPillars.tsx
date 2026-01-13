@@ -75,7 +75,7 @@ const ProductPillars = () => {
                 <CardTitle className="text-xl">Secure & Activate</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground">
-                One-action emergency response and continuity.
+                Keep everything safe, private, and accessible — and know you can act immediately if needed:
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -83,30 +83,28 @@ const ProductPillars = () => {
                 <div className="flex items-start gap-3">
                   <Users className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Emergency Contacts</p>
-                    <p className="text-xs text-muted-foreground">Predefined trusted people to notify</p>
+                    <p className="text-sm font-medium text-foreground">Red Folder and Encrypted Vault</p>
+                    <p className="text-xs text-muted-foreground">Encrypted vault for documents, contacts, and instructions</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Send className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Instant Sharing</p>
-                    <p className="text-xs text-muted-foreground">Location + critical info in one action</p>
+                    <p className="text-sm font-medium text-foreground">​Panic Button  </p>
+                    <p className="text-xs text-muted-foreground">Panic Button to alert key people instantly and share critical information</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Clock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Safe Triggers</p>
-                    <p className="text-xs text-muted-foreground">Hold-to-activate + cancel window</p>
+                    <p className="text-sm font-medium text-foreground">Safe Triggers and Guidance</p>
+                    <p className="text-xs text-muted-foreground">Share your plan automatically or consult experts for guidance​</p>
                   </div>
                 </div>
               </div>
               
               <div className="pt-2">
-                <div className="flex items-center justify-center mb-3">
-                  <span className="text-sm font-medium text-primary">Included in Premium</span>
-                </div>
+                
                 <Link to="/panic/setup">
                   <Button variant="outline" className="w-full gap-2 border-destructive/30 hover:bg-destructive/5">
                     Set Up Panic Button
