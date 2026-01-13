@@ -70,9 +70,20 @@ Provide a comprehensive analysis including:
    - Utilities: power grid stability, water supply reliability, communication networks
 
 2. REGIONAL RISK FACTORS specific to ${city}, ${country}:
-   - Natural hazards: floods, earthquakes, storms, heatwaves, wildfires (rate each as low/medium/high)
-   - Infrastructure vulnerabilities: power outages, communication disruptions
-   - Consider climate patterns, geography, and urban density
+   A) Natural Hazards:
+      - Floods, earthquakes, storms, heatwaves, wildfires (rate each as low/medium/high)
+      - Climate patterns and seasonal risks
+   B) Infrastructure Vulnerabilities:
+      - Power grid reliability and outage frequency
+      - Communication network resilience
+      - Water supply dependencies
+   C) Geopolitical & Security Risks:
+      - Nuclear: Proximity to nuclear facilities, regional nuclear tensions, fallout zone risk
+      - Cyber: Critical infrastructure cyber vulnerability, digital dependency risks
+      - Military/Conflict: Regional tensions, border proximity, military installations nearby
+      - Terrorism: Urban terrorism risk assessment, proximity to symbolic targets
+      - Civil Unrest: Political stability, protest patterns, social tensions
+   Consider geography, urban density, and current geopolitical context.
 
 3. DIMENSION-BY-DIMENSION ANALYSIS based on their scores:
    - Location (${breakdown.location_context}%): analyze their home type, floor level, neighborhood
