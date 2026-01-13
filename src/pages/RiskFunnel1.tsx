@@ -43,9 +43,10 @@ import { loadStripe } from "@stripe/stripe-js";
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
-console.log("[RiskFunnel] Stripe publishable key available:", !!stripePublishableKey);
+console.log("[RiskFunnel1] Stripe publishable key available:", !!stripePublishableKey);
 
-const STORAGE_KEY = "resilient_risk_funnel";
+const STORAGE_KEY = "resilient_risk_funnel_1";
+const SUBSCRIPTION_PRICE_ID = "price_1Sp2vlGudTqpziaHp7oKKuyY";
 
 // Avatar photos for social proof
 const AVATAR_PHOTOS = [
@@ -535,8 +536,8 @@ function ProductPopup({
           </DialogTitle>
           <DialogDescription className="mt-1">
             {locale === "pt"
-              ? "Desbloqueia acesso instantâneo a tudo o que precisas"
-              : "Unlock instant access to everything you need"}
+              ? "1 dia grátis, depois €49/mês • cancela quando quiseres"
+              : "1 day free, then €49/month • cancel anytime"}
           </DialogDescription>
         </div>
 
@@ -550,7 +551,7 @@ function ProductPopup({
           ))}
         </ul>
 
-        {/* CTA with price inline */}
+        {/* CTA with subscription pricing */}
         <Button onClick={onCheckout} disabled={loading} className="w-full" size="lg">
           {loading ? (
             <>
@@ -558,9 +559,9 @@ function ProductPopup({
               {locale === "pt" ? "A processar..." : "Processing..."}
             </>
           ) : locale === "pt" ? (
-            "Obter o Meu Plano — €49"
+            "Começar Trial Grátis — €49/mês"
           ) : (
-            "Get My Plan — €49"
+            "Start Free Trial — €49/month"
           )}
         </Button>
 
@@ -571,7 +572,7 @@ function ProductPopup({
             {locale === "pt" ? "Checkout seguro" : "Secure checkout"}
           </span>
           <span>•</span>
-          <span>{locale === "pt" ? "Sem subscrição" : "No subscription"}</span>
+          <span>{locale === "pt" ? "Cancela automaticamente" : "Auto-cancels"}</span>
         </div>
       </DialogContent>
     </Dialog>
@@ -635,57 +636,59 @@ export default function RiskFunnel1() {
     let cancelled = false;
 
     (async () => {
-      console.log("[RiskFunnel] === EXPRESS PAY DETECTION START ===");
-      console.log("[RiskFunnel] Current domain:", window.location.hostname);
-      console.log("[RiskFunnel] Protocol:", window.location.protocol);
-      console.log("[RiskFunnel] User Agent:", navigator.userAgent);
+      console.log("[RiskFunnel1] === EXPRESS PAY DETECTION START ===");
+      console.log("[RiskFunnel1] Current domain:", window.location.hostname);
+      console.log("[RiskFunnel1] Protocol:", window.location.protocol);
+      console.log("[RiskFunnel1] User Agent:", navigator.userAgent);
 
       if (!stripePromise) {
-        console.log("[RiskFunnel] ❌ Stripe not initialized (missing VITE_STRIPE_PUBLISHABLE_KEY)");
+        console.log("[RiskFunnel1] ❌ Stripe not initialized (missing VITE_STRIPE_PUBLISHABLE_KEY)");
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
 
       const stripe = await stripePromise;
       if (!stripe) {
-        console.log("[RiskFunnel] ❌ Stripe.js failed to load");
+        console.log("[RiskFunnel1] ❌ Stripe.js failed to load");
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
 
-      console.log("[RiskFunnel] ✓ Stripe.js loaded successfully");
+      console.log("[RiskFunnel1] ✓ Stripe.js loaded successfully");
 
       // Use the same currency/amount we charge (49 EUR => 4900)
+      // For subscription, this is shown as the initial payment amount
       const pr = stripe.paymentRequest({
         country: "PT",
         currency: "eur",
-        total: { label: "Resilient Plan", amount: 4900 },
+        total: { label: "Resilient Plan Subscription", amount: 4900 },
         requestPayerName: true,
         requestPayerEmail: true,
       });
 
       // Attach handlers once. IMPORTANT: do not do async work before `pr.show()` in the click handler.
       pr.on("cancel", () => {
-        console.log("[RiskFunnel] Express Pay: user cancelled sheet");
+        console.log("[RiskFunnel1] Express Pay: user cancelled sheet");
         setCheckoutLoading(false);
       });
 
       pr.on("paymentmethod", async (ev: any) => {
-        console.log("[RiskFunnel] Express Pay: paymentmethod event received");
+        console.log("[RiskFunnel1] Express Pay: paymentmethod event received");
 
         try {
-          // Create PI *after* the sheet is shown (keeps user-gesture requirement intact)
-          console.log("[RiskFunnel] Express Pay: creating PaymentIntent...");
-          const { data: piRes, error: piErr } = await supabase.functions.invoke("create-payment-intent", {
+          // Create SetupIntent for subscription (not PaymentIntent)
+          console.log("[RiskFunnel1] Express Pay: creating SetupIntent for subscription...");
+          const { data: siRes, error: siErr } = await supabase.functions.invoke("create-subscription-setup", {
             body: { guestSessionId: getOrCreateGuestSessionId() },
           });
-          if (piErr) throw piErr;
+          if (siErr) throw siErr;
 
-          const clientSecret: string | undefined = piRes?.clientSecret;
-          console.log("[RiskFunnel] Express Pay: clientSecret received:", !!clientSecret);
-          if (!clientSecret) throw new Error("Missing PaymentIntent clientSecret");
+          const clientSecret: string | undefined = siRes?.clientSecret;
+          console.log("[RiskFunnel1] Express Pay: SetupIntent clientSecret received:", !!clientSecret);
+          if (!clientSecret) throw new Error("Missing SetupIntent clientSecret");
 
-          const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+          // Confirm SetupIntent with the payment method
+          const { error: confirmError, setupIntent } = await stripe.confirmCardSetup(
             clientSecret,
             { payment_method: ev.paymentMethod.id },
             { handleActions: false },
@@ -694,30 +697,48 @@ export default function RiskFunnel1() {
           const currentLocale = localeRef.current;
 
           if (confirmError) {
-            console.error("[RiskFunnel] Express Pay: confirm error:", confirmError);
+            console.error("[RiskFunnel1] Express Pay: confirm error:", confirmError);
             ev.complete("fail");
-            toast.error(currentLocale === "pt" ? "Falha no pagamento" : "Payment failed");
+            toast.error(currentLocale === "pt" ? "Falha na configuração" : "Setup failed");
             setCheckoutLoading(false);
             return;
           }
 
-          if (paymentIntent?.status === "requires_action") {
-            console.log("[RiskFunnel] Express Pay: requires_action, confirming...");
-            const { error: actionError } = await stripe.confirmCardPayment(clientSecret);
+          if (setupIntent?.status === "requires_action") {
+            console.log("[RiskFunnel1] Express Pay: requires_action, confirming...");
+            const { error: actionError } = await stripe.confirmCardSetup(clientSecret);
             if (actionError) {
-              console.error("[RiskFunnel] Express Pay: action error:", actionError);
+              console.error("[RiskFunnel1] Express Pay: action error:", actionError);
               ev.complete("fail");
-              toast.error(currentLocale === "pt" ? "Falha no pagamento" : "Payment failed");
+              toast.error(currentLocale === "pt" ? "Falha na configuração" : "Setup failed");
               setCheckoutLoading(false);
               return;
             }
           }
 
+          // SetupIntent succeeded - now complete the subscription
+          console.log("[RiskFunnel1] Express Pay: SetupIntent succeeded, completing subscription...");
+          const { data: subRes, error: subErr } = await supabase.functions.invoke("complete-subscription-setup", {
+            body: { 
+              setupIntentId: siRes?.setupIntentId,
+              payerEmail: ev.payerEmail,
+              payerName: ev.payerName,
+            },
+          });
+
+          if (subErr) {
+            console.error("[RiskFunnel1] Express Pay: subscription creation failed:", subErr);
+            ev.complete("fail");
+            toast.error(currentLocale === "pt" ? "Falha ao criar subscrição" : "Subscription creation failed");
+            setCheckoutLoading(false);
+            return;
+          }
+
           ev.complete("success");
-          console.log("[RiskFunnel] Express Pay: success, navigating to claim");
-          navigateRef.current(`/claim?claim_code=${piRes?.claimCode}`);
+          console.log("[RiskFunnel1] Express Pay: subscription created, navigating to claim");
+          navigateRef.current(`/claim?claim_code=${siRes?.claimCode}`);
         } catch (err) {
-          console.error("[RiskFunnel] Express Pay: paymentmethod handler failed:", err);
+          console.error("[RiskFunnel1] Express Pay: paymentmethod handler failed:", err);
           try {
             ev.complete("fail");
           } catch {
@@ -731,30 +752,30 @@ export default function RiskFunnel1() {
 
       paymentRequestRef.current = pr;
 
-      console.log("[RiskFunnel] PaymentRequest created, calling canMakePayment()...");
+      console.log("[RiskFunnel1] PaymentRequest created, calling canMakePayment()...");
       const canPay = await pr.canMakePayment();
-      console.log("[RiskFunnel] canMakePayment() returned:", JSON.stringify(canPay));
+      console.log("[RiskFunnel1] canMakePayment() returned:", JSON.stringify(canPay));
 
       if (canPay === null) {
-        console.log("[RiskFunnel] ⚠️ canMakePayment returned null - possible reasons:");
-        console.log("[RiskFunnel]   1. Domain not registered in Stripe Apple Pay settings");
-        console.log("[RiskFunnel]   2. No cards configured in Apple Wallet / Google Pay");
-        console.log("[RiskFunnel]   3. Not using HTTPS (required for Apple Pay)");
-        console.log("[RiskFunnel]   4. Browser does not support Payment Request API");
-        console.log("[RiskFunnel]   5. Apple Pay domain verification file not served correctly");
-        console.log("[RiskFunnel]   Registered domain should be:", window.location.hostname);
+        console.log("[RiskFunnel1] ⚠️ canMakePayment returned null - possible reasons:");
+        console.log("[RiskFunnel1]   1. Domain not registered in Stripe Apple Pay settings");
+        console.log("[RiskFunnel1]   2. No cards configured in Apple Wallet / Google Pay");
+        console.log("[RiskFunnel1]   3. Not using HTTPS (required for Apple Pay)");
+        console.log("[RiskFunnel1]   4. Browser does not support Payment Request API");
+        console.log("[RiskFunnel1]   5. Apple Pay domain verification file not served correctly");
+        console.log("[RiskFunnel1]   Registered domain should be:", window.location.hostname);
       }
 
       const method = canPay?.applePay ? "apple_pay" : canPay?.googlePay ? "google_pay" : null;
 
-      console.log("[RiskFunnel] === EXPRESS PAY DETECTION RESULT ===");
-      console.log("[RiskFunnel] Apple Pay available:", canPay?.applePay ?? false);
-      console.log("[RiskFunnel] Google Pay available:", canPay?.googlePay ?? false);
-      console.log("[RiskFunnel] Selected method:", method ?? "NONE (will use standard checkout)");
+      console.log("[RiskFunnel1] === EXPRESS PAY DETECTION RESULT ===");
+      console.log("[RiskFunnel1] Apple Pay available:", canPay?.applePay ?? false);
+      console.log("[RiskFunnel1] Google Pay available:", canPay?.googlePay ?? false);
+      console.log("[RiskFunnel1] Selected method:", method ?? "NONE (will use standard checkout)");
 
       if (!cancelled) setExpressPay({ ready: true, method });
     })().catch((err) => {
-      console.error("[RiskFunnel] ❌ Express Pay detection error:", err);
+      console.error("[RiskFunnel1] ❌ Express Pay detection error:", err);
       if (!cancelled) setExpressPay({ ready: true, method: null });
     });
 
@@ -829,7 +850,7 @@ export default function RiskFunnel1() {
   const handleCheckout = async () => {
     setCheckoutLoading(true);
 
-    console.log("[RiskFunnel] Starting checkout...", {
+    console.log("[RiskFunnel1] Starting subscription checkout...", {
       stripeAvailable: !!stripePromise,
       expressPayReady: expressPay.ready,
       expressPayMethod: expressPay.method,
@@ -842,28 +863,36 @@ export default function RiskFunnel1() {
       // IMPORTANT: Apple Pay sheet must be shown immediately from a user gesture.
       // So if Express Pay is available, call `show()` first (no awaits before it).
       if (stripe && expressPay.ready && expressPay.method && paymentRequestRef.current) {
-        console.log("[RiskFunnel] Attempting Express Pay with:", expressPay.method);
+        console.log("[RiskFunnel1] Attempting Express Pay with:", expressPay.method);
         try {
           paymentRequestRef.current.show();
           return; // success/fail handled by paymentmethod/cancel listeners
         } catch (err) {
-          console.warn("[RiskFunnel] Express Pay show() failed; falling back to Checkout:", err);
+          console.warn("[RiskFunnel1] Express Pay show() failed; falling back to Checkout:", err);
           // fall through to Checkout Session below
         }
       }
 
-      // Fallback: existing Checkout Session behavior (unchanged)
-      console.log("[RiskFunnel] Using standard Checkout Session (Express Pay not available or failed)");
-      const { data: res, error } = await supabase.functions.invoke("create-guest-checkout", {
-        body: { source: "riskfunnel" },
+      // Fallback: Use Stripe Checkout in subscription mode
+      // For subscriptions, we need to use Stripe Checkout which properly handles trial + auto-cancel
+      console.log("[RiskFunnel1] Using standard Checkout Session for subscription");
+      const guestSessionId = getOrCreateGuestSessionId();
+      
+      // Create a checkout session for subscription
+      const { data: res, error } = await supabase.functions.invoke("create-subscription-checkout", {
+        body: { 
+          source: "riskfunnel1",
+          guestSessionId,
+          priceId: SUBSCRIPTION_PRICE_ID,
+        },
       });
       if (error) throw error;
       if (!res?.url) throw new Error("No checkout URL received");
 
-      console.log("[RiskFunnel] Redirecting to Stripe Checkout:", res.url);
+      console.log("[RiskFunnel1] Redirecting to Stripe Subscription Checkout:", res.url);
       window.location.href = res.url;
     } catch (e) {
-      console.error("[RiskFunnel] Checkout error:", e);
+      console.error("[RiskFunnel1] Checkout error:", e);
       toast.error(locale === "pt" ? "Erro ao abrir checkout" : "Error opening checkout");
       setCheckoutLoading(false);
     }
