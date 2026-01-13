@@ -238,6 +238,183 @@ serve(async (req) => {
         break;
       }
 
+      // Handle subscription events for riskfunnel1 subscription flow
+      case "customer.subscription.created": {
+        const subscription = event.data.object as Stripe.Subscription;
+        logStep("Processing customer.subscription.created", { 
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          customerId: subscription.customer,
+        });
+
+        const claimCode = subscription.metadata?.claim_code;
+        const guestSessionId = subscription.metadata?.guest_session_id;
+
+        if (claimCode) {
+          // Update guest_purchases with subscription info
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ 
+              status: "subscription_active",
+            })
+            .eq("claim_code", claimCode);
+
+          if (updateError) {
+            logStep("ERROR updating guest purchase for subscription", { error: updateError.message });
+          } else {
+            logStep("Guest purchase marked as subscription_active", { claimCode });
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        logStep("Processing invoice.payment_succeeded", { 
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription,
+          customerId: invoice.customer,
+          amountPaid: invoice.amount_paid,
+        });
+
+        // Only process subscription invoices
+        if (!invoice.subscription) {
+          logStep("Not a subscription invoice, skipping");
+          break;
+        }
+
+        // Retrieve subscription to get metadata
+        const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+        const claimCode = subscription.metadata?.claim_code;
+        const purchaseType = subscription.metadata?.purchase_type;
+
+        logStep("Subscription details", { 
+          subscriptionId: subscription.id,
+          claimCode,
+          purchaseType,
+          status: subscription.status,
+        });
+
+        if (claimCode && purchaseType === "subscription_guest") {
+          // Update guest_purchases - subscription payment successful
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ 
+              status: "subscription_paid",
+              paid_at: new Date().toISOString(),
+            })
+            .eq("claim_code", claimCode);
+
+          if (updateError) {
+            logStep("ERROR updating guest purchase for invoice", { error: updateError.message });
+          } else {
+            logStep("Guest purchase updated for successful invoice payment", { claimCode });
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        logStep("Processing invoice.payment_failed", { 
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription,
+        });
+
+        if (invoice.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+          const claimCode = subscription.metadata?.claim_code;
+
+          if (claimCode) {
+            const { error: updateError } = await supabase
+              .from("guest_purchases")
+              .update({ status: "payment_failed" })
+              .eq("claim_code", claimCode);
+
+            if (updateError) {
+              logStep("ERROR updating guest purchase for failed payment", { error: updateError.message });
+            }
+          }
+        }
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        logStep("Processing customer.subscription.updated", { 
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        });
+
+        const claimCode = subscription.metadata?.claim_code;
+        if (claimCode) {
+          let status = "subscription_active";
+          if (subscription.status === "canceled") {
+            status = "subscription_canceled";
+          } else if (subscription.status === "past_due") {
+            status = "subscription_past_due";
+          } else if (subscription.cancel_at_period_end) {
+            status = "subscription_ending";
+          }
+
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ status })
+            .eq("claim_code", claimCode);
+
+          if (updateError) {
+            logStep("ERROR updating guest purchase for subscription update", { error: updateError.message });
+          }
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        logStep("Processing customer.subscription.deleted", { 
+          subscriptionId: subscription.id,
+        });
+
+        const claimCode = subscription.metadata?.claim_code;
+        if (claimCode) {
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ status: "subscription_canceled" })
+            .eq("claim_code", claimCode);
+
+          if (updateError) {
+            logStep("ERROR updating guest purchase for subscription deletion", { error: updateError.message });
+          } else {
+            logStep("Guest purchase marked as subscription_canceled", { claimCode });
+          }
+        }
+        break;
+      }
+
+      case "setup_intent.succeeded": {
+        const setupIntent = event.data.object as Stripe.SetupIntent;
+        logStep("Processing setup_intent.succeeded", { 
+          siId: setupIntent.id,
+          paymentMethod: setupIntent.payment_method,
+        });
+
+        const claimCode = setupIntent.metadata?.claim_code;
+        if (claimCode) {
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ status: "setup_succeeded" })
+            .eq("payment_intent_id", setupIntent.id);
+
+          if (updateError) {
+            logStep("ERROR updating guest purchase for setup intent", { error: updateError.message });
+          } else {
+            logStep("Guest purchase marked as setup_succeeded", { claimCode });
+          }
+        }
+        break;
+      }
+
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
         logStep("Processing charge.refunded", { chargeId: charge.id });
