@@ -861,7 +861,7 @@ export default function RiskFunnel() {
       if (!res?.url) throw new Error("No checkout URL received");
 
       console.log("[RiskFunnel] Redirecting to Stripe Checkout:", res.url);
-      // window.location.href = res.url;
+      window.location.href = res.url;
     } catch (e) {
       console.error("[RiskFunnel] Checkout error:", e);
       toast.error(locale === "pt" ? "Erro ao abrir checkout" : "Error opening checkout");
