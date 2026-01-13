@@ -25,13 +25,6 @@
     --cta-foreground: 222 47% 11%;
     --cta-hover: 32 95% 44%;
 
-    /* Teal/Emerald accent for secondary actions */
-    --teal: 166 76% 38%;
-    --teal-light: 167 70% 48%;
-    --teal-muted: 166 40% 90%;
-    --emerald: 152 69% 42%;
-    --emerald-light: 152 60% 52%;
-
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 20%;
 
@@ -98,13 +91,6 @@
     --cta: 38 92% 50%;
     --cta-foreground: 222 47% 11%;
     --cta-hover: 32 95% 44%;
-
-    /* Teal/Emerald for dark mode */
-    --teal: 166 76% 48%;
-    --teal-light: 167 70% 58%;
-    --teal-muted: 166 30% 25%;
-    --emerald: 152 69% 52%;
-    --emerald-light: 152 60% 62%;
 
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
