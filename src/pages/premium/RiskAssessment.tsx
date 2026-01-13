@@ -201,9 +201,13 @@ export default function RiskAssessment() {
 
         {existingResult ? (
           <PremiumRiskResults 
-            result={existingResult} 
-            userId={user.id}
-            onRetake={handleRetake}
+            score={existingResult.readinessScore}
+            riskLevel={existingResult.riskLevel}
+            city={existingResult.inputs.city || ''}
+            country={existingResult.inputs.country_code || ''}
+            breakdown={existingResult.breakdown}
+            inputs={existingResult.inputs as unknown as Record<string, unknown>}
+            onSaved={() => setShowWizard(false)}
           />
         ) : (
           <Card className="text-center py-12">
