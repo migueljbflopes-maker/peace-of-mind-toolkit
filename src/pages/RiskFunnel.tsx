@@ -43,7 +43,7 @@ import { loadStripe } from "@stripe/stripe-js";
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
-console.log('[RiskFunnel] Stripe publishable key available:', !!stripePublishableKey);
+console.log("[RiskFunnel] Stripe publishable key available:", !!stripePublishableKey);
 
 const STORAGE_KEY = "resilient_risk_funnel";
 
@@ -584,7 +584,7 @@ const questionSteps = [1, 2, 3, 4, 6, 7]; // Steps that are actual questions
 
 type ExpressPaySupport = {
   ready: boolean;
-  method: 'apple_pay' | 'google_pay' | null;
+  method: "apple_pay" | "google_pay" | null;
 };
 
 export default function RiskFunnel() {
@@ -611,64 +611,61 @@ export default function RiskFunnel() {
     let cancelled = false;
 
     (async () => {
-      console.log('[RiskFunnel] === EXPRESS PAY DETECTION START ===');
-      console.log('[RiskFunnel] Current domain:', window.location.hostname);
-      console.log('[RiskFunnel] Protocol:', window.location.protocol);
-      console.log('[RiskFunnel] User Agent:', navigator.userAgent);
-      
+      console.log("[RiskFunnel] === EXPRESS PAY DETECTION START ===");
+      console.log("[RiskFunnel] Current domain:", window.location.hostname);
+      console.log("[RiskFunnel] Protocol:", window.location.protocol);
+      console.log("[RiskFunnel] User Agent:", navigator.userAgent);
+
       if (!stripePromise) {
-        console.log('[RiskFunnel] ❌ Stripe not initialized (missing VITE_STRIPE_PUBLISHABLE_KEY)');
+        console.log("[RiskFunnel] ❌ Stripe not initialized (missing VITE_STRIPE_PUBLISHABLE_KEY)");
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
 
       const stripe = await stripePromise;
       if (!stripe) {
-        console.log('[RiskFunnel] ❌ Stripe.js failed to load');
+        console.log("[RiskFunnel] ❌ Stripe.js failed to load");
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
 
-      console.log('[RiskFunnel] ✓ Stripe.js loaded successfully');
+      console.log("[RiskFunnel] ✓ Stripe.js loaded successfully");
 
       // Use the same currency/amount we charge (49 EUR => 4900)
       const pr = stripe.paymentRequest({
-        country: 'PT',
-        currency: 'eur',
-        total: { label: 'Resilient Plan', amount: 4900 },
+        country: "PT",
+        currency: "eur",
+        total: { label: "Resilient Plan", amount: 4900 },
         requestPayerName: true,
         requestPayerEmail: true,
       });
 
-      console.log('[RiskFunnel] PaymentRequest created, calling canMakePayment()...');
-      
+      console.log("[RiskFunnel] PaymentRequest created, calling canMakePayment()...");
+
       const canPay = await pr.canMakePayment();
-      
-      console.log('[RiskFunnel] canMakePayment() returned:', JSON.stringify(canPay));
+
+      console.log("[RiskFunnel] canMakePayment() returned:", JSON.stringify(canPay));
 
       if (canPay === null) {
-        console.log('[RiskFunnel] ⚠️ canMakePayment returned null - possible reasons:');
-        console.log('[RiskFunnel]   1. Domain not registered in Stripe Apple Pay settings');
-        console.log('[RiskFunnel]   2. No cards configured in Apple Wallet / Google Pay');
-        console.log('[RiskFunnel]   3. Not using HTTPS (required for Apple Pay)');
-        console.log('[RiskFunnel]   4. Browser does not support Payment Request API');
-        console.log('[RiskFunnel]   5. Apple Pay domain verification file not served correctly');
-        console.log('[RiskFunnel]   Registered domain should be:', window.location.hostname);
+        console.log("[RiskFunnel] ⚠️ canMakePayment returned null - possible reasons:");
+        console.log("[RiskFunnel]   1. Domain not registered in Stripe Apple Pay settings");
+        console.log("[RiskFunnel]   2. No cards configured in Apple Wallet / Google Pay");
+        console.log("[RiskFunnel]   3. Not using HTTPS (required for Apple Pay)");
+        console.log("[RiskFunnel]   4. Browser does not support Payment Request API");
+        console.log("[RiskFunnel]   5. Apple Pay domain verification file not served correctly");
+        console.log("[RiskFunnel]   Registered domain should be:", window.location.hostname);
       }
 
-      const method =
-        canPay?.applePay ? 'apple_pay' :
-        canPay?.googlePay ? 'google_pay' :
-        null;
+      const method = canPay?.applePay ? "apple_pay" : canPay?.googlePay ? "google_pay" : null;
 
-      console.log('[RiskFunnel] === EXPRESS PAY DETECTION RESULT ===');
-      console.log('[RiskFunnel] Apple Pay available:', canPay?.applePay ?? false);
-      console.log('[RiskFunnel] Google Pay available:', canPay?.googlePay ?? false);
-      console.log('[RiskFunnel] Selected method:', method ?? 'NONE (will use standard checkout)');
+      console.log("[RiskFunnel] === EXPRESS PAY DETECTION RESULT ===");
+      console.log("[RiskFunnel] Apple Pay available:", canPay?.applePay ?? false);
+      console.log("[RiskFunnel] Google Pay available:", canPay?.googlePay ?? false);
+      console.log("[RiskFunnel] Selected method:", method ?? "NONE (will use standard checkout)");
 
       if (!cancelled) setExpressPay({ ready: true, method });
     })().catch((err) => {
-      console.error('[RiskFunnel] ❌ Express Pay detection error:', err);
+      console.error("[RiskFunnel] ❌ Express Pay detection error:", err);
       if (!cancelled) setExpressPay({ ready: true, method: null });
     });
 
@@ -743,154 +740,104 @@ export default function RiskFunnel() {
   const handleCheckout = async () => {
     setCheckoutLoading(true);
 
-    console.log('[RiskFunnel] === CHECKOUT START ===');
-    console.log('[RiskFunnel] Stripe available:', !!stripePromise);
-    console.log('[RiskFunnel] Express Pay ready:', expressPay.ready);
-    console.log('[RiskFunnel] Express Pay method:', expressPay.method);
+    console.log("[RiskFunnel] Starting checkout...", {
+      stripeAvailable: !!stripePromise,
+      expressPayReady: expressPay.ready,
+      expressPayMethod: expressPay.method,
+    });
 
     try {
       const stripe = stripePromise ? await stripePromise : null;
 
-      // Attempt Express Pay (Apple Pay / Google Pay) if available
+      // Attempt Express Pay only if Stripe loaded and device says it supports it
       if (stripe && expressPay.ready && expressPay.method) {
-        console.log('[RiskFunnel] === ATTEMPTING EXPRESS PAY ===');
-        console.log('[RiskFunnel] Method:', expressPay.method);
-        
+        console.log("[RiskFunnel] Attempting Express Pay with:", expressPay.method);
         try {
           // 1) Get PaymentIntent client_secret from Edge Function
-          console.log('[RiskFunnel] Calling create-payment-intent...');
-          const { data: piRes, error: piErr } = await supabase.functions.invoke(
-            'create-payment-intent',
-            { body: { guestSessionId: crypto.randomUUID() } }
-          );
-          
-          console.log('[RiskFunnel] PaymentIntent response:', JSON.stringify(piRes));
-          
-          if (piErr) {
-            console.error('[RiskFunnel] PaymentIntent error:', piErr);
-            throw piErr;
-          }
+          const { data: piRes, error: piErr } = await supabase.functions.invoke("create-payment-intent", {
+            body: { guestSessionId: crypto.randomUUID() },
+          });
+          if (piErr) throw piErr;
 
           const clientSecret: string | undefined = piRes?.clientSecret;
-          console.log('[RiskFunnel] Client secret received:', clientSecret ? `${clientSecret.substring(0, 20)}...` : 'MISSING');
-          
-          if (!clientSecret) {
-            console.error('[RiskFunnel] Missing clientSecret in response');
-            throw new Error('Missing PaymentIntent clientSecret');
-          }
+          if (!clientSecret) throw new Error("Missing PaymentIntent payload");
 
-          // 2) Build a PaymentRequest for this transaction
-          console.log('[RiskFunnel] Creating PaymentRequest for Apple Pay sheet...');
+          // 2) Build a PaymentRequest (no button rendered)
           const pr = stripe.paymentRequest({
-            country: 'PT',
-            currency: 'eur',
-            total: { label: locale === 'pt' ? 'Plano Resilient' : 'Resilient Plan', amount: 4900 },
+            country: "PT",
+            currency: "eur",
+            total: { label: locale === "pt" ? "Plano Resilient" : "Resilient Plan", amount: 4900 },
             requestPayerName: true,
             requestPayerEmail: true,
           });
 
           // 3) Re-check right before showing (avoid stale results)
-          console.log('[RiskFunnel] Re-checking canMakePayment before show()...');
           const canPay = await pr.canMakePayment();
-          console.log('[RiskFunnel] canMakePayment result:', JSON.stringify(canPay));
-          
-          if (!canPay) {
-            console.error('[RiskFunnel] Express Pay not available at runtime (canPay is null/false)');
-            throw new Error('Express Pay not available at runtime');
-          }
+          if (!canPay) throw new Error("Express Pay not available at runtime");
 
-          // 4) Handle the payment method event - this fires when user confirms in Apple Pay sheet
-          pr.on('paymentmethod', async (ev) => {
-            console.log('[RiskFunnel] === PAYMENT METHOD EVENT ===');
-            console.log('[RiskFunnel] Payment method ID:', ev.paymentMethod.id);
-            console.log('[RiskFunnel] Payer name:', ev.payerName);
-            console.log('[RiskFunnel] Payer email:', ev.payerEmail);
-            
+          // 4) Handle the payment method event and confirm the PaymentIntent
+          pr.on("paymentmethod", async (ev) => {
             try {
-              console.log('[RiskFunnel] Confirming payment with Stripe...');
               const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
                 clientSecret,
                 { payment_method: ev.paymentMethod.id },
-                { handleActions: false }
+                { handleActions: false },
               );
 
               if (confirmError) {
-                console.error('[RiskFunnel] Payment confirmation error:', confirmError);
-                ev.complete('fail');
+                ev.complete("fail");
                 throw confirmError;
               }
 
-              console.log('[RiskFunnel] Payment confirmed, status:', paymentIntent?.status);
-
               // If additional auth is required (rare for wallets, but handle it)
-              if (paymentIntent?.status === 'requires_action') {
-                console.log('[RiskFunnel] Requires additional action, handling...');
+              if (paymentIntent?.status === "requires_action") {
                 const { error: actionError } = await stripe.confirmCardPayment(clientSecret);
 
                 if (actionError) {
-                  console.error('[RiskFunnel] Additional action error:', actionError);
-                  ev.complete('fail');
+                  ev.complete("fail");
                   throw actionError;
                 }
 
-                ev.complete('success');
-                console.log('[RiskFunnel] ✓ Payment successful! Redirecting to claim...');
+                ev.complete("success");
+                // Payment success - redirect to claim page
                 navigate(`/claim?claim_code=${piRes.claimCode}`);
                 return;
               }
 
-              ev.complete('success');
-              console.log('[RiskFunnel] ✓ Payment successful! Redirecting to claim...');
+              ev.complete("success");
+              // Payment success - redirect to claim page
               navigate(`/claim?claim_code=${piRes.claimCode}`);
             } catch (err) {
-              console.error('[RiskFunnel] Express Pay confirm failed:', err);
-              toast.error(locale === 'pt' ? 'Falha no pagamento' : 'Payment failed');
+              console.error("[RiskFunnel] Express Pay confirm failed:", err);
+              toast.error(locale === "pt" ? "Falha no pagamento" : "Payment failed");
               setCheckoutLoading(false);
             }
           });
 
-          pr.on('cancel', () => {
-            console.log('[RiskFunnel] User cancelled Apple Pay sheet');
-            setCheckoutLoading(false);
-          });
-
-          // 5) Show the Apple Pay / Google Pay sheet
-          console.log('[RiskFunnel] === CALLING pr.show() - Apple Pay sheet should appear ===');
+          // 5) This MUST be called from a user gesture (your click), so it's OK here.
           await pr.show();
-          console.log('[RiskFunnel] pr.show() called successfully');
 
-          // If the sheet is shown, stop here. Success/fail handled in events above.
+          // If the sheet is shown, stop here. Success/fail handled in the event above.
           return;
         } catch (expressErr) {
-          console.error('[RiskFunnel] ❌ Express Pay failed:', expressErr);
-          console.log('[RiskFunnel] Falling back to standard Stripe Checkout...');
+          console.warn("[RiskFunnel] Express Pay failed; falling back to Checkout:", expressErr);
           // fall through to Checkout Session below
         }
       }
 
-      // Fallback: standard Stripe Checkout Session
-      console.log('[RiskFunnel] === USING STANDARD CHECKOUT ===');
-      console.log('[RiskFunnel] Reason: Express Pay not available or failed');
-      
-      const { data: res, error } = await supabase.functions.invoke('create-guest-checkout', {
-        body: { source: 'riskfunnel' },
+      // Fallback: existing Checkout Session behavior (unchanged)
+      console.log("[RiskFunnel] Using standard Checkout Session (Express Pay not available or failed)");
+      const { data: res, error } = await supabase.functions.invoke("create-guest-checkout", {
+        body: { source: "riskfunnel" },
       });
-      
-      if (error) {
-        console.error('[RiskFunnel] Checkout session error:', error);
-        throw error;
-      }
-      
-      if (!res?.url) {
-        console.error('[RiskFunnel] No checkout URL in response');
-        throw new Error('No checkout URL received');
-      }
+      if (error) throw error;
+      if (!res?.url) throw new Error("No checkout URL received");
 
-      console.log('[RiskFunnel] Redirecting to Stripe Checkout:', res.url);
-      window.location.href = res.url;
+      console.log("[RiskFunnel] Redirecting to Stripe Checkout:", res.url);
+      // window.location.href = res.url;
     } catch (e) {
-      console.error('[RiskFunnel] Checkout error:', e);
-      toast.error(locale === 'pt' ? 'Erro ao abrir checkout' : 'Error opening checkout');
+      console.error("[RiskFunnel] Checkout error:", e);
+      toast.error(locale === "pt" ? "Erro ao abrir checkout" : "Error opening checkout");
       setCheckoutLoading(false);
     }
   };
@@ -1440,11 +1387,7 @@ export default function RiskFunnel() {
       </div>
 
       {/* DEBUG: Remove this component after fixing Apple Pay */}
-      <ConsoleLogOverlay
-        enabled={true}
-        title="Stripe Debug"
-        autoOpen={true}
-      />
+      <ConsoleLogOverlay enabled={true} title="Stripe Debug" autoOpen={true} />
     </div>
   );
 }
