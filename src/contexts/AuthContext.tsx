@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { syncPlanFromCloud } from '@/lib/planWizard2Store';
 
 // Cache keys that need to be cleared on sign out
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
@@ -10,6 +11,29 @@ const DEV_PREMIUM_KEY = 'resilient_dev_premium';
 // DEV-only logging helper (no tokens/sessions logged)
 const dbg = (...args: any[]) => {
   if (import.meta.env.DEV) console.log('[Auth]', ...args);
+};
+
+// Post-login sync function - runs in background
+const triggerPostLoginSync = async (userId: string) => {
+  dbg('triggerPostLoginSync: starting for', userId);
+  
+  try {
+    // Sync premium plans from cloud (non-blocking)
+    syncPlanFromCloud(userId).then((plan) => {
+      if (plan) {
+        dbg('triggerPostLoginSync: premium plan synced');
+      }
+    }).catch((e) => {
+      console.warn('[Auth] Premium plan sync failed:', e);
+    });
+
+    // Note: Draft recovery is handled by useDraftRecovery hook in Dashboard
+    // Vault sync is handled by useVaultSync hook in Vault page
+    
+    dbg('triggerPostLoginSync: background sync initiated');
+  } catch (e) {
+    console.warn('[Auth] Post-login sync error:', e);
+  }
 };
 
 interface AuthContextType {
@@ -48,10 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Handle profile upsert after sign-in (deferred to avoid deadlock)
+        // Handle profile upsert and sync after sign-in (deferred to avoid deadlock)
         if (event === 'SIGNED_IN' && session?.user) {
           setTimeout(() => {
             upsertUserProfile(session.user.id);
+            // Trigger background sync of cloud data
+            triggerPostLoginSync(session.user.id);
           }, 0);
         }
       }

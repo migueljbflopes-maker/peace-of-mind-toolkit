@@ -22,6 +22,7 @@ import {
   FolderHeart,
   Users,
   Circle,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
@@ -29,8 +30,10 @@ import { useLocale } from '@/i18n/useLocale';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useDashboardReadiness } from '@/hooks/useDashboardReadiness';
 import { usePreparednessJourney } from '@/hooks/usePreparednessJourney';
+import { useDraftRecovery } from '@/hooks/useDraftRecovery';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PreparednessJourney } from '@/components/dashboard/PreparednessJourney';
+import { SyncStatusIndicator, computeSyncState } from '@/components/SyncStatusIndicator';
 import { supabase } from '@/integrations/supabase/client';
 import { PremiumBundleCard } from '@/components/PremiumBundleCard';
 import Navbar from '@/components/Navbar';
@@ -71,6 +74,9 @@ export default function Dashboard() {
   
   // Preparedness Journey hook
   const journey = usePreparednessJourney(user?.id, isPremium);
+  
+  // Draft recovery hook - syncs local drafts to cloud after login
+  const { isRecovering, recovered } = useDraftRecovery(user?.id);
   
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [suppliesPlans, setSuppliesPlans] = useState<SuppliesPlan[]>([]);
@@ -272,11 +278,22 @@ export default function Dashboard() {
     );
   }
 
-  // Combined loading gate for auth + entitlements
+  // Combined loading gate for auth + entitlements + recovery
   if (authLoading || entitlementsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
+  // Show recovery state while syncing drafts
+  if (isRecovering) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Recovering your data...</p>
       </div>
     );
   }
