@@ -2,18 +2,12 @@ import { Link } from "react-router-dom";
 import { Shield, AlertCircle, Lock, FileText, FolderHeart, Users, Send, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 const ProductPillars = () => {
-  return (
-    <section className="py-16 md:py-20 bg-section">
+  return <section className="py-16 md:py-20 bg-section">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-            Two pillars for complete peace of mind
-          </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto mb-4">
-            Everything you need to be prepared — and respond — in any situation.
-          </p>
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Plan. Secure. Act. Made Simple</h2>
+          <p className="text-muted-foreground max-w-xl mx-auto mb-4">From natural disasters to unexpected emergencies or global instability, We help you assess, plan, secure, and act.</p>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
             <span className="text-sm font-medium text-foreground">One payment, full access:</span>
             <span className="text-lg font-bold text-primary">€49</span>
@@ -124,8 +118,6 @@ const ProductPillars = () => {
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default ProductPillars;

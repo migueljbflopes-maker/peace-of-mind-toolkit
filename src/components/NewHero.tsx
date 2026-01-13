@@ -18,9 +18,9 @@ const NewHero = () => {
         </div>
 
         {/* Headline */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 drop-shadow-lg tracking-tight leading-tight">
-          Be ready for anything.
-          <br className="hidden sm:block" />
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 drop-shadow-lg tracking-tight leading-tight">Am I Ready? 
+
+Find Out Before It’s Too Late<br className="hidden sm:block" />
           <span className="text-primary-foreground/90">Stay calm when it matters.</span>
         </h1>
         
