@@ -8,9 +8,9 @@ import {
 const FAQ = () => {
   const faqs = [
     {
-      question: "Does Resilient.app work offline?",
+      question: "Does am-i-ready.com work offline?",
       answer:
-        "Yes! Resilient.app is built as a Progressive Web App (PWA), which means you can install it on your device and access all core features even without an internet connection. Your risk assessment, supplies list, and library content are all available offline.",
+        "Yes! am-i-ready.com is built as a Progressive Web App (PWA), which means you can install it on your device and access all core features even without an internet connection. Your risk assessment, supplies list, and library content are all available offline.",
     },
     {
       question: "Do I need to create an account?",
@@ -35,7 +35,7 @@ const FAQ = () => {
     {
       question: "Which countries and languages are supported?",
       answer:
-        "Resilient.app is currently available in English with guidance relevant to European countries. We're working on adding more languages and country-specific recommendations. The core preparedness principles apply universally, though we always recommend following your local authorities' guidance.",
+        "am-i-ready.com is currently available in English with guidance relevant to European countries. We're working on adding more languages and country-specific recommendations. The core preparedness principles apply universally, though we always recommend following your local authorities' guidance.",
     },
   ];
 
@@ -47,7 +47,7 @@ const FAQ = () => {
             Frequently asked questions
           </h2>
           <p className="text-lg text-muted-foreground">
-            Everything you need to know about Resilient.app
+            Everything you need to know about am-i-ready.com
           </p>
         </div>
 
