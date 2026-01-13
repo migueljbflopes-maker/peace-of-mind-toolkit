@@ -19,7 +19,15 @@ import AnalyzingScreen from './AnalyzingScreen';
 
 type WizardPhase = 'question' | 'interstitial' | 'analyzing' | 'results';
 
-export default function RiskWizardUI() {
+interface RiskWizardUIProps {
+  onComplete?: (result: WizardResult) => void;
+  showResultsInternally?: boolean;
+}
+
+export default function RiskWizardUI({ 
+  onComplete, 
+  showResultsInternally = true 
+}: RiskWizardUIProps) {
   const navigate = useNavigate();
   const { isPremium } = useEntitlements();
   
@@ -129,8 +137,15 @@ export default function RiskWizardUI() {
     const computedResult = computeWizardResult(answers);
     setResult(computedResult);
     saveWizardResult(computedResult);
+    
+    // If external callback provided, notify parent and optionally skip internal results
+    if (onComplete) {
+      onComplete(computedResult);
+      if (!showResultsInternally) return;
+    }
+    
     setPhase('results');
-  }, [answers]);
+  }, [answers, onComplete, showResultsInternally]);
   
   const handleBack = useCallback(() => {
     if (phase === 'results') {

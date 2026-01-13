@@ -23,6 +23,7 @@ export default function RiskAssessment() {
   
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [existingResult, setExistingResult] = useState<WizardResult | null>(null);
+  const [existingAiInsights, setExistingAiInsights] = useState<Record<string, unknown> | null>(null);
   const [showWizard, setShowWizard] = useState(false);
 
   const t = locale === 'pt' ? {
@@ -78,6 +79,11 @@ export default function RiskAssessment() {
         const inputs = data.inputs as unknown as WizardAnswers;
         const result = computeWizardResult(inputs);
         setExistingResult(result);
+        
+        // Load existing AI insights if available
+        if (data.ai_insights) {
+          setExistingAiInsights(data.ai_insights as Record<string, unknown>);
+        }
       }
     } catch (error) {
       console.error('Failed to load assessment:', error);
@@ -88,6 +94,7 @@ export default function RiskAssessment() {
 
   const handleWizardComplete = (result: WizardResult) => {
     setExistingResult(result);
+    setExistingAiInsights(null); // Clear old insights to trigger fresh AI fetch
     setShowWizard(false);
   };
 
@@ -159,13 +166,16 @@ export default function RiskAssessment() {
     );
   }
 
-  // Show wizard - use the standalone component which handles its own completion
+  // Show wizard - pass callback to receive completion and skip internal results
   if (showWizard) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
         <main className="flex-1">
-          <RiskWizardUI />
+          <RiskWizardUI 
+            onComplete={handleWizardComplete}
+            showResultsInternally={false}
+          />
         </main>
         <Footer />
       </div>
@@ -207,6 +217,7 @@ export default function RiskAssessment() {
             country={existingResult.inputs.country_code || ''}
             breakdown={existingResult.breakdown}
             inputs={existingResult.inputs as unknown as Record<string, unknown>}
+            existingInsights={existingAiInsights}
             onSaved={() => setShowWizard(false)}
           />
         ) : (
