@@ -610,22 +610,25 @@ export default function RiskFunnel() {
     let cancelled = false;
 
     (async () => {
-      console.log('[RiskFunnel] Starting Express Pay support check...');
+      console.log('[RiskFunnel] === EXPRESS PAY DETECTION START ===');
+      console.log('[RiskFunnel] Current domain:', window.location.hostname);
+      console.log('[RiskFunnel] Protocol:', window.location.protocol);
+      console.log('[RiskFunnel] User Agent:', navigator.userAgent);
       
       if (!stripePromise) {
-        console.log('[RiskFunnel] Stripe not initialized (missing publishable key)');
+        console.log('[RiskFunnel] ❌ Stripe not initialized (missing VITE_STRIPE_PUBLISHABLE_KEY)');
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
 
       const stripe = await stripePromise;
       if (!stripe) {
-        console.log('[RiskFunnel] Stripe failed to load');
+        console.log('[RiskFunnel] ❌ Stripe.js failed to load');
         if (!cancelled) setExpressPay({ ready: true, method: null });
         return;
       }
 
-      console.log('[RiskFunnel] Stripe loaded successfully, checking payment methods...');
+      console.log('[RiskFunnel] ✓ Stripe.js loaded successfully');
 
       // Use the same currency/amount we charge (49 EUR => 4900)
       const pr = stripe.paymentRequest({
@@ -636,23 +639,35 @@ export default function RiskFunnel() {
         requestPayerEmail: true,
       });
 
+      console.log('[RiskFunnel] PaymentRequest created, calling canMakePayment()...');
+      
       const canPay = await pr.canMakePayment();
-      console.log('[RiskFunnel] canMakePayment result:', canPay);
+      
+      console.log('[RiskFunnel] canMakePayment() returned:', JSON.stringify(canPay));
+
+      if (canPay === null) {
+        console.log('[RiskFunnel] ⚠️ canMakePayment returned null - possible reasons:');
+        console.log('[RiskFunnel]   1. Domain not registered in Stripe Apple Pay settings');
+        console.log('[RiskFunnel]   2. No cards configured in Apple Wallet / Google Pay');
+        console.log('[RiskFunnel]   3. Not using HTTPS (required for Apple Pay)');
+        console.log('[RiskFunnel]   4. Browser does not support Payment Request API');
+        console.log('[RiskFunnel]   5. Apple Pay domain verification file not served correctly');
+        console.log('[RiskFunnel]   Registered domain should be:', window.location.hostname);
+      }
 
       const method =
         canPay?.applePay ? 'apple_pay' :
         canPay?.googlePay ? 'google_pay' :
         null;
 
-      console.log('[RiskFunnel] Express Pay support:', {
-        applePay: !!canPay?.applePay,
-        googlePay: !!canPay?.googlePay,
-        selectedMethod: method,
-      });
+      console.log('[RiskFunnel] === EXPRESS PAY DETECTION RESULT ===');
+      console.log('[RiskFunnel] Apple Pay available:', canPay?.applePay ?? false);
+      console.log('[RiskFunnel] Google Pay available:', canPay?.googlePay ?? false);
+      console.log('[RiskFunnel] Selected method:', method ?? 'NONE (will use standard checkout)');
 
       if (!cancelled) setExpressPay({ ready: true, method });
     })().catch((err) => {
-      console.error('[RiskFunnel] Express Pay check failed:', err);
+      console.error('[RiskFunnel] ❌ Express Pay detection error:', err);
       if (!cancelled) setExpressPay({ ready: true, method: null });
     });
 
