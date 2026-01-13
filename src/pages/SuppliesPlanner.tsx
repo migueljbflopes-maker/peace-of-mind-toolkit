@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -424,23 +424,11 @@ const SuppliesPlanner = () => {
     });
   }, [answers.pets]);
 
-  // Save checked state
-  useEffect(() => {
-    if (showResults) {
-      const totalItems = filteredCategories.reduce((acc, cat) => acc + cat.items.length, 0);
-      const checkedCount = Object.values(checkedItems).filter(Boolean).length;
-      const preparedness = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
-      
-      localStorage.setItem(STATE_KEY, JSON.stringify({
-        checkedItems,
-        checkedHardToSource,
-        preparedness,
-        updatedAt: new Date().toISOString(),
-      }));
-    }
-  }, [checkedItems, checkedHardToSource, showResults, filteredCategories]);
+  // Auto-save reference to prevent stale closures
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
-  // Compute preparedness stats
+  // Compute preparedness stats (moved before auto-save to avoid reference issues)
   const stats = useMemo(() => {
     const categoryStats = filteredCategories.map((cat) => {
       const total = cat.items.length;
@@ -464,6 +452,75 @@ const SuppliesPlanner = () => {
 
     return { categoryStats, overallPreparedness, topGaps };
   }, [checkedItems, filteredCategories]);
+
+  // Auto-save function for authenticated users
+  const performAutoSave = useCallback(async () => {
+    if (!isAuthenticated || !user) return;
+    
+    setIsAutoSaving(true);
+    try {
+      const { data: existing } = await supabase
+        .from("supplies_plans")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const planData = {
+        user_id: user.id,
+        days: answers.daysTarget,
+        household_size_bucket: answers.householdSize,
+        inputs: JSON.parse(JSON.stringify(answers)) as Json,
+        plan: JSON.parse(JSON.stringify({ checkedItems, checkedHardToSource })) as Json,
+        preparedness_pct: stats.overallPreparedness,
+      };
+
+      const { error } = existing
+        ? await supabase.from("supplies_plans").update(planData).eq("user_id", user.id)
+        : await supabase.from("supplies_plans").insert(planData);
+
+      if (error) {
+        console.error("[SuppliesPlanner] Auto-save failed:", error);
+      } else {
+        console.log("[SuppliesPlanner] Auto-saved successfully");
+      }
+    } catch (e) {
+      console.error("[SuppliesPlanner] Auto-save error:", e);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [isAuthenticated, user, answers, checkedItems, checkedHardToSource, stats.overallPreparedness]);
+
+  // Save checked state to localStorage AND trigger debounced auto-save
+  useEffect(() => {
+    if (showResults) {
+      const totalItems = filteredCategories.reduce((acc, cat) => acc + cat.items.length, 0);
+      const checkedCount = Object.values(checkedItems).filter(Boolean).length;
+      const preparedness = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
+      
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        checkedItems,
+        checkedHardToSource,
+        preparedness,
+        updatedAt: new Date().toISOString(),
+      }));
+
+      // Debounced auto-save for authenticated users (2 second delay)
+      if (isAuthenticated && user) {
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+        }
+        autoSaveTimeoutRef.current = setTimeout(() => {
+          performAutoSave();
+        }, 2000);
+      }
+    }
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [checkedItems, checkedHardToSource, showResults, filteredCategories, isAuthenticated, user, performAutoSave]);
 
   const handleNext = () => {
     if (currentStep < totalWizardSteps - 1) {
