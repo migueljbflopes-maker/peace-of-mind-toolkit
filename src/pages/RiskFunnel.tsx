@@ -826,6 +826,13 @@ export default function RiskFunnel() {
     setShowOfferModal(true);
   };
 
+  const handleOfferModalClose = (open: boolean) => {
+    setShowOfferModal(open);
+    if (!open) {
+      navigate("/");
+    }
+  };
+
   const handleCheckout = async () => {
     setCheckoutLoading(true);
 
@@ -1048,7 +1055,7 @@ export default function RiskFunnel() {
 
         <RiskOfferModal
           open={showOfferModal}
-          onOpenChange={setShowOfferModal}
+          onOpenChange={handleOfferModalClose}
           city={data.city}
           loading={checkoutLoading}
           onCheckout={handleCheckout}
