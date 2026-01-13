@@ -1085,6 +1085,7 @@ export default function RiskFunnel1() {
           priceWas={120}
           priceNow={49}
           ctaText={{ en: "Continue for FREE", pt: "Continuar GRÁTIS" }}
+          offerBadge={{ en: "Limited-time launch offer - Free Trial", pt: "Oferta de lançamento - Teste Grátis" }}
         />
 
         {/* DEBUG: Remove this component after fixing Apple Pay */}
