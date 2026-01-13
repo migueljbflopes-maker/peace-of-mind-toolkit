@@ -661,7 +661,7 @@ export default function RiskFunnel1() {
       const pr = stripe.paymentRequest({
         country: "PT",
         currency: "eur",
-        total: { label: "Resilient Plan Subscription", amount: 4900 },
+        total: { label: "Resilient Plan", amount: 0 },
         requestPayerName: true,
         requestPayerEmail: true,
       });
@@ -719,7 +719,7 @@ export default function RiskFunnel1() {
           // SetupIntent succeeded - now complete the subscription
           console.log("[RiskFunnel1] Express Pay: SetupIntent succeeded, completing subscription...");
           const { data: subRes, error: subErr } = await supabase.functions.invoke("complete-subscription-setup", {
-            body: { 
+            body: {
               setupIntentId: siRes?.setupIntentId,
               payerEmail: ev.payerEmail,
               payerName: ev.payerName,
@@ -877,10 +877,10 @@ export default function RiskFunnel1() {
       // For subscriptions, we need to use Stripe Checkout which properly handles trial + auto-cancel
       console.log("[RiskFunnel1] Using standard Checkout Session for subscription");
       const guestSessionId = getOrCreateGuestSessionId();
-      
+
       // Create a checkout session for subscription
       const { data: res, error } = await supabase.functions.invoke("create-subscription-checkout", {
-        body: { 
+        body: {
           source: "riskfunnel1",
           guestSessionId,
           priceId: SUBSCRIPTION_PRICE_ID,
@@ -1087,7 +1087,7 @@ export default function RiskFunnel1() {
         />
 
         {/* DEBUG: Remove this component after fixing Apple Pay */}
-      {/* Debug overlay disabled - Apple Pay working */}
+        {/* Debug overlay disabled - Apple Pay working */}
       </>
     );
   }
