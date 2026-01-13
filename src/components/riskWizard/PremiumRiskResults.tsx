@@ -5,14 +5,34 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { 
   Shield, MapPin, Users, Car, Package, 
   Hospital, Siren, ShoppingCart, Zap,
   AlertTriangle, CheckCircle, ArrowRight,
-  Save, Sparkles, Target, Loader2
+  Save, Sparkles, Target, Loader2,
+  Cloud, Building2, Globe, Bomb, Route
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type RiskCategory = 'natural' | 'infrastructure' | 'geopolitical';
+
+interface RegionalRisk {
+  risk: string;
+  level: 'low' | 'medium' | 'high';
+  details: string;
+  category?: RiskCategory;
+}
+
+interface WarScenario {
+  summary: string;
+  infrastructure_impact: string;
+  transportation: string;
+  communication: string;
+  supply_disruption: string;
+  recommended_actions: string[];
+}
 
 interface AiInsights {
   summary: string;
@@ -22,11 +42,8 @@ interface AiInsights {
     supply_chains: string;
     utilities: string;
   };
-  regional_risks: Array<{
-    risk: string;
-    level: 'low' | 'medium' | 'high';
-    details: string;
-  }>;
+  regional_risks: RegionalRisk[];
+  war_scenario?: WarScenario;
   dimension_insights: {
     location: { score: number; analysis: string; recommendations: string[] };
     household: { score: number; analysis: string; recommendations: string[] };
@@ -322,7 +339,7 @@ export function PremiumRiskResults({
         </>
       )}
 
-      {/* Regional Risks */}
+      {/* Regional Risks with Category Grouping */}
       {!loading && insights?.regional_risks && insights.regional_risks.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -331,20 +348,178 @@ export function PremiumRiskResults({
               Regional Risk Factors
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {insights.regional_risks.map((risk, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <Badge className={`${getRiskLevelColor(risk.level)} capitalize shrink-0`}>
-                    {risk.level}
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium">{risk.risk}</span>
-                    <p className="text-sm text-muted-foreground mt-0.5">{risk.details}</p>
+          <CardContent className="space-y-6">
+            {/* Natural Hazards */}
+            {(() => {
+              const naturalRisks = insights.regional_risks.filter(r => r.category === 'natural');
+              if (naturalRisks.length === 0) return null;
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Cloud className="h-4 w-4 text-blue-500" />
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Natural Hazards</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {naturalRisks.map((risk, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30">
+                        <Badge className={`${getRiskLevelColor(risk.level)} capitalize shrink-0`}>
+                          {risk.level}
+                        </Badge>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium">{risk.risk}</span>
+                          <p className="text-sm text-muted-foreground mt-0.5">{risk.details}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              );
+            })()}
+
+            {/* Infrastructure Vulnerabilities */}
+            {(() => {
+              const infraRisks = insights.regional_risks.filter(r => r.category === 'infrastructure');
+              if (infraRisks.length === 0) return null;
+              return (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-amber-500" />
+                      <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Infrastructure Vulnerabilities</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {infraRisks.map((risk, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30">
+                          <Badge className={`${getRiskLevelColor(risk.level)} capitalize shrink-0`}>
+                            {risk.level}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium">{risk.risk}</span>
+                            <p className="text-sm text-muted-foreground mt-0.5">{risk.details}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Geopolitical & Security */}
+            {(() => {
+              const geoRisks = insights.regional_risks.filter(r => r.category === 'geopolitical');
+              if (geoRisks.length === 0) return null;
+              return (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-red-500" />
+                      <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Geopolitical & Security</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {geoRisks.map((risk, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+                          <Badge className={`${getRiskLevelColor(risk.level)} capitalize shrink-0`}>
+                            {risk.level}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium">{risk.risk}</span>
+                            <p className="text-sm text-muted-foreground mt-0.5">{risk.details}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Fallback for uncategorized risks */}
+            {(() => {
+              const uncategorized = insights.regional_risks.filter(r => !r.category);
+              if (uncategorized.length === 0) return null;
+              return (
+                <div className="space-y-2">
+                  {uncategorized.map((risk, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <Badge className={`${getRiskLevelColor(risk.level)} capitalize shrink-0`}>
+                        {risk.level}
+                      </Badge>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{risk.risk}</span>
+                        <p className="text-sm text-muted-foreground mt-0.5">{risk.details}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* War Scenario Analysis */}
+      {!loading && insights?.war_scenario && (
+        <Card className="border-red-200 dark:border-red-900/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Bomb className="h-5 w-5 text-red-600" />
+              War & Conflict Scenario
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">What to expect if armed conflict affects your region</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{insights.war_scenario.summary}</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-2 mb-1">
+                  <Building2 className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-sm">Infrastructure Impact</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{insights.war_scenario.infrastructure_impact}</p>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-2 mb-1">
+                  <Route className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-sm">Roads & Transportation</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{insights.war_scenario.transportation}</p>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-2 mb-1">
+                  <Siren className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-sm">Communication</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{insights.war_scenario.communication}</p>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShoppingCart className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-sm">Supply Disruption</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{insights.war_scenario.supply_disruption}</p>
+              </div>
             </div>
+
+            {insights.war_scenario.recommended_actions.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-medium text-sm mb-2">Recommended Preparedness Actions</h4>
+                <ul className="space-y-1.5">
+                  {insights.war_scenario.recommended_actions.map((action, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <span>{action}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
