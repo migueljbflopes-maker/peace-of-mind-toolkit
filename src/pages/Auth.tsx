@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Loader2, Mail, CheckCircle2, ArrowLeft, RefreshCw, Eye, EyeOff, Lock } from 'lucide-react';
+import { Loader2, Mail, CheckCircle2, ArrowLeft, RefreshCw, Eye, EyeOff, Lock } from 'lucide-react';
+import logoIcon from "@/assets/logo-icon.png";
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
 import { useToast } from '@/hooks/use-toast';
@@ -147,10 +148,8 @@ export default function Auth() {
           {/* Left side - Branding and benefits */}
           <div className="hidden lg:block">
             <div className="flex items-center gap-2 mb-6">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <span className="text-xl font-semibold text-foreground">Resilient.app</span>
+              <img src={logoIcon} alt="am-I-ready" className="h-10 w-10" />
+              <span className="text-xl font-semibold text-foreground">am-I-ready.com</span>
             </div>
             
             <h1 className="text-3xl font-bold text-foreground mb-4">
@@ -181,7 +180,7 @@ export default function Auth() {
           <Card className="w-full shadow-lg border-border/50">
             <CardHeader className="text-center pb-2">
               <div className="lg:hidden mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Shield className="h-6 w-6 text-primary" />
+                <img src={logoIcon} alt="am-I-ready" className="h-8 w-8" />
               </div>
               <CardTitle className="text-xl">
                 {emailSent ? t.auth.checkYourInbox : t.auth.signInTitle}
