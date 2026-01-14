@@ -87,42 +87,44 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     dbg('Fetching from DB for user:', user.id);
     
     try {
-      // Create a timeout promise to prevent indefinite hanging
-      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
-        setTimeout(() => {
-          resolve({ data: null, error: new Error('Query timeout after 10 seconds') });
-        }, 10000);
-      });
-
-      // Create the actual query promise
-      const queryPromise = supabase
+      dbg('Starting DB query for user:', user.id);
+      
+      // Query with session verification
+      const { data, error } = await supabase
         .from('premium_entitlements')
         .select('is_premium, plan_name, price_eur')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      // Race between query and timeout
-      const result = await Promise.race([queryPromise, timeoutPromise]);
-      const { data, error } = result;
-
-      dbg('DB result:', { data, error: error?.message ?? null });
+      dbg('DB result:', { 
+        data, 
+        error: error?.message ?? null,
+        dataType: typeof data,
+        dataIsNull: data === null
+      });
 
       if (error) {
         // DEV-only: log RLS or other errors for debugging
-        if (import.meta.env.DEV) {
-          console.error('[Entitlements] select failed', error);
-        }
+        console.error('[Entitlements] select failed', error);
+        setEntitlements(defaultEntitlements);
+        return;
       }
 
-      const newEntitlements: Entitlements = data
-        ? {
-            isPremium: data.is_premium,
-            planName: data.plan_name,
-            priceEur: data.price_eur,
-          }
-        : defaultEntitlements;
+      // If no data found, user doesn't have premium entitlement
+      if (!data) {
+        dbg('No entitlement record found for user');
+        setEntitlements(defaultEntitlements);
+        return;
+      }
 
-      dbg('Final state:', newEntitlements);
+      // Parse the result
+      const newEntitlements: Entitlements = {
+        isPremium: Boolean(data.is_premium),
+        planName: data.plan_name || defaultEntitlements.planName,
+        priceEur: data.price_eur ?? defaultEntitlements.priceEur,
+      };
+
+      dbg('Parsed entitlements:', newEntitlements);
       setEntitlements(newEntitlements);
       
       // Save cache with userId scoping
@@ -185,21 +187,10 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
 
     // Case 3: User changed or first load (different user signed in)
     if (currentUserId !== previousUserId) {
-      dbg('CASE 3: User changed or first load, validating cache...');
+      dbg('CASE 3: User changed or first load, clearing cache and fetching fresh...');
       
-      // Validate cache userId matches current user
-      try {
-        const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached) as CachedEntitlements;
-          if (parsed.userId !== currentUserId) {
-            dbg('Cache userId mismatch, clearing:', { cached: parsed.userId, current: currentUserId });
-            localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
-          }
-        }
-      } catch {
-        localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
-      }
+      // ALWAYS clear cache on user change to prevent stale premium status
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       
       lastUserIdRef.current = currentUserId;
       fetchEntitlements(session);
