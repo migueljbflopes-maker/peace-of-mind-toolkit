@@ -17,7 +17,6 @@ import {
   ChevronUp,
   Lock,
   Download,
-  Save,
   BookOpen,
   AlertCircle,
   Dog,
@@ -26,7 +25,9 @@ import {
   Pill,
   ShoppingBag,
   ExternalLink,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Check
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -1043,23 +1044,29 @@ const SuppliesPlanner = () => {
             <h1 className="text-xl font-semibold text-foreground mb-1">
               Your {answers.daysTarget}-Day Supplies Plan
             </h1>
-            <p className="text-sm text-muted-foreground">
-              For {answers.householdSize} {parseInt(answers.householdSize || "1") === 1 ? "person" : "people"} • Check items as you gather them
+            <p className="text-sm text-muted-foreground mb-3">
+              For {answers.householdSize} {parseInt(answers.householdSize || "1") === 1 ? "person" : "people"}
             </p>
+            
+            {/* Retake Assessment Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowResults(false);
+                setCurrentStep(0);
+              }}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retake Assessment
+            </Button>
           </div>
 
-          {/* Sticky CTA Bar */}
+          {/* Sticky Status Bar */}
           <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 -mx-4 px-4 py-3 mb-4">
             <div className="flex flex-col gap-2">
-              {isPremium ? (
-                <Button 
-                  onClick={() => navigate("/premium/red-folder")}
-                  className="w-full gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Continue to Red Folder PDF
-                </Button>
-              ) : (
+              {!isPremium && (
                 <>
                   <Button 
                     onClick={() => setShowPaywallModal(true)}
@@ -1074,18 +1081,26 @@ const SuppliesPlanner = () => {
                 </>
               )}
               <div className="flex items-center justify-between text-xs">
-                <button
-                  onClick={handleSavePlan}
-                  disabled={isSaving}
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                <span className="text-muted-foreground flex items-center gap-1">
+                  {isAutoSaving ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Saving...
+                    </>
+                  ) : isAuthenticated ? (
+                    <>
+                      <Check className="h-3 w-3 text-green-500" />
+                      Auto-saved
+                    </>
                   ) : (
-                    <Save className="h-3 w-3" />
+                    <button
+                      onClick={() => setShowLoginModal(true)}
+                      className="text-amber-600 hover:text-amber-700 transition-colors"
+                    >
+                      Log in to auto-save
+                    </button>
                   )}
-                  {isAuthenticated ? "Save progress" : "Log in to save (free)"}
-                </button>
+                </span>
                 <button
                   onClick={() => navigate("/library")}
                   className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
@@ -1188,24 +1203,41 @@ const SuppliesPlanner = () => {
                     className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Icon className="h-4 w-4 text-primary" />
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                        catStats?.completion === 100 
+                          ? "bg-green-100" 
+                          : "bg-primary/10"
+                      )}>
+                        <Icon className={cn(
+                          "h-4 w-4",
+                          catStats?.completion === 100 
+                            ? "text-green-600" 
+                            : "text-primary"
+                        )} />
                       </div>
                       <div className="text-left">
                         <div className="text-sm font-medium text-foreground">
                           {category.name}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {catStats?.checked}/{catStats?.total} items
+                        <div className="flex items-center gap-2">
+                          <Progress 
+                            value={catStats?.completion || 0} 
+                            className={cn(
+                              "h-1.5 w-16",
+                              catStats?.completion === 100 && "[&>div]:bg-green-500"
+                            )}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {catStats?.checked}/{catStats?.total}
+                          </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-xs font-medium text-foreground">
-                          {catStats?.completion}%
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      {catStats?.completion === 100 && (
+                        <Check className="h-4 w-4 text-green-500" />
+                      )}
                       {isExpanded ? (
                         <ChevronUp className="h-4 w-4 text-muted-foreground" />
                       ) : (
@@ -1216,7 +1248,7 @@ const SuppliesPlanner = () => {
 
                   {/* Items List */}
                   {isExpanded && (
-                    <div className="border-t border-border/50 divide-y divide-border/30">
+                    <div className="border-t border-border/50">
                       {category.items.map((item) => {
                         const quantity = calculateQuantity(
                           item,
@@ -1229,19 +1261,24 @@ const SuppliesPlanner = () => {
                           <div
                             key={item.id}
                             className={cn(
-                              "flex items-center gap-3 p-3 transition-colors",
-                              isChecked && "bg-primary/5"
+                              "flex items-center gap-3 p-3 transition-all duration-200 border-l-2",
+                              isChecked 
+                                ? "bg-green-50/80 border-l-green-500" 
+                                : "hover:bg-muted/50 border-l-transparent"
                             )}
                           >
-                            <label className="flex items-center gap-3 flex-1 cursor-pointer">
+                            <label className="flex items-center gap-3 flex-1 cursor-pointer group">
                               <Checkbox
                                 checked={isChecked}
                                 onCheckedChange={() => toggleItem(item.id)}
+                                className="transition-transform group-hover:scale-110"
                               />
                               <div className="flex-1 min-w-0">
                                 <div className={cn(
-                                  "text-sm",
-                                  isChecked ? "text-muted-foreground line-through" : "text-foreground"
+                                  "text-sm transition-colors",
+                                  isChecked 
+                                    ? "text-green-700 line-through" 
+                                    : "text-foreground group-hover:text-primary"
                                 )}>
                                   {item.name}
                                 </div>
@@ -1249,7 +1286,12 @@ const SuppliesPlanner = () => {
                             </label>
                             <div className="flex items-center gap-2">
                               {item.hasRecommendation && <ProductLink itemId={item.id} />}
-                              <div className="text-xs text-muted-foreground whitespace-nowrap">
+                              <div className={cn(
+                                "text-xs whitespace-nowrap px-2 py-0.5 rounded",
+                                isChecked 
+                                  ? "text-green-600 bg-green-100" 
+                                  : "text-muted-foreground bg-muted/50"
+                              )}>
                                 {quantity} {item.unit}
                               </div>
                             </div>
