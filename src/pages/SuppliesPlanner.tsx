@@ -309,9 +309,9 @@ const supplyCategories: SupplyCategory[] = [
 type TierLevel = "basic" | "intermediate" | "advanced";
 
 const TIERS = [
-  { id: "basic" as TierLevel, name: "Basic Kit", icon: Package, description: "Essential 72h survival" },
-  { id: "intermediate" as TierLevel, name: "Intermediate", icon: Shield, description: "Solid 7-day prep" },
-  { id: "advanced" as TierLevel, name: "Fully Ready", icon: Award, description: "Complete 14+ day kit" },
+  { id: "basic" as TierLevel, name: "Basic Kit", icon: Package, description: "Start here - core essentials" },
+  { id: "intermediate" as TierLevel, name: "Intermediate", icon: Shield, description: "Comfort & convenience" },
+  { id: "advanced" as TierLevel, name: "Fully Ready", icon: Award, description: "Complete preparation" },
 ] as const;
 
 // Items that are ALWAYS basic tier (universal essentials)
@@ -1241,9 +1241,9 @@ const SuppliesPlanner = () => {
             
             {TIERS.map(tier => (
               <TabsContent key={tier.id} value={tier.id} className="space-y-4 mt-0">
-                {/* Tier description */}
+                {/* Tier description with duration context */}
                 <p className="text-xs text-muted-foreground text-center mb-2">
-                  {tier.description}
+                  {tier.description} • Quantities for {answers.daysTarget || 14}-day plan
                 </p>
                 
                 {itemsForTier.length === 0 ? (
@@ -1337,24 +1337,43 @@ const SuppliesPlanner = () => {
                   (harder to source last-minute)
                 </span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {filteredHardToSource.map((item) => {
                   const isChecked = checkedHardToSource[item.id] || false;
                   return (
-                    <Badge 
+                    <div 
                       key={item.id}
-                      variant={isChecked ? "secondary" : "outline"}
                       className={cn(
-                        "cursor-pointer transition-colors text-xs",
+                        "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors",
                         isChecked 
-                          ? "bg-green-100 text-green-700 line-through" 
-                          : "hover:bg-amber-100"
+                          ? "bg-green-100" 
+                          : "bg-white border border-amber-200"
                       )}
-                      onClick={() => toggleHardToSource(item.id)}
                     >
-                      {isChecked && <Check className="h-2.5 w-2.5 mr-1" />}
-                      {item.name}
-                    </Badge>
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleHardToSource(item.id)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className={cn(
+                        "text-xs",
+                        isChecked && "text-green-700 line-through"
+                      )}>
+                        {item.name}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/products?q=${encodeURIComponent(item.name)}`);
+                        }}
+                        className="h-5 px-1.5 text-[10px] gap-0.5 text-amber-700 hover:text-amber-900 hover:bg-amber-100"
+                      >
+                        <ShoppingBag className="h-3 w-3" />
+                        Amazon
+                      </Button>
+                    </div>
                   );
                 })}
               </div>
