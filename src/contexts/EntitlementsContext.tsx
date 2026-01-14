@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Session } from '@supabase/supabase-js';
 
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
@@ -43,7 +42,7 @@ interface EntitlementsContextType extends Entitlements {
 const EntitlementsContext = createContext<EntitlementsContextType | undefined>(undefined);
 
 export function EntitlementsProvider({ children }: { children: ReactNode }) {
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [entitlements, setEntitlements] = useState<Entitlements>(defaultEntitlements);
   const [loading, setLoading] = useState(true);
   
@@ -69,11 +68,11 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
   }, [devPremiumOverride]);
 
   // Fetch entitlements from database
-  const fetchEntitlements = useCallback(async (currentSession: Session | null) => {
-    dbg('fetchEntitlements called:', { userId: user?.id ?? null, hasSession: !!currentSession });
+  const fetchEntitlements = useCallback(async () => {
+    dbg('fetchEntitlements called:', { userId: user?.id ?? null });
     
-    if (!user || !currentSession) {
-      dbg('No user or session, resetting to defaults');
+    if (!user) {
+      dbg('No user, resetting to defaults');
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
@@ -87,9 +86,20 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     dbg('Fetching from DB for user:', user.id);
     
     try {
+      // Get fresh session from Supabase client to ensure token is valid
+      const { data: sessionData } = await supabase.auth.getSession();
+      dbg('Session check:', { hasSession: !!sessionData.session, tokenExpiry: sessionData.session?.expires_at });
+      
+      if (!sessionData.session) {
+        dbg('No valid session, resetting to defaults');
+        setEntitlements(defaultEntitlements);
+        localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+        return;
+      }
+      
       dbg('Starting DB query for user:', user.id);
       
-      // Query with session verification
+      // Query with fresh session
       const { data, error } = await supabase
         .from('premium_entitlements')
         .select('is_premium, plan_name, price_eur')
@@ -104,7 +114,6 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        // DEV-only: log RLS or other errors for debugging
         console.error('[Entitlements] select failed', error);
         setEntitlements(defaultEntitlements);
         return;
@@ -143,10 +152,10 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Wrapper for refetch that uses current session
+  // Wrapper for refetch
   const refetch = useCallback(async () => {
-    await fetchEntitlements(session);
-  }, [fetchEntitlements, session]);
+    await fetchEntitlements();
+  }, [fetchEntitlements]);
 
   // Main effect: Handle auth state changes with cache validation
   useEffect(() => {
@@ -193,7 +202,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       
       lastUserIdRef.current = currentUserId;
-      fetchEntitlements(session);
+      fetchEntitlements();
       return;
     }
 
@@ -205,7 +214,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
 
-  }, [authLoading, user, session, fetchEntitlements, loading]);
+  }, [authLoading, user, fetchEntitlements, loading]);
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
