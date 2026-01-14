@@ -65,7 +65,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(DEV_PREMIUM_KEY, String(newValue));
   }, [devPremiumOverride]);
 
-  // Fetch entitlements from database
+  // Fetch entitlements from database with timeout protection
   const fetchEntitlements = useCallback(async () => {
     dbg('fetchEntitlements called:', { userId: user?.id ?? null });
     
@@ -77,16 +77,29 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setLoading(true);
+    // Don't set loading=true here - let cache handle immediate UI
     dbg('Fetching from DB for user:', user.id);
     
+    // Timeout promise to prevent infinite loading
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
+      setTimeout(() => {
+        resolve({ 
+          data: null, 
+          error: new Error('Entitlements fetch timeout after 10s') 
+        });
+      }, 10000);
+    });
+
     try {
       // Only select non-sensitive fields (no Stripe IDs)
-      const { data, error } = await supabase
+      const queryPromise = supabase
         .from('premium_entitlements')
         .select('is_premium, plan_name, price_eur')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      // Race between query and timeout
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
       dbg('DB result:', { data, error: error?.message ?? null });
 
@@ -95,6 +108,9 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
         if (import.meta.env.DEV) {
           console.error('[Entitlements] select failed', error);
         }
+        // On error/timeout, keep existing state but stop loading
+        setLoading(false);
+        return;
       }
 
       const newEntitlements: Entitlements = data
@@ -170,6 +186,8 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     if (currentUserId !== previousUserId) {
       dbg('CASE 3: User changed or first load, validating cache...');
       
+      let cacheValid = false;
+      
       // Validate cache userId matches current user
       try {
         const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
@@ -179,13 +197,15 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
             dbg('Cache userId mismatch, clearing:', { cached: parsed.userId, current: currentUserId });
             localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
           } else {
-            // Cache is valid - use cached values immediately
-            dbg('Using valid cached entitlements');
+            // Cache is valid - use cached values immediately and STOP LOADING
+            dbg('Using valid cached entitlements, stopping loading');
             setEntitlements({
               isPremium: parsed.isPremium,
               planName: parsed.planName,
               priceEur: parsed.priceEur,
             });
+            setLoading(false); // CRITICAL: Stop loading immediately with cache
+            cacheValid = true;
           }
         }
       } catch {
@@ -194,21 +214,15 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       
       lastUserIdRef.current = currentUserId;
       hasFetchedRef.current = true;
+      
+      // Fetch fresh data in background (will update cache)
       fetchEntitlements();
       return;
     }
 
     // Case 4: Same user, already fetched - ensure loading is false
-    // This can happen on re-renders after fetchEntitlements completed
-    if (hasFetchedRef.current) {
-      dbg('CASE 4: Same user, fetch complete, setting loading false');
-      setLoading(false);
-    } else {
-      // Edge case: same user but never fetched (shouldn't happen normally)
-      dbg('CASE 4b: Same user but not fetched yet, fetching now');
-      hasFetchedRef.current = true;
-      fetchEntitlements();
-    }
+    dbg('CASE 4: Same user, setting loading false');
+    setLoading(false);
 
   }, [authLoading, user, fetchEntitlements]);
 
