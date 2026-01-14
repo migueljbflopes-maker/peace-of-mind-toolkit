@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Session } from '@supabase/supabase-js';
 
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
@@ -42,7 +43,7 @@ interface EntitlementsContextType extends Entitlements {
 const EntitlementsContext = createContext<EntitlementsContextType | undefined>(undefined);
 
 export function EntitlementsProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const [entitlements, setEntitlements] = useState<Entitlements>(defaultEntitlements);
   const [loading, setLoading] = useState(true);
   
@@ -68,11 +69,11 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
   }, [devPremiumOverride]);
 
   // Fetch entitlements from database
-  const fetchEntitlements = useCallback(async () => {
-    dbg('fetchEntitlements called:', { userId: user?.id ?? null });
+  const fetchEntitlements = useCallback(async (currentSession: Session | null) => {
+    dbg('fetchEntitlements called:', { userId: user?.id ?? null, hasSession: !!currentSession });
     
-    if (!user) {
-      dbg('No user, resetting to defaults');
+    if (!user || !currentSession) {
+      dbg('No user or session, resetting to defaults');
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
@@ -86,12 +87,23 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     dbg('Fetching from DB for user:', user.id);
     
     try {
-      // Only select non-sensitive fields (no Stripe IDs)
-      const { data, error } = await supabase
+      // Create a timeout promise to prevent indefinite hanging
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
+        setTimeout(() => {
+          resolve({ data: null, error: new Error('Query timeout after 10 seconds') });
+        }, 10000);
+      });
+
+      // Create the actual query promise
+      const queryPromise = supabase
         .from('premium_entitlements')
         .select('is_premium, plan_name, price_eur')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      // Race between query and timeout
+      const result = await Promise.race([queryPromise, timeoutPromise]);
+      const { data, error } = result;
 
       dbg('DB result:', { data, error: error?.message ?? null });
 
@@ -128,6 +140,11 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, [user]);
+
+  // Wrapper for refetch that uses current session
+  const refetch = useCallback(async () => {
+    await fetchEntitlements(session);
+  }, [fetchEntitlements, session]);
 
   // Main effect: Handle auth state changes with cache validation
   useEffect(() => {
@@ -185,7 +202,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       }
       
       lastUserIdRef.current = currentUserId;
-      fetchEntitlements();
+      fetchEntitlements(session);
       return;
     }
 
@@ -197,7 +214,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
 
-  }, [authLoading, user, fetchEntitlements, loading]);
+  }, [authLoading, user, session, fetchEntitlements, loading]);
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
@@ -214,7 +231,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     ...entitlements,
     isPremium,
     loading: combinedLoading,
-    refetch: fetchEntitlements,
+    refetch,
     devPremiumOverride,
     toggleDevPremium,
     isDevMode: import.meta.env.DEV,
