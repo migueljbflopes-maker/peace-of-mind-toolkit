@@ -21,13 +21,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { JourneyStep, RiskScorePreview } from '@/hooks/usePreparednessJourney';
+import type { JourneyStep } from '@/hooks/usePreparednessJourney';
 
 interface PreparednessJourneyProps {
   steps: JourneyStep[];
   isPremium: boolean;
   loading: boolean;
-  riskScorePreview?: RiskScorePreview | null;
 }
 
 const PHASE_ICONS = {
@@ -69,14 +68,12 @@ interface PhaseCardProps {
   isActive: boolean;
   hasCurrent: boolean;
   onClick: () => void;
-  riskScorePreview?: RiskScorePreview | null;
 }
 
-function PhaseCard({ group, isActive, hasCurrent, onClick, riskScorePreview }: PhaseCardProps) {
+function PhaseCard({ group, isActive, hasCurrent, onClick }: PhaseCardProps) {
   const PhaseIcon = PHASE_ICONS[group.phase];
   const isComplete = group.completedCount === group.totalCount;
   const hasProgress = group.completedCount > 0 && !isComplete;
-  const showRiskScore = group.phase === 'assess' && riskScorePreview;
 
   return (
     <button
@@ -129,38 +126,22 @@ function PhaseCard({ group, isActive, hasCurrent, onClick, riskScorePreview }: P
         {PHASE_LABELS[group.phase]}
       </h4>
 
-      {/* Progress badge or Risk Score preview */}
-      {showRiskScore ? (
-        <div className="text-center">
-          <div className={cn(
-            'text-2xl font-bold',
-            riskScorePreview.score >= 70 && 'text-green-600',
-            riskScorePreview.score >= 40 && riskScorePreview.score < 70 && 'text-amber-600',
-            riskScorePreview.score < 40 && 'text-red-600'
-          )}>
-            {riskScorePreview.score}
-          </div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            {riskScorePreview.riskLevel}
-          </div>
-        </div>
-      ) : (
-        <Badge
-          variant={isComplete ? 'default' : hasProgress ? 'secondary' : 'outline'}
-          className={cn(
-            'text-xs',
-            isComplete && 'bg-green-500 hover:bg-green-500'
-          )}
-        >
-          {isComplete ? (
-            <span className="flex items-center gap-1">
-              <Check className="h-3 w-3" /> Done
-            </span>
-          ) : (
-            `${group.completedCount}/${group.totalCount}`
-          )}
-        </Badge>
-      )}
+      {/* Progress badge */}
+      <Badge
+        variant={isComplete ? 'default' : hasProgress ? 'secondary' : 'outline'}
+        className={cn(
+          'text-xs',
+          isComplete && 'bg-green-500 hover:bg-green-500'
+        )}
+      >
+        {isComplete ? (
+          <span className="flex items-center gap-1">
+            <Check className="h-3 w-3" /> Done
+          </span>
+        ) : (
+          `${group.completedCount}/${group.totalCount}`
+        )}
+      </Badge>
 
       {/* Current indicator */}
       {hasCurrent && !isComplete && (
@@ -297,7 +278,6 @@ export function PreparednessJourney({
   steps,
   isPremium,
   loading,
-  riskScorePreview,
 }: PreparednessJourneyProps) {
   const navigate = useNavigate();
   const phaseGroups = groupByPhase(steps);
@@ -369,7 +349,6 @@ export function PreparednessJourney({
               isActive={activePhase === group.phase}
               hasCurrent={hasCurrent}
               onClick={() => handlePhaseClick(group.phase)}
-              riskScorePreview={group.phase === 'assess' ? riskScorePreview : undefined}
             />
           );
         })}

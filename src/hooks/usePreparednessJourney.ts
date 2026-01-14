@@ -18,12 +18,6 @@ export interface JourneyStep {
   warning?: string;
 }
 
-export interface RiskScorePreview {
-  score: number;
-  riskLevel: string;
-  city?: string;
-}
-
 export interface PreparednessJourney {
   loading: boolean;
   steps: JourneyStep[];
@@ -31,7 +25,6 @@ export interface PreparednessJourney {
   completedCount: number;
   totalCount: number;
   progressPercent: number;
-  riskScorePreview: RiskScorePreview | null;
 }
 
 const STEP_DEFINITIONS = [
@@ -137,7 +130,6 @@ export function usePreparednessJourney(
     panicContacts: false,
     panicTest: false,
   });
-  const [riskScorePreview, setRiskScorePreview] = useState<RiskScorePreview | null>(null);
 
   const fetchCompletionStatus = useCallback(async () => {
     if (!userId) {
@@ -162,16 +154,14 @@ export function usePreparednessJourney(
       ] = await Promise.all([
         supabase
           .from('risk_assessments')
-          .select('id, score, risk_level, city')
+          .select('id')
           .eq('user_id', userId)
-          .order('created_at', { ascending: false })
           .limit(1),
         supabase
           .from('risk_assessments')
-          .select('id, ai_insights, score, risk_level, city')
+          .select('id, ai_insights')
           .eq('user_id', userId)
           .not('ai_insights', 'is', null)
-          .order('created_at', { ascending: false })
           .limit(1),
         supabase
           .from('supplies_plans')
@@ -220,18 +210,6 @@ export function usePreparednessJourney(
         panicContacts: (contactsRes.data?.length ?? 0) > 0,
         panicTest: (testsRes.data?.length ?? 0) > 0,
       });
-
-      // Extract risk score preview from the assessment with AI insights (preferred) or basic assessment
-      const riskData = riskWithInsightsRes.data?.[0] || riskRes.data?.[0];
-      if (riskData && riskData.score !== null) {
-        setRiskScorePreview({
-          score: riskData.score,
-          riskLevel: riskData.risk_level || 'Unknown',
-          city: riskData.city || undefined,
-        });
-      } else {
-        setRiskScorePreview(null);
-      }
     } catch (error) {
       console.error('Error fetching journey completion status:', error);
     } finally {
@@ -327,6 +305,5 @@ export function usePreparednessJourney(
     completedCount,
     totalCount,
     progressPercent,
-    riskScorePreview,
   };
 }
