@@ -118,8 +118,7 @@ export function usePreparednessJourney(
   userId: string | undefined,
   isPremium: boolean
 ): PreparednessJourney {
-  // Start loading only if we have a userId
-  const [loading, setLoading] = useState(!!userId);
+  const [loading, setLoading] = useState(true);
   const [completion, setCompletion] = useState<CompletionStatus>({
     riskAssessment: false,
     riskInsights: false,

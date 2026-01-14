@@ -18,8 +18,7 @@ export interface DashboardReadiness {
 }
 
 export function useDashboardReadiness(userId: string | undefined): DashboardReadiness {
-  // Start loading only if we have a userId
-  const [loading, setLoading] = useState(!!userId);
+  const [loading, setLoading] = useState(true);
   const [readiness, setReadiness] = useState<Omit<DashboardReadiness, 'loading'>>({
     vault: false,
     plans: false,
