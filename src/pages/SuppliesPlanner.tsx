@@ -1028,6 +1028,18 @@ const SuppliesPlanner = () => {
         <div className="container mx-auto px-4 max-w-2xl">
           {/* Header */}
           <div className="text-center mb-6">
+            {/* Back to Dashboard for premium users */}
+            {isPremium && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="mb-4"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            )}
             <h1 className="text-xl font-semibold text-foreground mb-1">
               Your {answers.daysTarget}-Day Supplies Plan
             </h1>
@@ -1251,35 +1263,55 @@ const SuppliesPlanner = () => {
             })}
           </div>
 
-          {/* Bottom CTA */}
-          <Card className="mt-6 p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-1 text-xs text-primary bg-primary/20 px-2 py-0.5 rounded-full font-medium mb-2">
-                <Lock className="h-3 w-3" />
-                Premium
+          {/* Bottom CTA - Only for non-premium users */}
+          {!isPremium && (
+            <Card className="mt-6 p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-1 text-xs text-primary bg-primary/20 px-2 py-0.5 rounded-full font-medium mb-2">
+                  <Lock className="h-3 w-3" />
+                  Premium
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1">
+                  Get your Personalized Resiliency Plan
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Printable offline 'Red Folder' PDF + encrypted Vault + Plans A & B.
+                </p>
+                <ul className="text-xs text-muted-foreground mb-4 space-y-1">
+                  <li>✓ Printable offline PDF (Red Folder format)</li>
+                  <li>✓ Encrypted Vault (IDs, contacts, medical)</li>
+                  <li>✓ Plans A & B (exit + emergency)</li>
+                  <li>✓ Encrypted backup & restore</li>
+                  <li>✓ Premium insights & next steps</li>
+                </ul>
+                <Button onClick={() => setShowPaywallModal(true)} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Generate my Plan (€49)
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  One-time purchase. No subscription.
+                </p>
               </div>
-              <h3 className="text-base font-semibold text-foreground mb-1">
-                Get your Personalized Resiliency Plan
-              </h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Printable offline 'Red Folder' PDF + encrypted Vault + Plans A & B.
-              </p>
-              <ul className="text-xs text-muted-foreground mb-4 space-y-1">
-                <li>✓ Printable offline PDF (Red Folder format)</li>
-                <li>✓ Encrypted Vault (IDs, contacts, medical)</li>
-                <li>✓ Plans A & B (exit + emergency)</li>
-                <li>✓ Encrypted backup & restore</li>
-                <li>✓ Premium insights & next steps</li>
-              </ul>
-              <Button onClick={() => setShowPaywallModal(true)} className="gap-2">
-                <Download className="h-4 w-4" />
-                Generate my Plan (€49)
-              </Button>
-              <p className="text-[10px] text-muted-foreground mt-2">
-                One-time purchase. No subscription.
-              </p>
-            </div>
-          </Card>
+            </Card>
+          )}
+
+          {/* Premium Quick Links */}
+          {isPremium && (
+            <Card className="mt-6 p-4 bg-muted/30 border-border/50">
+              <h3 className="text-sm font-medium text-foreground mb-3">Your Premium Features</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigate('/premium/vault')}>
+                  Vault
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('/premium/plans')}>
+                  Plans A & B
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('/premium/red-folder')}>
+                  Red Folder PDF
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       </main>
       <Footer />
