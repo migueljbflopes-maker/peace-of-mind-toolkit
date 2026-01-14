@@ -123,12 +123,16 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  // Track if initial fetch has been done
+  const hasFetchedRef = useRef(false);
+
   // Main effect: Handle auth state changes with cache validation
   useEffect(() => {
     dbg('Effect triggered:', { 
       authLoading, 
       currentUserId: user?.id ?? null, 
-      previousUserId: lastUserIdRef.current 
+      previousUserId: lastUserIdRef.current,
+      hasFetched: hasFetchedRef.current
     });
 
     // Wait for auth to finish loading
@@ -147,6 +151,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
       lastUserIdRef.current = null;
+      hasFetchedRef.current = false;
       return;
     }
 
@@ -157,6 +162,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
       lastUserIdRef.current = null;
+      hasFetchedRef.current = false;
       return;
     }
 
@@ -172,6 +178,14 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
           if (parsed.userId !== currentUserId) {
             dbg('Cache userId mismatch, clearing:', { cached: parsed.userId, current: currentUserId });
             localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+          } else {
+            // Cache is valid - use cached values immediately
+            dbg('Using valid cached entitlements');
+            setEntitlements({
+              isPremium: parsed.isPremium,
+              planName: parsed.planName,
+              priceEur: parsed.priceEur,
+            });
           }
         }
       } catch {
@@ -179,16 +193,24 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       }
       
       lastUserIdRef.current = currentUserId;
+      hasFetchedRef.current = true;
       fetchEntitlements();
       return;
     }
 
-    // Case 4: Same user, already loaded - ensure loading is false
+    // Case 4: Same user, already fetched - ensure loading is false
     // This can happen on re-renders after fetchEntitlements completed
-    dbg('CASE 4: Same user, ensuring loading is false');
-    setLoading(false);
+    if (hasFetchedRef.current) {
+      dbg('CASE 4: Same user, fetch complete, setting loading false');
+      setLoading(false);
+    } else {
+      // Edge case: same user but never fetched (shouldn't happen normally)
+      dbg('CASE 4b: Same user but not fetched yet, fetching now');
+      hasFetchedRef.current = true;
+      fetchEntitlements();
+    }
 
-  }, [authLoading, user, fetchEntitlements]); // Removed 'loading' to prevent re-render loops
+  }, [authLoading, user, fetchEntitlements]);
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
