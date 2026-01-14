@@ -13,6 +13,7 @@ import { PlanType } from '@/lib/plansStore';
 interface PlanCardProps {
   planType: PlanType;
   hasGeneratedPlan?: boolean;
+  summary?: string;
   onViewPlan?: () => void;
   onStartWizard?: () => void;
 }
@@ -20,6 +21,7 @@ interface PlanCardProps {
 export function PlanCard({ 
   planType, 
   hasGeneratedPlan,
+  summary,
   onViewPlan,
   onStartWizard,
 }: PlanCardProps) {
@@ -60,6 +62,13 @@ export function PlanCard({
       </CardHeader>
       
       <CardContent>
+        {/* Summary preview */}
+        {summary && hasGeneratedPlan && (
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+            {summary}
+          </p>
+        )}
+        
         {hasGeneratedPlan ? (
           <Button 
             className="w-full gap-2"
