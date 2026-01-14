@@ -1,9 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, AlertCircle, CheckCircle } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle, LayoutDashboard } from "lucide-react";
 import heroSplitBg from "@/assets/hero-split-bg.png";
+import { useAuth } from "@/hooks/useAuth";
 
 const NewHero = () => {
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
+
   return (
     <section
       className="relative min-h-[85vh] md:min-h-[80vh] flex items-center justify-center bg-cover bg-center"
@@ -30,28 +34,43 @@ const NewHero = () => {
           Life can change in an instant. We help you plan, protect, and act — so you can face uncertainty with confidence.
         </p>
 
-        {/* Two Primary CTAs */}
+        {/* Primary CTAs - conditional based on auth */}
         <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
-          <Link to="/toolkit">
-            <Button
-              variant="cta"
-              size="lg"
-              className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all gap-2"
-            >
-              <Shield className="h-5 w-5" />
-              Create my Safe Toolkit
-            </Button>
-          </Link>
-          <Link to="/panic/setup">
-            <Button
-              variant="hero-outline"
-              size="lg"
-              className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all bg-white/10 backdrop-blur-sm border-white text-white hover:bg-white hover:text-foreground gap-2"
-            >
-              <AlertCircle className="h-5 w-5" />
-              Set up Panic Button
-            </Button>
-          </Link>
+          {isAuthenticated ? (
+            <Link to="/dashboard">
+              <Button
+                variant="cta"
+                size="lg"
+                className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all gap-2"
+              >
+                <LayoutDashboard className="h-5 w-5" />
+                Access Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link to="/toolkit">
+                <Button
+                  variant="cta"
+                  size="lg"
+                  className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all gap-2"
+                >
+                  <Shield className="h-5 w-5" />
+                  Create my Safe Toolkit
+                </Button>
+              </Link>
+              <Link to="/panic/setup">
+                <Button
+                  variant="hero-outline"
+                  size="lg"
+                  className="w-full sm:w-auto text-base md:text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all bg-white/10 backdrop-blur-sm border-white text-white hover:bg-white hover:text-foreground gap-2"
+                >
+                  <AlertCircle className="h-5 w-5" />
+                  Set up Panic Button
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Trust bullets */}
