@@ -18,8 +18,6 @@ import {
   User,
   LogOut,
   Star,
-  Home,
-  ArrowLeft,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -74,11 +72,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
     { label: t.nav.news, href: "/news/weekly", icon: Newspaper },
   ];
 
-  // Show back button when not on the target page
-  const showBackButton = isAuthenticated 
-    ? location.pathname !== "/dashboard" 
-    : location.pathname !== "/";
-
   const handleSignOut = async () => {
     // Close menu BEFORE signOut to ensure clean state
     setMobileMenuOpen(false);
@@ -94,15 +87,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-1">
-            {/* Contextual Back Button */}
-            {showBackButton && (
-              <Link to={isAuthenticated ? "/dashboard" : "/"}>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
-                  <Home className="h-4 w-4" />
-                  {isAuthenticated ? "Dashboard" : "Home"}
-                </Button>
-              </Link>
-            )}
             {/* Features Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -226,19 +210,6 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-border bg-background animate-fade-in">
           <div className="section-padding py-4 space-y-2">
-            {/* Contextual Back Button - Mobile */}
-            {showBackButton && (
-              <Link
-                to={isAuthenticated ? "/dashboard" : "/"}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-accent/50 hover:bg-accent transition-colors mb-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <ArrowLeft className="h-4 w-4 text-primary" />
-                <span className="font-medium">
-                  {isAuthenticated ? "Voltar ao Dashboard" : "Voltar à Homepage"}
-                </span>
-              </Link>
-            )}
             {/* Features Accordion */}
             <Collapsible open={featuresOpen} onOpenChange={setFeaturesOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg hover:bg-accent transition-colors">
