@@ -40,21 +40,6 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { toast } from 'sonner';
 
-interface RiskAssessment {
-  id: string;
-  created_at: string;
-  country: string | null;
-  city: string | null;
-  score: number | null;
-  risk_level: string | null;
-}
-
-interface SuppliesPlan {
-  id: string;
-  created_at: string;
-  days: number;
-  preparedness_pct: number | null;
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -78,9 +63,6 @@ export default function Dashboard() {
   // Draft recovery hook - syncs local drafts to cloud after login
   const { isRecovering, recovered } = useDraftRecovery(user?.id);
   
-  const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
-  const [suppliesPlans, setSuppliesPlans] = useState<SuppliesPlan[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
   
   // Purchase confirmation state
   const [purchaseConfirming, setPurchaseConfirming] = useState(false);
@@ -186,35 +168,6 @@ export default function Dashboard() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-    }
-  }, [user]);
-
-  const fetchUserData = async () => {
-    if (!user) return;
-    setLoadingData(true);
-
-    const [assessmentsRes, plansRes] = await Promise.all([
-      supabase
-        .from('risk_assessments')
-        .select('id, created_at, country, city, score, risk_level')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5),
-      supabase
-        .from('supplies_plans')
-        .select('id, created_at, days, preparedness_pct')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5),
-    ]);
-
-    if (assessmentsRes.data) setAssessments(assessmentsRes.data);
-    if (plansRes.data) setSuppliesPlans(plansRes.data);
-    setLoadingData(false);
-  };
 
   // Show purchase confirming state
   if (purchaseConfirming) {
@@ -382,108 +335,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Section 1: Free Tools - Risk Calculator & Supplies Planner */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              Your Preparedness Tools
-            </h2>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Risk Assessments */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-primary" />
-                      {t.dashboard.savedAssessments}
-                    </CardTitle>
-                    <Link to="/tools/risk">
-                      <Button variant="ghost" size="sm">
-                        {t.dashboard.startAssessment}
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingData ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : assessments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">{t.dashboard.noAssessments}</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {assessments.slice(0, 3).map((a) => (
-                        <li key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                          <div className="flex items-center gap-3">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium">
-                                {a.city && a.country ? `${a.city}, ${a.country}` : a.country || 'Assessment'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(a.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          {a.score !== null && (
-                            <Badge variant={a.risk_level === 'low' ? 'secondary' : a.risk_level === 'high' ? 'destructive' : 'default'}>
-                              {a.score}%
-                            </Badge>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Supplies Plans */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Package className="h-4 w-4 text-primary" />
-                      {t.dashboard.savedPlans}
-                    </CardTitle>
-                    <Link to="/tools/supplies">
-                      <Button variant="ghost" size="sm">
-                        {t.dashboard.startPlan}
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingData ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : suppliesPlans.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">{t.dashboard.noPlans}</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {suppliesPlans.slice(0, 3).map((p) => (
-                        <li key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                          <div>
-                            <p className="text-sm font-medium">{p.days}-Day Plan</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(p.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          {p.preparedness_pct !== null && (
-                            <Badge variant="secondary">{p.preparedness_pct}% ready</Badge>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
 
           {/* Section 2: Premium Features */}
           <div>
