@@ -66,10 +66,11 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
   }, [devPremiumOverride]);
 
   // Fetch entitlements from database with timeout protection
-  const fetchEntitlements = useCallback(async () => {
-    dbg('fetchEntitlements called:', { userId: user?.id ?? null });
+  const fetchEntitlements = useCallback(async (userId?: string) => {
+    const targetUserId = userId ?? user?.id;
+    dbg('fetchEntitlements called:', { targetUserId });
     
-    if (!user) {
+    if (!targetUserId) {
       dbg('No user, resetting to defaults');
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
@@ -77,8 +78,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Don't set loading=true here - let cache handle immediate UI
-    dbg('Fetching from DB for user:', user.id);
+    dbg('Fetching from DB for user:', targetUserId);
     
     // Timeout promise to prevent infinite loading
     const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
@@ -95,7 +95,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       const queryPromise = supabase
         .from('premium_entitlements')
         .select('is_premium, plan_name, price_eur')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .maybeSingle();
 
       // Race between query and timeout
@@ -126,7 +126,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       
       // Save cache with userId scoping
       const cacheData: CachedEntitlements = {
-        userId: user.id,
+        userId: targetUserId,
         cachedAt: Date.now(),
         ...newEntitlements,
       };
@@ -137,7 +137,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Track if initial fetch has been done
   const hasFetchedRef = useRef(false);
@@ -215,8 +215,8 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       lastUserIdRef.current = currentUserId;
       hasFetchedRef.current = true;
       
-      // Fetch fresh data in background (will update cache)
-      fetchEntitlements();
+      // Fetch fresh data in background (will update cache) - pass userId explicitly
+      fetchEntitlements(currentUserId);
       return;
     }
 
