@@ -48,6 +48,8 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
   
   // Track last user ID to detect user changes
   const lastUserIdRef = useRef<string | null>(null);
+  // Track if a fetch is currently in progress
+  const fetchInProgressRef = useRef(false);
 
   // Dev-only premium simulation
   const [devPremiumOverride, setDevPremiumOverride] = useState(() => {
@@ -74,9 +76,12 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
+      fetchInProgressRef.current = false;
       return;
     }
 
+    // Mark fetch as in progress
+    fetchInProgressRef.current = true;
     setLoading(true);
     dbg('Fetching from DB for user:', user.id);
     
@@ -119,6 +124,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       console.error('[Entitlements] fetch error:', err);
       setEntitlements(defaultEntitlements);
     } finally {
+      fetchInProgressRef.current = false;
       setLoading(false);
     }
   }, [user]);
@@ -183,10 +189,11 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Case 4: Same user, already loaded - ensure loading is false
+    // Case 4: Same user, already loaded - ensure loading is false only if no fetch in progress
     // This can happen on re-renders after fetchEntitlements completed
-    dbg('CASE 4: Same user, ensuring loading is false');
-    if (loading) {
+    dbg('CASE 4: Same user, fetch in progress:', fetchInProgressRef.current);
+    if (loading && !fetchInProgressRef.current) {
+      dbg('No fetch in progress but loading is true, setting to false');
       setLoading(false);
     }
 
