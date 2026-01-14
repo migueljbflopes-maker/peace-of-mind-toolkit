@@ -85,107 +85,113 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
           {/* Logo */}
           <Logo size="md" showText linkTo="/" />
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-1">
-            {/* Features Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
-                  <Star className="h-3.5 w-3.5" />
-                  Features
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {featuresLinks.map((link) => (
-                  <DropdownMenuItem key={link.href} asChild>
-                    <Link to={link.href} className="flex items-center gap-2 cursor-pointer">
-                      <link.icon className="h-4 w-4 text-muted-foreground" />
-                      {link.label}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Be Prepared Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
-                  {t.nav.bePrepared}
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {bePreparedLinks.map((link) => (
-                  <DropdownMenuItem key={link.href} asChild>
-                    <Link to={link.href} className="flex items-center gap-2 cursor-pointer">
-                      <link.icon className="h-4 w-4 text-muted-foreground" />
-                      {link.label}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {isAuthenticated && (
-              <Link to="/dashboard">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  {t.nav.dashboard}
-                </Button>
-              </Link>
-            )}
-          </div>
-
-          {/* Desktop CTAs */}
-          <div className="hidden lg:flex items-center gap-2">
-            <LanguageSwitcher />
-            
-            {loading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : isAuthenticated ? (
+          {/* Desktop Navigation + CTAs grouped on the right */}
+          <div className="hidden lg:flex items-center gap-4">
+            {/* Navigation dropdowns */}
+            <div className="flex items-center gap-1">
+              {/* Features Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <User className="h-4 w-4" />
-                    <span className="max-w-[120px] truncate text-sm">
-                      {user?.email?.split('@')[0]}
-                    </span>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
+                    <Star className="h-3.5 w-3.5" />
+                    Features
+                    <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
-                      {t.nav.dashboard}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onSelect={(e) => { 
-                      e.preventDefault(); 
-                      handleSignOut(); 
-                    }} 
-                    className="cursor-pointer text-destructive"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {t.nav.logout}
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="start" className="w-56">
+                  {featuresLinks.map((link) => (
+                    <DropdownMenuItem key={link.href} asChild>
+                      <Link to={link.href} className="flex items-center gap-2 cursor-pointer">
+                        <link.icon className="h-4 w-4 text-muted-foreground" />
+                        {link.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <>
-                <Link to={getLoginUrl()}>
-                  <Button variant="ghost" size="sm">
-                    {t.nav.login}
+
+              {/* Be Prepared Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1">
+                    {t.nav.bePrepared}
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {bePreparedLinks.map((link) => (
+                    <DropdownMenuItem key={link.href} asChild>
+                      <Link to={link.href} className="flex items-center gap-2 cursor-pointer">
+                        <link.icon className="h-4 w-4 text-muted-foreground" />
+                        {link.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {isAuthenticated && (
+                <Link to="/dashboard">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    {t.nav.dashboard}
                   </Button>
                 </Link>
-                <Link to="/pricing">
-                  <Button variant="nav-outline" size="sm">
-                    {t.nav.unlockPremium}
-                  </Button>
-                </Link>
-              </>
-            )}
+              )}
+            </div>
+
+            {/* Visual separator */}
+            <div className="h-5 w-px bg-border" />
+
+            {/* CTAs: Language + Auth */}
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              
+              {loading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      <User className="h-4 w-4" />
+                      <span className="max-w-[120px] truncate text-sm">
+                        {user?.email?.split('@')[0]}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="cursor-pointer">
+                        {t.nav.dashboard}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onSelect={(e) => { 
+                        e.preventDefault(); 
+                        handleSignOut(); 
+                      }} 
+                      className="cursor-pointer text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      {t.nav.logout}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Link to={getLoginUrl()}>
+                    <Button variant="ghost" size="sm">
+                      {t.nav.login}
+                    </Button>
+                  </Link>
+                  <Link to="/pricing">
+                    <Button variant="nav-outline" size="sm">
+                      {t.nav.unlockPremium}
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
