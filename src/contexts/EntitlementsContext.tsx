@@ -48,8 +48,6 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
   
   // Track last user ID to detect user changes
   const lastUserIdRef = useRef<string | null>(null);
-  // Track if a fetch is currently in progress
-  const fetchInProgressRef = useRef(false);
 
   // Dev-only premium simulation
   const [devPremiumOverride, setDevPremiumOverride] = useState(() => {
@@ -76,64 +74,38 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       setEntitlements(defaultEntitlements);
       localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
       setLoading(false);
-      fetchInProgressRef.current = false;
       return;
     }
 
-    // Mark fetch as in progress
-    fetchInProgressRef.current = true;
     setLoading(true);
     dbg('Fetching from DB for user:', user.id);
     
     try {
-      // Get fresh session from Supabase client to ensure token is valid
-      const { data: sessionData } = await supabase.auth.getSession();
-      dbg('Session check:', { hasSession: !!sessionData.session, tokenExpiry: sessionData.session?.expires_at });
-      
-      if (!sessionData.session) {
-        dbg('No valid session, resetting to defaults');
-        setEntitlements(defaultEntitlements);
-        localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
-        return;
-      }
-      
-      dbg('Starting DB query for user:', user.id);
-      
-      // Query with fresh session
+      // Only select non-sensitive fields (no Stripe IDs)
       const { data, error } = await supabase
         .from('premium_entitlements')
         .select('is_premium, plan_name, price_eur')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      dbg('DB result:', { 
-        data, 
-        error: error?.message ?? null,
-        dataType: typeof data,
-        dataIsNull: data === null
-      });
+      dbg('DB result:', { data, error: error?.message ?? null });
 
       if (error) {
-        console.error('[Entitlements] select failed', error);
-        setEntitlements(defaultEntitlements);
-        return;
+        // DEV-only: log RLS or other errors for debugging
+        if (import.meta.env.DEV) {
+          console.error('[Entitlements] select failed', error);
+        }
       }
 
-      // If no data found, user doesn't have premium entitlement
-      if (!data) {
-        dbg('No entitlement record found for user');
-        setEntitlements(defaultEntitlements);
-        return;
-      }
+      const newEntitlements: Entitlements = data
+        ? {
+            isPremium: data.is_premium,
+            planName: data.plan_name,
+            priceEur: data.price_eur,
+          }
+        : defaultEntitlements;
 
-      // Parse the result
-      const newEntitlements: Entitlements = {
-        isPremium: Boolean(data.is_premium),
-        planName: data.plan_name || defaultEntitlements.planName,
-        priceEur: data.price_eur ?? defaultEntitlements.priceEur,
-      };
-
-      dbg('Parsed entitlements:', newEntitlements);
+      dbg('Final state:', newEntitlements);
       setEntitlements(newEntitlements);
       
       // Save cache with userId scoping
@@ -147,15 +119,9 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       console.error('[Entitlements] fetch error:', err);
       setEntitlements(defaultEntitlements);
     } finally {
-      fetchInProgressRef.current = false;
       setLoading(false);
     }
   }, [user]);
-
-  // Wrapper for refetch
-  const refetch = useCallback(async () => {
-    await fetchEntitlements();
-  }, [fetchEntitlements]);
 
   // Main effect: Handle auth state changes with cache validation
   useEffect(() => {
@@ -196,21 +162,31 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
 
     // Case 3: User changed or first load (different user signed in)
     if (currentUserId !== previousUserId) {
-      dbg('CASE 3: User changed or first load, clearing cache and fetching fresh...');
+      dbg('CASE 3: User changed or first load, validating cache...');
       
-      // ALWAYS clear cache on user change to prevent stale premium status
-      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      // Validate cache userId matches current user
+      try {
+        const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as CachedEntitlements;
+          if (parsed.userId !== currentUserId) {
+            dbg('Cache userId mismatch, clearing:', { cached: parsed.userId, current: currentUserId });
+            localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+          }
+        }
+      } catch {
+        localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      }
       
       lastUserIdRef.current = currentUserId;
       fetchEntitlements();
       return;
     }
 
-    // Case 4: Same user, already loaded - ensure loading is false only if no fetch in progress
+    // Case 4: Same user, already loaded - ensure loading is false
     // This can happen on re-renders after fetchEntitlements completed
-    dbg('CASE 4: Same user, fetch in progress:', fetchInProgressRef.current);
-    if (loading && !fetchInProgressRef.current) {
-      dbg('No fetch in progress but loading is true, setting to false');
+    dbg('CASE 4: Same user, ensuring loading is false');
+    if (loading) {
       setLoading(false);
     }
 
@@ -231,7 +207,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     ...entitlements,
     isPremium,
     loading: combinedLoading,
-    refetch,
+    refetch: fetchEntitlements,
     devPremiumOverride,
     toggleDevPremium,
     isDevMode: import.meta.env.DEV,
