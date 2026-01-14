@@ -4,12 +4,14 @@
  * Processes Stripe events and sends transactional emails via Resend.
  * 
  * Events handled:
- * - payment_intent.succeeded → Purchase receipt + Onboarding reminder
- * - checkout.session.completed → Grant premium entitlement
+ * - payment_intent.succeeded → Purchase receipt + Onboarding reminder + Welcome (for guests)
+ * - checkout.session.completed → Grant premium entitlement + Welcome email
  * - invoice.payment_succeeded → Purchase receipt
  * - setup_intent.succeeded → Welcome email + Onboarding reminder
  * - customer.subscription.* → Update guest purchase status
  * - charge.refunded / charge.dispute.created → Revoke premium
+ * 
+ * Welcome emails are deduplicated via the emails_sent table.
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -24,9 +26,11 @@ import { getOnboardingReminderHtml } from "./_templates/onboarding-reminder.ts";
 // Import email utilities
 import {
   sendEmail,
+  sendWelcomeWithDedup,
   extractEmail,
   extractInvoiceEmail,
   extractSetupEmail,
+  extractCheckoutEmail,
   getPaymentMethod,
   formatAmount,
   formatDate,
@@ -130,11 +134,23 @@ serve(async (req) => {
             .maybeSingle();
           
           if (email) {
+            // Send purchase receipt
             await sendEmail(
               email, 
               `Your Am I Ready? purchase receipt – ${formatAmount(pi.amount, pi.currency)}`,
               getPurchaseReceiptHtml(formatAmount(pi.amount, pi.currency), formatDate(pi.created), method, pi.id, gp?.claim_code)
             );
+            
+            // Send welcome email with deduplication
+            await sendWelcomeWithDedup(
+              supabase,
+              email,
+              () => getWelcomeEmailHtml(gp?.claim_code),
+              'payment_intent_guest',
+              event.id
+            );
+            
+            // Send onboarding reminder
             await sendEmail(
               email, 
               'Complete your emergency preparedness setup',
@@ -156,11 +172,23 @@ serve(async (req) => {
             }, { onConflict: "user_id" });
           
           if (email) {
+            // Send purchase receipt
             await sendEmail(
               email, 
               `Your Am I Ready? purchase receipt – ${formatAmount(pi.amount, pi.currency)}`,
               getPurchaseReceiptHtml(formatAmount(pi.amount, pi.currency), formatDate(pi.created), method, pi.id)
             );
+            
+            // Send welcome email with deduplication
+            await sendWelcomeWithDedup(
+              supabase,
+              email,
+              () => getWelcomeEmailHtml(),
+              'payment_intent_user',
+              event.id
+            );
+            
+            // Send onboarding reminder
             await sendEmail(
               email, 
               'Complete your emergency preparedness setup',
@@ -183,40 +211,72 @@ serve(async (req) => {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         
-        if (session.payment_status !== "paid") {
-          logStep("Checkout not paid, skipping", { status: session.payment_status });
+        // Handle both paid and 100% coupon (no payment required)
+        const isPaidOrFree = session.payment_status === "paid" || 
+                            session.payment_status === "no_payment_required";
+        
+        if (!isPaidOrFree) {
+          logStep("Checkout not completed", { status: session.payment_status });
           break;
         }
         
         const userId = session.metadata?.user_id || session.client_reference_id;
-        if (!userId) {
-          throw new Error("No user_id found in checkout session");
+        const email = await extractCheckoutEmail(stripe, session);
+        const isFreeCheckout = session.payment_status === "no_payment_required";
+        
+        logStep("Checkout completed", { 
+          userId, 
+          email, 
+          paymentStatus: session.payment_status,
+          isFreeCheckout 
+        });
+        
+        // Grant premium entitlement if we have a user ID
+        if (userId) {
+          await supabase
+            .from("premium_entitlements")
+            .upsert({ 
+              user_id: userId, 
+              is_premium: true, 
+              granted_at: new Date().toISOString(), 
+              revoked_at: null, 
+              plan_name: PRODUCT_NAME, 
+              price_eur: isFreeCheckout ? 0 : 49 
+            }, { onConflict: "user_id" });
+          
+          // Map Stripe customer to user
+          if (session.customer) {
+            await supabase
+              .from("stripe_customer_map")
+              .upsert({ 
+                user_id: userId, 
+                stripe_customer_id: session.customer as string, 
+                stripe_checkout_session_id: session.id, 
+                stripe_payment_intent_id: session.payment_intent as string, 
+                updated_at: new Date().toISOString() 
+              }, { onConflict: "user_id" });
+          }
+          
+          logStep("Premium granted via checkout", { userId });
         }
         
-        // Grant premium entitlement
-        await supabase
-          .from("premium_entitlements")
-          .upsert({ 
-            user_id: userId, 
-            is_premium: true, 
-            granted_at: new Date().toISOString(), 
-            revoked_at: null, 
-            plan_name: PRODUCT_NAME, 
-            price_eur: 49 
-          }, { onConflict: "user_id" });
-        
-        // Map Stripe customer to user
-        await supabase
-          .from("stripe_customer_map")
-          .upsert({ 
-            user_id: userId, 
-            stripe_customer_id: session.customer as string, 
-            stripe_checkout_session_id: session.id, 
-            stripe_payment_intent_id: session.payment_intent as string, 
-            updated_at: new Date().toISOString() 
-          }, { onConflict: "user_id" });
-        
-        logStep("Premium granted via checkout", { userId });
+        // Send welcome email with deduplication (for all checkout completions)
+        if (email) {
+          await sendWelcomeWithDedup(
+            supabase,
+            email,
+            () => getWelcomeEmailHtml(undefined, isFreeCheckout),
+            isFreeCheckout ? 'checkout_free_coupon' : 'checkout_paid',
+            event.id
+          );
+          
+          // Send onboarding reminder
+          await sendEmail(
+            email, 
+            'Complete your emergency preparedness setup',
+            getOnboardingReminderHtml()
+          );
+        }
         break;
       }
 
@@ -261,13 +321,16 @@ serve(async (req) => {
             .eq("payment_intent_id", si.id);
         }
         
-        // Send welcome + onboarding emails
+        // Send welcome + onboarding emails with deduplication
         if (email) {
-          await sendEmail(
-            email, 
-            'Welcome to Am I Ready? – Your journey starts now',
-            getWelcomeEmailHtml(claimCode)
+          await sendWelcomeWithDedup(
+            supabase,
+            email,
+            () => getWelcomeEmailHtml(claimCode),
+            'setup_intent',
+            event.id
           );
+          
           await sendEmail(
             email, 
             'Complete your emergency preparedness setup',

@@ -1,7 +1,12 @@
 /**
  * Welcome Email Template
  *
- * Sent when: setup_intent.succeeded
+ * Sent when: Any purchase/signup event (deduplicated)
+ * - checkout.session.completed (paid or free coupon)
+ * - payment_intent.succeeded (guest or logged-in)
+ * - setup_intent.succeeded
+ * - complete-guest-purchase
+ * 
  * Purpose: Welcome new users and guide them to start + manage billing
  */
 
@@ -11,10 +16,15 @@ const BILLING_PORTAL_URL = "https://billing.stripe.com/p/login/dRm8wP1JE5SPfSUf6
 /**
  * Generates the Welcome email HTML
  * @param claimCode - Optional claim code for guest purchases (creates /claim?code= URL)
+ * @param isFreeUser - Optional flag for users who used a 100% coupon
  * @returns Complete HTML email string
  */
-export function getWelcomeEmailHtml(claimCode?: string): string {
+export function getWelcomeEmailHtml(claimCode?: string, isFreeUser?: boolean): string {
   const ctaUrl = claimCode ? `${BASE_URL}/claim?code=${claimCode}` : `${BASE_URL}/login`;
+  
+  const paymentText = isFreeUser 
+    ? `You've claimed your <strong>free access</strong> to all the tools you need to build and activate your personal protection plan.`
+    : `With your one-time payment of <strong>€49</strong>, you now have lifetime access to all the tools you need to build and activate your personal protection plan.`;
 
   return `<!DOCTYPE html>
 <html>
@@ -37,11 +47,11 @@ export function getWelcomeEmailHtml(claimCode?: string): string {
     <!-- Body -->
     <div style="padding: 0 48px 32px;">
       <p style="color: #525f7f; font-size: 16px; line-height: 26px; margin-bottom: 20px;">
-        You’ve taken the first step toward being prepared, organized, and confident — congratulations!
+        You've taken the first step toward being prepared, organized, and confident — congratulations!
       </p>
 
       <p style="color: #525f7f; font-size: 16px; line-height: 26px; margin-bottom: 24px;">
-        With your one-time payment of <strong>€49</strong>, you now have lifetime access to all the tools you need to build and activate your personal protection plan.
+        ${paymentText}
       </p>
 
       <!-- Feature List -->
@@ -60,7 +70,8 @@ export function getWelcomeEmailHtml(claimCode?: string): string {
         </a>
       </div>
 
-      <!-- Billing Portal -->
+      <!-- Billing Portal (only show for paid users) -->
+      ${!isFreeUser ? `
       <div style="margin-top: 32px; text-align: center;">
         <p style="color: #8898aa; font-size: 14px; margin-bottom: 8px;">
           Need to manage your billing or payment details?
@@ -70,6 +81,7 @@ export function getWelcomeEmailHtml(claimCode?: string): string {
           Open Billing Portal
         </a>
       </div>
+      ` : ''}
     </div>
 
     <!-- Footer -->

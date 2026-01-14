@@ -238,6 +238,33 @@ export type Database = {
         }
         Relationships: []
       }
+      emails_sent: {
+        Row: {
+          email: string
+          id: string
+          sent_at: string | null
+          source: string | null
+          stripe_event_id: string | null
+          template_type: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          sent_at?: string | null
+          source?: string | null
+          stripe_event_id?: string | null
+          template_type: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          sent_at?: string | null
+          source?: string | null
+          stripe_event_id?: string | null
+          template_type?: string
+        }
+        Relationships: []
+      }
       exports: {
         Row: {
           created_at: string

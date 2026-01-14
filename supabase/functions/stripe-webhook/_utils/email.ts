@@ -3,10 +3,12 @@
  * 
  * Core email sending and extraction helpers for the Stripe webhook.
  * Handles Apple Pay, Google Pay, and standard card payments.
+ * Includes deduplication logic for welcome emails.
  */
 
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 // ============= Constants =============
 
@@ -56,6 +58,64 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     logStep('Email error', { error: String(err) });
     return false;
   }
+}
+
+// ============= Welcome Email with Deduplication =============
+
+/**
+ * Send welcome email with deduplication check
+ * Prevents duplicate welcome emails to the same address
+ * 
+ * @param supabase - Supabase client (service role)
+ * @param email - Recipient email address
+ * @param getEmailHtml - Function to generate email HTML (allows different templates)
+ * @param source - Source of the email (for tracking)
+ * @param stripeEventId - Optional Stripe event ID
+ * @returns true if sent, false if skipped or failed
+ */
+export async function sendWelcomeWithDedup(
+  supabase: SupabaseClient,
+  email: string,
+  getEmailHtml: () => string,
+  source: string,
+  stripeEventId?: string
+): Promise<boolean> {
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  // Check if welcome email already sent to this address
+  const { data: existing } = await supabase
+    .from('emails_sent')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .eq('template_type', 'welcome')
+    .maybeSingle();
+  
+  if (existing) {
+    logStep('Welcome email already sent, skipping', { email: normalizedEmail });
+    return false;
+  }
+  
+  // Send the email
+  const sent = await sendEmail(
+    normalizedEmail,
+    'Welcome to Am I Ready? – Your journey starts now',
+    getEmailHtml()
+  );
+  
+  if (sent) {
+    // Record in database to prevent future duplicates
+    await supabase
+      .from('emails_sent')
+      .insert({
+        email: normalizedEmail,
+        template_type: 'welcome',
+        source,
+        stripe_event_id: stripeEventId
+      });
+    logStep('Welcome email recorded', { email: normalizedEmail, source });
+  }
+  
+  return sent;
 }
 
 // ============= Email Extraction =============
@@ -141,6 +201,37 @@ export async function extractSetupEmail(stripe: Stripe, si: Stripe.SetupIntent):
   if (si.customer) {
     try {
       const custId = typeof si.customer === 'string' ? si.customer : si.customer.id;
+      const cust = await stripe.customers.retrieve(custId) as Stripe.Customer;
+      if (cust && !cust.deleted && cust.email) {
+        return cust.email.toLowerCase();
+      }
+    } catch {
+      // Customer retrieval failed
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract email from a Checkout Session
+ * Priority: customer_details.email → customer_email → customer object
+ */
+export async function extractCheckoutEmail(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
+  // 1. Try customer_details (most common for guest checkout)
+  if (session.customer_details?.email) {
+    return session.customer_details.email.toLowerCase();
+  }
+  
+  // 2. Try customer_email
+  if (session.customer_email) {
+    return session.customer_email.toLowerCase();
+  }
+  
+  // 3. Try customer object
+  if (session.customer) {
+    try {
+      const custId = typeof session.customer === 'string' ? session.customer : session.customer.id;
       const cust = await stripe.customers.retrieve(custId) as Stripe.Customer;
       if (cust && !cust.deleted && cust.email) {
         return cust.email.toLowerCase();
