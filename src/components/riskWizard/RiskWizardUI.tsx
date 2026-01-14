@@ -22,11 +22,13 @@ type WizardPhase = 'question' | 'interstitial' | 'analyzing' | 'results';
 interface RiskWizardUIProps {
   onComplete?: (result: WizardResult) => void;
   showResultsInternally?: boolean;
+  exitRoute?: string;
 }
 
 export default function RiskWizardUI({ 
   onComplete, 
-  showResultsInternally = true 
+  showResultsInternally = true,
+  exitRoute = '/be-prepared'
 }: RiskWizardUIProps) {
   const navigate = useNavigate();
   const { isPremium } = useEntitlements();
@@ -159,9 +161,9 @@ export default function RiskWizardUI({
     } else if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
     } else {
-      navigate('/be-prepared');
+      navigate(exitRoute);
     }
-  }, [phase, currentStepIndex, setCurrentStepIndex, navigate]);
+  }, [phase, currentStepIndex, setCurrentStepIndex, navigate, exitRoute]);
   
   const handleUpdateAnswer = useCallback((key: string, value: string | string[]) => {
     updateAnswer(key, value);
