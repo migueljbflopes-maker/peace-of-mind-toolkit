@@ -378,6 +378,7 @@ export default function Dashboard() {
                 steps={journey.steps}
                 isPremium={isPremium}
                 loading={journey.loading}
+                riskScorePreview={journey.riskScorePreview}
               />
             </div>
           </div>
