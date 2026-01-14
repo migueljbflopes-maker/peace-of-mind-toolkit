@@ -13,8 +13,6 @@ import {
   FileText, 
   Shirt, 
   Wrench,
-  ChevronDown,
-  ChevronUp,
   Lock,
   Download,
   BookOpen,
@@ -27,7 +25,10 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
-  Check
+  Check,
+  Package,
+  Shield,
+  Award
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -35,6 +36,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginModal } from "@/components/modals/LoginModal";
 import { PaywallModal } from "@/components/modals/PaywallModal";
 import { cn } from "@/lib/utils";
@@ -302,6 +305,72 @@ const supplyCategories: SupplyCategory[] = [
   },
 ];
 
+// ============= TIER SYSTEM =============
+type TierLevel = "basic" | "intermediate" | "advanced";
+
+const TIERS = [
+  { id: "basic" as TierLevel, name: "Basic Kit", icon: Package, description: "Essential 72h survival" },
+  { id: "intermediate" as TierLevel, name: "Intermediate", icon: Shield, description: "Solid 7-day prep" },
+  { id: "advanced" as TierLevel, name: "Fully Ready", icon: Award, description: "Complete 14+ day kit" },
+] as const;
+
+// Items that are ALWAYS basic tier (universal essentials)
+const ALWAYS_BASIC_ITEMS = [
+  "water-bottles", "canned-food", "crackers", "first-aid-kit", 
+  "pain-relievers", "bandages", "flashlight", "batteries",
+  "id-copies", "cash", "whistle", "blankets", "antiseptic"
+];
+
+// Items that can be advanced tier when conditions apply
+const ADVANCED_CAPABLE_ITEMS = [
+  "solar-charger", "sleeping-bag", "rope", "plastic-sheeting",
+  "radio", "multi-tool", "duct-tape", "work-gloves", "sturdy-shoes",
+  "water-purification", "water-container"
+];
+
+// Get item tier based on assessment answers
+const getItemTier = (itemId: string, answers: WizardAnswers): TierLevel => {
+  // Items that become BASIC based on assessment (urgency promotes them)
+  if (answers.waterContext !== "easy" && ["water-purification", "water-container"].includes(itemId)) {
+    return "basic";
+  }
+  if (answers.powerLevel === "none" && itemId === "candles") {
+    return "basic";
+  }
+  if (answers.cookingLevel === "none" && ["matches", "can-opener"].includes(itemId)) {
+    return "basic";
+  }
+  
+  // Always basic items
+  if (ALWAYS_BASIC_ITEMS.includes(itemId)) return "basic";
+  
+  // ADVANCED tier - only if preparação extendida or specific conditions
+  const advancedEligible = 
+    answers.daysTarget >= 14 || 
+    answers.waterContext === "portable" ||
+    answers.commLevel === "radio" ||
+    answers.powerLevel === "strong";
+    
+  if (ADVANCED_CAPABLE_ITEMS.includes(itemId) && advancedEligible) {
+    return "advanced";
+  }
+  
+  // Everything else is intermediate
+  return "intermediate";
+};
+
+// Check if item is urgent based on assessment gaps
+const isItemUrgent = (itemId: string, answers: WizardAnswers): boolean => {
+  if (answers.cashLevel === "none" && itemId === "cash") return true;
+  if (answers.docsLevel === "none" && ["id-copies", "insurance", "medical-records"].includes(itemId)) return true;
+  if (answers.powerLevel === "none" && ["flashlight", "batteries", "candles"].includes(itemId)) return true;
+  if (answers.waterContext !== "easy" && ["water-purification", "water-container"].includes(itemId)) return true;
+  if (answers.medicalNeeds === "prescriptions" && itemId === "prescription") return true;
+  return false;
+};
+
+// ============= HELPERS =============
+
 // Helper: get person multiplier from household size
 const getPersonMultiplier = (size: HouseholdSize | null): number => {
   if (!size) return 2;
@@ -364,7 +433,7 @@ const SuppliesPlanner = () => {
   // Checklist state
   const [checkedItems, setCheckedItems] = useState<CheckedState>({});
   const [checkedHardToSource, setCheckedHardToSource] = useState<CheckedState>({});
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["water"]);
+  const [selectedTier, setSelectedTier] = useState<TierLevel>("basic");
 
   // Modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -454,6 +523,46 @@ const SuppliesPlanner = () => {
     return { categoryStats, overallPreparedness, topGaps };
   }, [checkedItems, filteredCategories]);
 
+  // Compute stats per tier
+  const tierStats = useMemo(() => {
+    return TIERS.map(tier => {
+      let total = 0, checked = 0;
+      filteredCategories.forEach(cat => {
+        cat.items.forEach(item => {
+          if (getItemTier(item.id, answers) === tier.id) {
+            total++;
+            if (checkedItems[item.id]) checked++;
+          }
+        });
+      });
+      return { 
+        ...tier, 
+        total, 
+        checked, 
+        completion: total > 0 ? Math.round((checked / total) * 100) : 0 
+      };
+    });
+  }, [filteredCategories, checkedItems, answers]);
+
+  // Get items grouped by category for selected tier
+  const itemsForTier = useMemo(() => {
+    const result: { category: typeof supplyCategories[0]; items: (SupplyItem & { urgent: boolean })[] }[] = [];
+    
+    filteredCategories.forEach(cat => {
+      const tierItems = cat.items
+        .filter(item => getItemTier(item.id, answers) === selectedTier)
+        .map(item => ({ ...item, urgent: isItemUrgent(item.id, answers) }));
+      
+      if (tierItems.length > 0) {
+        // Sort: urgent items first
+        tierItems.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0));
+        result.push({ category: cat, items: tierItems });
+      }
+    });
+    
+    return result;
+  }, [filteredCategories, selectedTier, answers]);
+
   // Auto-save function for authenticated users
   const performAutoSave = useCallback(async () => {
     if (!isAuthenticated || !user) return;
@@ -537,13 +646,7 @@ const SuppliesPlanner = () => {
     }
   };
 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
+  // No longer needed - using tabs instead of accordion
 
   const toggleItem = (itemId: string) => {
     setCheckedItems((prev) => ({
@@ -1027,283 +1130,236 @@ const SuppliesPlanner = () => {
       <Navbar />
       <main className="pt-20 pb-10">
         <div className="container mx-auto px-4 max-w-2xl">
-          {/* Header */}
-          <div className="text-center mb-6">
-            {/* Back to Dashboard for premium users */}
-            {isPremium && (
+          {/* Compact Header */}
+          <div className="flex items-center justify-between py-3 border-b mb-4">
+            {isPremium ? (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/dashboard')}
-                className="mb-4"
+                className="gap-1"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                <ArrowLeft className="h-4 w-4" />
+                Dashboard
               </Button>
+            ) : (
+              <div />
             )}
-            <h1 className="text-xl font-semibold text-foreground mb-1">
-              Your {answers.daysTarget}-Day Supplies Plan
-            </h1>
-            <p className="text-sm text-muted-foreground mb-3">
-              For {answers.householdSize} {parseInt(answers.householdSize || "1") === 1 ? "person" : "people"}
-            </p>
             
-            {/* Retake Assessment Button */}
+            <div className="text-center">
+              <h1 className="text-base font-semibold text-foreground">
+                {answers.daysTarget}-Day Plan
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {answers.householdSize} {parseInt(answers.householdSize || "1") === 1 ? "person" : "people"}
+              </p>
+            </div>
+            
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => {
                 setShowResults(false);
                 setCurrentStep(0);
               }}
-              className="gap-2"
+              className="gap-1"
             >
               <RefreshCw className="h-4 w-4" />
-              Retake Assessment
             </Button>
           </div>
 
-          {/* Sticky Status Bar */}
-          <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 -mx-4 px-4 py-3 mb-4">
-            <div className="flex flex-col gap-2">
-              {!isPremium && (
-                <>
-                  <Button 
-                    onClick={() => setShowPaywallModal(true)}
-                    className="w-full gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Get my Personalized Resiliency Plan (€49)
-                  </Button>
-                  <p className="text-[10px] text-center text-muted-foreground">
-                    Printable offline PDF + Vault + Plans A & B. No subscription.
-                  </p>
-                </>
-              )}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  {isAutoSaving ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Saving...
-                    </>
-                  ) : isAuthenticated ? (
-                    <>
-                      <Check className="h-3 w-3 text-green-500" />
-                      Auto-saved
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setShowLoginModal(true)}
-                      className="text-amber-600 hover:text-amber-700 transition-colors"
-                    >
-                      Log in to auto-save
-                    </button>
-                  )}
-                </span>
-                <button
-                  onClick={() => navigate("/library")}
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                >
-                  <BookOpen className="h-3 w-3" />
-                  Official guidance
-                </button>
+          {/* Sticky Progress Bar */}
+          <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 -mx-4 px-4 py-2 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xl font-bold text-foreground">{stats.overallPreparedness}%</span>
+                <Progress value={stats.overallPreparedness} className="h-2 w-24" />
               </div>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                {isAutoSaving ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Saving...
+                  </>
+                ) : isAuthenticated ? (
+                  <>
+                    <Check className="h-3 w-3 text-green-500" />
+                    Saved
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="text-amber-600 hover:text-amber-700 transition-colors"
+                  >
+                    Log in to save
+                  </button>
+                )}
+              </span>
             </div>
+            
+            {/* Premium CTA for non-premium */}
+            {!isPremium && (
+              <Button 
+                onClick={() => setShowPaywallModal(true)}
+                size="sm"
+                className="w-full mt-2 gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Get Personalized Plan (€49)
+              </Button>
+            )}
           </div>
 
-          {/* Stats Card */}
-          <Card className="p-4 mb-4 bg-[#F8FAFC] border-border/50">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-2xl font-bold text-foreground">{stats.overallPreparedness}%</div>
-                <div className="text-xs text-muted-foreground">Preparedness</div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-muted-foreground mb-1">Top gaps:</div>
-                <div className="flex flex-wrap justify-end gap-1">
-                  {stats.topGaps.slice(0, 3).map((gap) => (
-                    <span
-                      key={gap.id}
-                      className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded"
-                    >
-                      <AlertCircle className="h-2.5 w-2.5" />
-                      {gap.name.split(" ")[0]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <Progress value={stats.overallPreparedness} className="h-2" />
-          </Card>
-
-          {/* Hard to Source Section */}
-          <Card className="p-4 mb-4 border-amber-200 bg-amber-50/50">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Harder to get last-minute</h3>
-                <p className="text-xs text-muted-foreground">
-                  These items are easier to arrange ahead of time. Consider prioritizing them.
-                </p>
-              </div>
-            </div>
-            <div className="space-y-1">
-              {filteredHardToSource.map((item) => {
-                const isChecked = checkedHardToSource[item.id] || false;
+          {/* Tier Tabs */}
+          <Tabs value={selectedTier} onValueChange={(v) => setSelectedTier(v as TierLevel)} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4 h-auto">
+              {tierStats.map(tier => {
+                const TierIcon = tier.icon;
                 return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "flex items-center justify-between gap-3 p-2 rounded-lg transition-colors",
-                      isChecked ? "bg-primary/5" : "hover:bg-amber-100/50"
-                    )}
+                  <TabsTrigger 
+                    key={tier.id} 
+                    value={tier.id} 
+                    className="flex flex-col items-center gap-1 py-2 px-1 data-[state=active]:bg-primary/10"
                   >
-                    <label className="flex items-center gap-3 flex-1 cursor-pointer">
-                      <Checkbox
-                        checked={isChecked}
-                        onCheckedChange={() => toggleHardToSource(item.id)}
-                      />
-                      <span className={cn(
-                        "text-sm",
-                        isChecked ? "text-muted-foreground line-through" : "text-foreground"
-                      )}>
-                        {item.name}
-                      </span>
-                    </label>
-                    {item.hasRecommendation && item.recKey && (
-                      <button
-                        onClick={() => navigate(`/be-prepared#products?q=${encodeURIComponent(item.name)}`)}
-                        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors flex-shrink-0"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        <span>Products</span>
-                      </button>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-1">
+                      <TierIcon className={cn(
+                        "h-3.5 w-3.5",
+                        tier.completion === 100 ? "text-green-600" : ""
+                      )} />
+                      <span className="text-xs font-medium">{tier.name}</span>
+                    </div>
+                    <span className={cn(
+                      "text-[10px]",
+                      tier.completion === 100 ? "text-green-600 font-medium" : "text-muted-foreground"
+                    )}>
+                      {tier.checked}/{tier.total} {tier.completion === 100 && "✓"}
+                    </span>
+                  </TabsTrigger>
                 );
               })}
-            </div>
-          </Card>
-
-          {/* Categories Accordion */}
-          <div className="space-y-2">
-            {filteredCategories.map((category) => {
-              const Icon = category.icon;
-              const isExpanded = expandedCategories.includes(category.id);
-              const catStats = stats.categoryStats.find((s) => s.id === category.id);
-
-              return (
-                <Card key={category.id} className="overflow-hidden">
-                  {/* Category Header */}
-                  <button
-                    onClick={() => toggleCategory(category.id)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                        catStats?.completion === 100 
-                          ? "bg-green-100" 
-                          : "bg-primary/10"
-                      )}>
-                        <Icon className={cn(
-                          "h-4 w-4",
-                          catStats?.completion === 100 
-                            ? "text-green-600" 
-                            : "text-primary"
-                        )} />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-sm font-medium text-foreground">
-                          {category.name}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Progress 
-                            value={catStats?.completion || 0} 
-                            className={cn(
-                              "h-1.5 w-16",
-                              catStats?.completion === 100 && "[&>div]:bg-green-500"
-                            )}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {catStats?.checked}/{catStats?.total}
+            </TabsList>
+            
+            {TIERS.map(tier => (
+              <TabsContent key={tier.id} value={tier.id} className="space-y-4 mt-0">
+                {/* Tier description */}
+                <p className="text-xs text-muted-foreground text-center mb-2">
+                  {tier.description}
+                </p>
+                
+                {itemsForTier.length === 0 ? (
+                  <Card className="p-6 text-center">
+                    <Check className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No items in this tier based on your assessment.
+                    </p>
+                  </Card>
+                ) : (
+                  itemsForTier.map(({ category, items }) => {
+                    const Icon = category.icon;
+                    return (
+                      <div key={category.id} className="space-y-1">
+                        {/* Category header */}
+                        <div className="flex items-center gap-2 py-2 px-1">
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            {category.name}
                           </span>
                         </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {catStats?.completion === 100 && (
-                        <Check className="h-4 w-4 text-green-500" />
-                      )}
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Items List */}
-                  {isExpanded && (
-                    <div className="border-t border-border/50">
-                      {category.items.map((item) => {
-                        const quantity = calculateQuantity(
-                          item,
-                          answers.householdSize,
-                          answers.daysTarget
-                        );
-                        const isChecked = checkedItems[item.id] || false;
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={cn(
-                              "flex items-center gap-3 p-3 transition-all duration-200 border-l-2",
-                              isChecked 
-                                ? "bg-green-50/80 border-l-green-500" 
-                                : "hover:bg-muted/50 border-l-transparent"
-                            )}
-                          >
-                            <label className="flex items-center gap-3 flex-1 cursor-pointer group">
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={() => toggleItem(item.id)}
-                                className="transition-transform group-hover:scale-110"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className={cn(
-                                  "text-sm transition-colors",
+                        
+                        {/* Items */}
+                        {items.map((item) => {
+                          const quantity = calculateQuantity(item, answers.householdSize, answers.daysTarget);
+                          const isChecked = checkedItems[item.id] || false;
+                          
+                          return (
+                            <div
+                              key={item.id}
+                              className={cn(
+                                "flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all border-l-2",
+                                isChecked 
+                                  ? "bg-green-50/80 border-l-green-500" 
+                                  : item.urgent
+                                    ? "bg-amber-50/50 border-l-amber-400"
+                                    : "hover:bg-muted/50 border-l-transparent"
+                              )}
+                            >
+                              {/* Urgent indicator */}
+                              {item.urgent && !isChecked && (
+                                <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                              )}
+                              
+                              <label className="flex items-center gap-3 flex-1 cursor-pointer group">
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => toggleItem(item.id)}
+                                  className="transition-transform group-hover:scale-110"
+                                />
+                                <span className={cn(
+                                  "text-sm flex-1",
                                   isChecked 
                                     ? "text-green-700 line-through" 
                                     : "text-foreground group-hover:text-primary"
                                 )}>
                                   {item.name}
-                                </div>
-                              </div>
-                            </label>
-                            <div className="flex items-center gap-2">
-                              {item.hasRecommendation && <ProductLink itemId={item.id} />}
-                              <div className={cn(
-                                "text-xs whitespace-nowrap px-2 py-0.5 rounded",
-                                isChecked 
-                                  ? "text-green-600 bg-green-100" 
-                                  : "text-muted-foreground bg-muted/50"
-                              )}>
-                                {quantity} {item.unit}
+                                </span>
+                              </label>
+                              
+                              <div className="flex items-center gap-2">
+                                {item.hasRecommendation && <ProductLink itemId={item.id} />}
+                                <Badge 
+                                  variant={isChecked ? "secondary" : "outline"} 
+                                  className={cn(
+                                    "text-xs shrink-0",
+                                    isChecked && "bg-green-100 text-green-700"
+                                  )}
+                                >
+                                  {quantity} {item.unit}
+                                </Badge>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
+              </TabsContent>
+            ))}
+          </Tabs>
+
+          {/* Hard to Source - Collapsible hint */}
+          {filteredHardToSource.length > 0 && (
+            <Card className="mt-4 p-3 border-amber-200 bg-amber-50/50">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-medium text-foreground">Priority Items</span>
+                <span className="text-xs text-muted-foreground">
+                  (harder to source last-minute)
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {filteredHardToSource.map((item) => {
+                  const isChecked = checkedHardToSource[item.id] || false;
+                  return (
+                    <Badge 
+                      key={item.id}
+                      variant={isChecked ? "secondary" : "outline"}
+                      className={cn(
+                        "cursor-pointer transition-colors text-xs",
+                        isChecked 
+                          ? "bg-green-100 text-green-700 line-through" 
+                          : "hover:bg-amber-100"
+                      )}
+                      onClick={() => toggleHardToSource(item.id)}
+                    >
+                      {isChecked && <Check className="h-2.5 w-2.5 mr-1" />}
+                      {item.name}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* Bottom CTA - Only for non-premium users */}
           {!isPremium && (
@@ -1314,25 +1370,15 @@ const SuppliesPlanner = () => {
                   Premium
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-1">
-                  Get your Personalized Resiliency Plan
+                  Complete Your Preparedness
                 </h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Printable offline 'Red Folder' PDF + encrypted Vault + Plans A & B.
+                  Printable Red Folder + Encrypted Vault + Emergency Plans
                 </p>
-                <ul className="text-xs text-muted-foreground mb-4 space-y-1">
-                  <li>✓ Printable offline PDF (Red Folder format)</li>
-                  <li>✓ Encrypted Vault (IDs, contacts, medical)</li>
-                  <li>✓ Plans A & B (exit + emergency)</li>
-                  <li>✓ Encrypted backup & restore</li>
-                  <li>✓ Premium insights & next steps</li>
-                </ul>
                 <Button onClick={() => setShowPaywallModal(true)} className="gap-2">
                   <Download className="h-4 w-4" />
-                  Generate my Plan (€49)
+                  Get Full Plan (€49)
                 </Button>
-                <p className="text-[10px] text-muted-foreground mt-2">
-                  One-time purchase. No subscription.
-                </p>
               </div>
             </Card>
           )}
