@@ -160,9 +160,9 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Case 3: User changed (different user signed in)
+    // Case 3: User changed or first load (different user signed in)
     if (currentUserId !== previousUserId) {
-      dbg('CASE 3: User changed, validating cache...');
+      dbg('CASE 3: User changed or first load, validating cache...');
       
       // Validate cache userId matches current user
       try {
@@ -183,10 +183,14 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Case 4: Same user, already loaded - no action needed
-    dbg('CASE 4: Same user, no action');
+    // Case 4: Same user, already loaded - ensure loading is false
+    // This can happen on re-renders after fetchEntitlements completed
+    dbg('CASE 4: Same user, ensuring loading is false');
+    if (loading) {
+      setLoading(false);
+    }
 
-  }, [authLoading, user, fetchEntitlements]);
+  }, [authLoading, user, fetchEntitlements, loading]);
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
