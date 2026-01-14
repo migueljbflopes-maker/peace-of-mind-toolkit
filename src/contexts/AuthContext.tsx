@@ -206,15 +206,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 /**
    * HARD logout: clears local session deterministically, even if network fails.
    * Uses scope:'local' to ensure local session is removed regardless of API.
-   * Keeps loading=true during process to prevent UI flicker.
+   * Sets loading=false BEFORE redirect to ensure UI shows correct state.
    */
   const signOut = useCallback(async () => {
     dbg('signOut: initiated');
     
-    // Keep loading TRUE during signout
-    setLoading(true);
-    
-    // Clear user/session immediately
+    // Clear user/session immediately (don't set loading=true to avoid stuck state)
     setUser(null);
     setSession(null);
     dbg('signOut: state cleared');
@@ -242,6 +239,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear caches AFTER as safety net
     clearAuthCaches();
     dbg('signOut: caches cleared (post-supabase)');
+    
+    // Set loading FALSE before redirect to ensure UI shows login button
+    setLoading(false);
+    dbg('signOut: loading set to false');
     
     // ALWAYS redirect - use replace to prevent back-button issues
     dbg('signOut: redirecting to /');
