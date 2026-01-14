@@ -25,16 +25,17 @@ interface DraftRecoveryStatus {
 }
 
 export function useDraftRecovery(userId: string | undefined) {
-  const [status, setStatus] = useState<DraftRecoveryStatus>({
+  const [status, setStatus] = useState<DraftRecoveryStatus>(() => ({
     isRecovering: false,
     recovered: {
       riskAssessment: false,
       suppliesPlan: false,
     },
     error: null,
-  });
+  }));
   
   const hasRunRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const recoverRiskDraft = useCallback(async (userId: string): Promise<boolean> => {
     try {
@@ -156,7 +157,9 @@ export function useDraftRecovery(userId: string | undefined) {
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
-    setStatus(prev => ({ ...prev, isRecovering: true, error: null }));
+    if (mountedRef.current) {
+      setStatus(prev => ({ ...prev, isRecovering: true, error: null }));
+    }
 
     try {
       const [riskRecovered, suppliesRecovered] = await Promise.all([
@@ -164,27 +167,39 @@ export function useDraftRecovery(userId: string | undefined) {
         recoverSuppliesDraft(userId),
       ]);
 
-      setStatus({
-        isRecovering: false,
-        recovered: {
-          riskAssessment: riskRecovered,
-          suppliesPlan: suppliesRecovered,
-        },
-        error: null,
-      });
+      if (mountedRef.current) {
+        setStatus({
+          isRecovering: false,
+          recovered: {
+            riskAssessment: riskRecovered,
+            suppliesPlan: suppliesRecovered,
+          },
+          error: null,
+        });
+      }
 
       if (riskRecovered || suppliesRecovered) {
         console.log('[DraftRecovery] Recovery complete:', { riskRecovered, suppliesRecovered });
       }
     } catch (e) {
       console.error('[DraftRecovery] Recovery failed:', e);
-      setStatus(prev => ({
-        ...prev,
-        isRecovering: false,
-        error: e instanceof Error ? e.message : 'Recovery failed',
-      }));
+      if (mountedRef.current) {
+        setStatus(prev => ({
+          ...prev,
+          isRecovering: false,
+          error: e instanceof Error ? e.message : 'Recovery failed',
+        }));
+      }
     }
   }, [recoverRiskDraft, recoverSuppliesDraft]);
+
+  // Set mounted ref on mount/unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Trigger recovery when userId becomes available
   useEffect(() => {
