@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, Info } from 'lucide-react';
-import { hasGeneratedPlans } from '@/lib/planWizard2Store';
+import { Button } from '@/components/ui/button';
+import { FileText, Info, RefreshCw } from 'lucide-react';
+import { getPlan } from '@/lib/planWizard2Store';
+import { GeneratedPlanA, GeneratedPlanB } from '@/lib/planWizard2Types';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
@@ -16,15 +18,25 @@ import Footer from '@/components/Footer';
 export default function Plans() {
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   
-  const [wizardPlans, setWizardPlans] = useState<{ hasPlanA: boolean; hasPlanB: boolean } | null>(null);
+  const [planData, setPlanData] = useState<{
+    planA: GeneratedPlanA | null;
+    planB: GeneratedPlanB | null;
+  } | null>(null);
 
-  // Load wizard plan status
+  // Load full plan data
   useEffect(() => {
     if (user && isPremium) {
-      hasGeneratedPlans(user.id).then(setWizardPlans);
+      getPlan(user.id).then(plan => {
+        if (plan) {
+          setPlanData({
+            planA: plan.plan_a_json,
+            planB: plan.plan_b_json,
+          });
+        }
+      });
     }
   }, [user, isPremium]);
 
@@ -64,11 +76,24 @@ export default function Plans() {
           <div className="container-wide section-padding py-8">
             {/* Header */}
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <FileText className="h-5 w-5 text-primary" />
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-foreground">{t.plans.title}</h1>
                 </div>
-                <h1 className="text-2xl font-bold text-foreground">{t.plans.title}</h1>
+                {(planData?.planA || planData?.planB) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/premium/plans/wizard')}
+                    className="gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {locale === 'pt' ? 'Refazer Planos' : 'Redo Plans'}
+                  </Button>
+                )}
               </div>
               <p className="text-muted-foreground">{t.plans.subtitle}</p>
             </div>
@@ -84,23 +109,20 @@ export default function Plans() {
             {/* Plans Grid */}
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
               {(['A', 'B'] as PlanType[]).map((planType) => {
-                const hasWizardPlan = planType === 'A' ? wizardPlans?.hasPlanA : wizardPlans?.hasPlanB;
+                const hasPlan = planType === 'A' ? !!planData?.planA : !!planData?.planB;
+                const summary = planType === 'A' ? planData?.planA?.overview : planData?.planB?.overview;
                 return (
                   <PlanCard
                     key={planType}
                     planType={planType}
-                    hasGeneratedPlan={hasWizardPlan}
+                    hasGeneratedPlan={hasPlan}
+                    summary={summary}
                     onViewPlan={() => navigate('/premium/plans/wizard')}
                     onStartWizard={() => navigate('/premium/plans/wizard')}
                   />
                 );
               })}
             </div>
-
-            {/* Premium note */}
-            <p className="mt-8 text-sm text-muted-foreground text-center">
-              {t.plans.premiumNote}
-            </p>
           </div>
         )}
       </main>
