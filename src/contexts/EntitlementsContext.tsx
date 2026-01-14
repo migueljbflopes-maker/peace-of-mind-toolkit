@@ -186,11 +186,9 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     // Case 4: Same user, already loaded - ensure loading is false
     // This can happen on re-renders after fetchEntitlements completed
     dbg('CASE 4: Same user, ensuring loading is false');
-    if (loading) {
-      setLoading(false);
-    }
+    setLoading(false);
 
-  }, [authLoading, user, fetchEntitlements, loading]);
+  }, [authLoading, user, fetchEntitlements]); // Removed 'loading' to prevent re-render loops
 
   // Effective premium status (considering dev override)
   const isPremium = import.meta.env.DEV && devPremiumOverride ? true : entitlements.isPremium;
