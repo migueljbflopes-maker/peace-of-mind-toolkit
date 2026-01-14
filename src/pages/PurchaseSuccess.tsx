@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLocale } from '@/i18n/useLocale';
 import { Card } from '@/components/ui/card';
@@ -56,6 +56,27 @@ export default function PurchaseSuccess() {
 
     completeGuest();
   }, [sessionId, locale]);
+
+  // Inject conversion tracking script on success
+  const conversionScriptRef = useRef<HTMLScriptElement | null>(null);
+  useEffect(() => {
+    if (status === 'success' && !conversionScriptRef.current) {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = '//blas6.ttrk.io/postback.js';
+      script.async = true;
+      document.body.appendChild(script);
+      conversionScriptRef.current = script;
+      console.log('[PurchaseSuccess] Conversion tracking script injected');
+
+      return () => {
+        if (conversionScriptRef.current && document.body.contains(conversionScriptRef.current)) {
+          document.body.removeChild(conversionScriptRef.current);
+          conversionScriptRef.current = null;
+        }
+      };
+    }
+  }, [status]);
 
   if (status === 'loading') {
     return (
