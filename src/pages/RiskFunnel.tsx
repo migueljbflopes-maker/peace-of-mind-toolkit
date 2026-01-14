@@ -714,8 +714,15 @@ export default function RiskFunnel() {
           }
 
           ev.complete("success");
-          console.log("[RiskFunnel] Express Pay: success, navigating to claim");
-          navigateRef.current(`/claim?claim_code=${piRes?.claimCode}`);
+          console.log("[RiskFunnel] Express Pay: success, claimCode:", piRes?.claimCode);
+          
+          // Store claim code in localStorage as fallback BEFORE redirect
+          if (piRes?.claimCode) {
+            localStorage.setItem('resilient_claim_code_last', piRes.claimCode);
+            console.log("[RiskFunnel] Stored claimCode in localStorage:", piRes.claimCode);
+          }
+          
+          navigateRef.current(`/claim?claim=${piRes?.claimCode}`);
         } catch (err) {
           console.error("[RiskFunnel] Express Pay: paymentmethod handler failed:", err);
           try {
