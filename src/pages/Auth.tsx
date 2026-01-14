@@ -21,10 +21,28 @@ const passwordSchema = z.string().min(6, { message: 'Password must be at least 6
 type AuthMode = 'login' | 'signup';
 type AuthMethod = 'magic-link' | 'password';
 
+// Sanitize return_url to prevent redirect loops
+const sanitizeReturnUrl = (url: string): string => {
+  // Block login/auth pages to prevent loops
+  if (url.startsWith('/login') || url.startsWith('/auth')) {
+    return '/dashboard';
+  }
+  // Block already-encoded URLs (indicates loop)
+  if (url.includes('%2F') || url.includes('%252F')) {
+    return '/dashboard';
+  }
+  // Must start with / and not be empty
+  if (!url || !url.startsWith('/')) {
+    return '/dashboard';
+  }
+  return url;
+};
+
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnUrl = searchParams.get('return_url') || '/dashboard';
+  const rawReturnUrl = searchParams.get('return_url') || '/dashboard';
+  const returnUrl = sanitizeReturnUrl(rawReturnUrl);
   
   const { t } = useLocale();
   const { toast } = useToast();
@@ -40,6 +58,7 @@ export default function Auth() {
   const [authMethod, setAuthMethod] = useState<AuthMethod>('magic-link');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [lastMagicLinkSent, setLastMagicLinkSent] = useState(0);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -65,10 +84,22 @@ export default function Auth() {
       return;
     }
 
+    // Prevent rapid resubmission (rate limit protection)
+    const now = Date.now();
+    if (now - lastMagicLinkSent < 60000) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'Please wait before requesting another link',
+        description: 'For security, you can only request a magic link once per minute.'
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await signInWithMagicLink(result.data, returnUrl);
     
     if (!error) {
+      setLastMagicLinkSent(now);
       setEmailSent(true);
       setResendCooldown(30);
       toast({ title: t.auth.magicLinkSent });

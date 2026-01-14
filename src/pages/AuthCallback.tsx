@@ -12,12 +12,25 @@ export default function AuthCallback() {
   const [errorMessage, setErrorMessage] = useState('');
   const processedRef = useRef(false);
 
-  // Validate return URL is internal (security)
-  const isValidReturnUrl = (url: string): boolean => {
-    if (!url) return false;
-    if (!url.startsWith('/') || url.startsWith('//')) return false;
-    if (url.toLowerCase().includes('javascript:') || url.toLowerCase().includes('data:')) return false;
-    return true;
+  // Validate and sanitize return URL (security + loop prevention)
+  const sanitizeReturnUrl = (url: string): string => {
+    // Block login/auth pages to prevent loops
+    if (!url || url.startsWith('/login') || url.startsWith('/auth')) {
+      return '/dashboard';
+    }
+    // Block already-encoded URLs (indicates loop)
+    if (url.includes('%2F') || url.includes('%252F')) {
+      return '/dashboard';
+    }
+    // Must start with / and not //
+    if (!url.startsWith('/') || url.startsWith('//')) {
+      return '/dashboard';
+    }
+    // Block javascript/data URLs
+    if (url.toLowerCase().includes('javascript:') || url.toLowerCase().includes('data:')) {
+      return '/dashboard';
+    }
+    return url;
   };
 
   useEffect(() => {
@@ -57,8 +70,7 @@ export default function AuthCallback() {
           
           if (data.session) {
             setStatus('success');
-            const returnUrl = searchParams.get('return_url') || '/dashboard';
-            const safeReturnUrl = isValidReturnUrl(returnUrl) ? returnUrl : '/dashboard';
+            const safeReturnUrl = sanitizeReturnUrl(searchParams.get('return_url') || '/dashboard');
             
             // Clear hash from URL before redirect
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -81,8 +93,7 @@ export default function AuthCallback() {
         
         if (data.session) {
           setStatus('success');
-          const returnUrl = searchParams.get('return_url') || '/dashboard';
-          const safeReturnUrl = isValidReturnUrl(returnUrl) ? returnUrl : '/dashboard';
+          const safeReturnUrl = sanitizeReturnUrl(searchParams.get('return_url') || '/dashboard');
           
           setTimeout(() => {
             navigate(safeReturnUrl, { replace: true });
@@ -94,8 +105,7 @@ export default function AuthCallback() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
           if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
             setStatus('success');
-            const returnUrl = searchParams.get('return_url') || '/dashboard';
-            const safeReturnUrl = isValidReturnUrl(returnUrl) ? returnUrl : '/dashboard';
+            const safeReturnUrl = sanitizeReturnUrl(searchParams.get('return_url') || '/dashboard');
             
             setTimeout(() => {
               navigate(safeReturnUrl, { replace: true });

@@ -181,10 +181,13 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    // Wait for BOTH auth AND entitlements to finish before redirecting
+    if (authLoading || entitlementsLoading) return;
+    
+    if (!isAuthenticated) {
       navigate(`/login?return_url=/dashboard`);
     }
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [authLoading, entitlementsLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (user) {
