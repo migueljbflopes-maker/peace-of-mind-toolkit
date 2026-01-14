@@ -29,20 +29,11 @@ export interface PreparednessJourney {
 
 const STEP_DEFINITIONS = [
   {
-    id: 'risk-assessment',
+    id: 'premium-risk-assessment',
     phase: 'assess' as const,
     phaseLabel: 'Assess',
-    label: 'Risk Assessment',
-    description: 'Understand your location-specific risks',
-    href: '/tools/risk',
-    isPremium: false,
-  },
-  {
-    id: 'risk-insights',
-    phase: 'assess' as const,
-    phaseLabel: 'Assess',
-    label: 'AI Risk Insights',
-    description: 'Get personalized AI-powered analysis',
+    label: 'Premium Risk Assessment',
+    description: 'Comprehensive AI-powered risk analysis',
     href: '/premium/risk',
     isPremium: true,
   },
@@ -239,15 +230,8 @@ export function usePreparednessJourney(
 
     // Determine completion status
     switch (def.id) {
-      case 'risk-assessment':
-        isComplete = completion.riskAssessment;
-        break;
-      case 'risk-insights':
+      case 'premium-risk-assessment':
         isComplete = completion.riskInsights;
-        // Soft warning if basic risk assessment not done
-        if (!completion.riskAssessment && !isComplete) {
-          warning = 'Recommended: complete Risk Assessment first';
-        }
         break;
       case 'supplies-plan':
         isComplete = completion.suppliesPlan;

@@ -11,7 +11,7 @@ import {
   Hospital, Siren, ShoppingCart, Zap,
   AlertTriangle, CheckCircle, ArrowRight,
   Save, Sparkles, Target, Loader2,
-  Cloud, Building2, Globe, Bomb, Route
+  Cloud, Building2, Globe, Bomb, Route, Share2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -667,16 +667,38 @@ export function PremiumRiskResults({
           <ArrowRight className="h-5 w-5" />
         </Button>
         
-        {onRetake && (
+        <div className="grid grid-cols-2 gap-3">
+          {onRetake && (
+            <Button 
+              variant="outline"
+              size="lg" 
+              className="w-full"
+              onClick={onRetake}
+            >
+              Retake Assessment
+            </Button>
+          )}
           <Button 
             variant="outline"
             size="lg" 
-            className="w-full"
-            onClick={onRetake}
+            className={onRetake ? "w-full" : "w-full col-span-2"}
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({
+                  title: 'My Risk Assessment',
+                  text: `Risk Score: ${score}/100 - ${riskLevel}. Check your preparedness!`,
+                  url: window.location.origin + '/premium/risk'
+                }).catch(() => {});
+              } else {
+                navigator.clipboard.writeText(window.location.origin + '/premium/risk');
+                toast.success('Link copied to clipboard');
+              }
+            }}
           >
-            Retake Assessment
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
           </Button>
-        )}
+        </div>
         
         {hasSaved && (
           <p className="text-center text-sm text-muted-foreground">
