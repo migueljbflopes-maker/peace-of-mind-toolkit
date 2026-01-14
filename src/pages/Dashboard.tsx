@@ -1,39 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
   Shield,
   AlertTriangle,
-  Lock,
-  FileText,
-  Archive,
-  Bell,
   Loader2,
-  ChevronRight,
-  Sparkles,
   CheckCircle2,
-  AlertCircle,
-  FolderHeart,
-  Users,
-  Circle,
   RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
-import { useOnboardingState } from '@/hooks/useOnboardingState';
-import { useDashboardReadiness } from '@/hooks/useDashboardReadiness';
 import { usePreparednessJourney } from '@/hooks/usePreparednessJourney';
 import { useDraftRecovery } from '@/hooks/useDraftRecovery';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PreparednessJourney } from '@/components/dashboard/PreparednessJourney';
-import { SyncStatusIndicator, computeSyncState } from '@/components/SyncStatusIndicator';
 import { supabase } from '@/integrations/supabase/client';
-import { PremiumBundleCard } from '@/components/PremiumBundleCard';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { toast } from 'sonner';
@@ -45,15 +30,6 @@ export default function Dashboard() {
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { isPremium, loading: entitlementsLoading, refetch, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
-  const { needsOnboarding } = useOnboardingState(user?.id);
-  const { 
-    loading: readinessLoading,
-    vault: hasVault,
-    plans: hasPlans,
-    redFolder: hasRedFolder,
-    backup: hasBackup,
-    panicSetup: hasPanicSetup,
-  } = useDashboardReadiness(user?.id);
   
   // Preparedness Journey hook
   const journey = usePreparednessJourney(user?.id, isPremium);
@@ -277,18 +253,6 @@ export default function Dashboard() {
     );
   }
 
-  const safeToolkitShortcuts = [
-    { label: t.premium.shortcuts.vault, href: '/premium/vault', icon: Lock, ready: hasVault },
-    { label: t.premium.shortcuts.plans, href: '/premium/plans', icon: FileText, ready: hasPlans },
-    { label: t.premium.shortcuts.redFolder, href: '/premium/red-folder', icon: FolderHeart, ready: hasRedFolder },
-    { label: t.premium.shortcuts.backup, href: '/premium/backup', icon: Archive, ready: hasBackup },
-  ];
-
-  const panicButtonShortcuts = [
-    { label: 'Setup Contacts', href: '/panic/setup', icon: Users, ready: hasPanicSetup },
-    { label: 'Test Panic Button', href: '/panic/test', icon: AlertCircle, ready: null as boolean | null },
-    { label: 'Activation History', href: '/panic/history', icon: Bell, ready: null as boolean | null },
-  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -334,166 +298,6 @@ export default function Dashboard() {
                 loading={journey.loading}
               />
             </div>
-          </div>
-
-
-          {/* Section 2: Premium Features */}
-          <div>
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              {isPremium ? 'Your Premium Features' : 'Premium Features'}
-              {!isPremium && (
-                <Badge variant="outline" className="ml-2 text-xs">€49 one-time</Badge>
-              )}
-            </h2>
-
-            {isPremium ? (
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Safe Toolkit */}
-                <Card className="border-primary/20">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-primary/10">
-                        <Shield className="h-4 w-4 text-primary" />
-                      </div>
-                      <CardTitle className="text-base">Safe Toolkit</CardTitle>
-                    </div>
-                    <CardDescription>Encrypted vault and personalized plans</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {safeToolkitShortcuts.map((item) => (
-                        <Link key={item.href} to={item.href}>
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <item.icon className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-medium">{item.label}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {!readinessLoading && item.ready === true && (
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              )}
-                              {!readinessLoading && item.ready === false && (
-                                <Circle className="h-4 w-4 text-muted-foreground/40" strokeDasharray="2 2" />
-                              )}
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Panic Button */}
-                <Card className="border-destructive/20">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-destructive/10">
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      </div>
-                      <CardTitle className="text-base">Panic Button</CardTitle>
-                    </div>
-                    <CardDescription>Emergency response and continuity</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {panicButtonShortcuts.map((item) => (
-                        <Link key={item.href} to={item.href}>
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <item.icon className="h-4 w-4 text-destructive" />
-                              <span className="text-sm font-medium">{item.label}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {!readinessLoading && item.ready === true && (
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              )}
-                              {!readinessLoading && item.ready === false && (
-                                <Circle className="h-4 w-4 text-muted-foreground/40" strokeDasharray="2 2" />
-                              )}
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Safe Toolkit Locked */}
-                <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-primary/10">
-                        <Shield className="h-4 w-4 text-primary" />
-                      </div>
-                      <CardTitle className="text-base">Safe Toolkit</CardTitle>
-                    </div>
-                    <CardDescription>Encrypted vault, Plans A & B, Red Folder PDF</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <ul className="space-y-1.5 text-sm text-muted-foreground">
-                      <li className="flex items-center gap-2">
-                        <Lock className="h-3.5 w-3.5" />
-                        Encrypted Vault for sensitive data
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <FileText className="h-3.5 w-3.5" />
-                        AI-generated Plans A & B
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <FolderHeart className="h-3.5 w-3.5" />
-                        Printable Red Folder PDF
-                      </li>
-                    </ul>
-                    <Link to="/pricing">
-                      <Button size="sm" className="w-full mt-2">
-                        Unlock Safe Toolkit
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-
-                {/* Panic Button Locked */}
-                <Card className="border-destructive/20 bg-gradient-to-br from-destructive/5 to-background">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-destructive/10">
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      </div>
-                      <CardTitle className="text-base">Panic Button</CardTitle>
-                    </div>
-                    <CardDescription>One-action emergency response</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <ul className="space-y-1.5 text-sm text-muted-foreground">
-                      <li className="flex items-center gap-2">
-                        <Users className="h-3.5 w-3.5" />
-                        Emergency contacts setup
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Instant location sharing
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Bell className="h-3.5 w-3.5" />
-                        Continuity check-ins
-                      </li>
-                    </ul>
-                    <Link to="/pricing">
-                      <Button size="sm" variant="outline" className="w-full mt-2 border-destructive/30 hover:bg-destructive/5">
-                        Unlock Panic Button
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
           </div>
         </div>
       </main>
