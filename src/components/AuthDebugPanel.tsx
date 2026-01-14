@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChevronDown, ChevronUp, RefreshCw, Trash2, LogOut, Bug } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Trash2, LogOut, Bug, Zap } from 'lucide-react';
 
 // Only render in DEV mode
 if (!import.meta.env.DEV) {
@@ -87,7 +87,16 @@ export default function AuthDebugPanel() {
     localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
     localStorage.removeItem(DEV_PREMIUM_KEY);
     setCacheInfo(getCacheInfo());
-    refetch();
+  };
+
+  const handleForceRefresh = async () => {
+    // Clear all caches
+    localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+    localStorage.removeItem(DEV_PREMIUM_KEY);
+    setCacheInfo(getCacheInfo());
+    // Force refetch from database
+    await refetch();
+    setCacheInfo(getCacheInfo());
   };
 
   const handleForceSignOut = async () => {
@@ -209,6 +218,15 @@ export default function AuthDebugPanel() {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-7 text-xs gap-1 bg-primary"
+                onClick={handleForceRefresh}
+              >
+                <Zap className="h-3 w-3" />
+                Force Refresh
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm" 
