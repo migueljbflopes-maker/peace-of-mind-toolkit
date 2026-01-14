@@ -34,6 +34,8 @@ export function useDraftRecovery(userId: string | undefined) {
     error: null,
   });
   
+  // Track if we're in "should recover" state - true only when userId exists and we haven't run
+  const [shouldRecover, setShouldRecover] = useState(false);
   const hasRunRef = useRef(false);
 
   const recoverRiskDraft = useCallback(async (userId: string): Promise<boolean> => {
@@ -153,8 +155,12 @@ export function useDraftRecovery(userId: string | undefined) {
   }, []);
 
   const recoverDrafts = useCallback(async (userId: string) => {
-    if (hasRunRef.current) return;
+    if (hasRunRef.current) {
+      setShouldRecover(false);
+      return;
+    }
     hasRunRef.current = true;
+    setShouldRecover(false);
 
     setStatus(prev => ({ ...prev, isRecovering: true, error: null }));
 
@@ -189,7 +195,12 @@ export function useDraftRecovery(userId: string | undefined) {
   // Trigger recovery when userId becomes available
   useEffect(() => {
     if (userId && !hasRunRef.current) {
+      setShouldRecover(true);
       recoverDrafts(userId);
+    } else if (!userId) {
+      // No user, ensure we're not in recovering state
+      setShouldRecover(false);
+      setStatus(prev => prev.isRecovering ? { ...prev, isRecovering: false } : prev);
     }
   }, [userId, recoverDrafts]);
 
@@ -199,6 +210,18 @@ export function useDraftRecovery(userId: string | undefined) {
       hasRunRef.current = false;
     };
   }, [userId]);
+
+  // Safety timeout - if recovering takes more than 5 seconds, force complete
+  useEffect(() => {
+    if (!status.isRecovering) return;
+    
+    const timeout = setTimeout(() => {
+      console.warn('[DraftRecovery] Recovery timeout, forcing complete');
+      setStatus(prev => ({ ...prev, isRecovering: false }));
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [status.isRecovering]);
 
   return {
     ...status,
