@@ -5,7 +5,10 @@ import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Shield, ChevronLeft, AlertTriangle, Lock, LogIn } from 'lucide-react';
+import { 
+  Shield, ChevronLeft, AlertTriangle, Lock, LogIn, 
+  FileText, Brain, Target, MapPin, Users, Zap, CheckCircle 
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEntitlements } from '@/contexts/EntitlementsContext';
 import { useLocale } from '@/i18n/useLocale';
@@ -222,20 +225,167 @@ export default function RiskAssessment() {
             onRetake={handleRetake}
           />
         ) : (
-          <Card className="text-center py-12">
-            <CardContent>
-              <div className="mx-auto p-4 rounded-full bg-muted w-fit mb-4">
-                <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          <div className="space-y-8">
+            {/* Hero explanation */}
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+              <CardContent className="pt-8 pb-8">
+                <div className="text-center max-w-2xl mx-auto space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2">
+                    <Shield className="h-8 w-8 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold">
+                    {locale === 'pt' ? 'Descubra os seus riscos reais' : 'Discover Your Real Risks'}
+                  </h2>
+                  <p className="text-muted-foreground text-lg">
+                    {locale === 'pt' 
+                      ? 'Obtenha uma análise personalizada baseada na sua localização, agregado familiar e nível de preparação atual.'
+                      : 'Get a personalized analysis based on your location, household, and current preparedness level.'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* How it works */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">
+                {locale === 'pt' ? 'Como funciona' : 'How it works'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+                    1
+                  </div>
+                  <CardContent className="pt-14 pb-6">
+                    <FileText className="h-8 w-8 text-primary mb-3" />
+                    <h4 className="font-semibold mb-1">
+                      {locale === 'pt' ? 'Responda a 14 perguntas' : 'Answer 14 questions'}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {locale === 'pt' 
+                        ? 'Sobre localização, casa, mobilidade e preparação atual' 
+                        : 'About location, household, mobility and current preparedness'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+                    2
+                  </div>
+                  <CardContent className="pt-14 pb-6">
+                    <Brain className="h-8 w-8 text-primary mb-3" />
+                    <h4 className="font-semibold mb-1">
+                      {locale === 'pt' ? 'IA analisa os seus riscos' : 'AI analyzes your risks'}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {locale === 'pt' 
+                        ? 'Cruzamos dados com infraestruturas e riscos regionais' 
+                        : 'We cross-reference data with infrastructure and regional risks'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+                    3
+                  </div>
+                  <CardContent className="pt-14 pb-6">
+                    <Target className="h-8 w-8 text-primary mb-3" />
+                    <h4 className="font-semibold mb-1">
+                      {locale === 'pt' ? 'Receba o seu relatório' : 'Receive your report'}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {locale === 'pt' 
+                        ? 'Com prioridades claras e recomendações personalizadas' 
+                        : 'With clear priorities and personalized recommendations'}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
-              <h3 className="text-lg font-semibold mb-2">{t.noAssessment}</h3>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                {t.noAssessmentDesc}
-              </p>
-              <Button onClick={() => setShowWizard(true)}>
+            </div>
+
+            {/* What you'll get */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  {locale === 'pt' ? 'O que vai descobrir' : 'What you\'ll discover'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-medium">
+                        {locale === 'pt' ? 'Análise de infraestruturas' : 'Infrastructure analysis'}
+                      </span>
+                      <p className="text-sm text-muted-foreground">
+                        {locale === 'pt' 
+                          ? 'Hospitais, serviços de emergência, cadeias de abastecimento' 
+                          : 'Hospitals, emergency services, supply chains'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-medium">
+                        {locale === 'pt' ? 'Riscos naturais' : 'Natural hazards'}
+                      </span>
+                      <p className="text-sm text-muted-foreground">
+                        {locale === 'pt' 
+                          ? 'Sismos, inundações, incêndios e outros perigos regionais' 
+                          : 'Earthquakes, floods, fires and other regional hazards'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-medium">
+                        {locale === 'pt' ? 'Riscos geopolíticos' : 'Geopolitical risks'}
+                      </span>
+                      <p className="text-sm text-muted-foreground">
+                        {locale === 'pt' 
+                          ? 'Cenários de guerra, impacto nuclear, civil e de infraestrutura' 
+                          : 'War scenarios, nuclear, civil and infrastructure impact'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-medium">
+                        {locale === 'pt' ? 'Top 3 prioridades' : 'Top 3 priorities'}
+                      </span>
+                      <p className="text-sm text-muted-foreground">
+                        {locale === 'pt' 
+                          ? 'Ações concretas personalizadas para a sua situação' 
+                          : 'Concrete personalized actions for your situation'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* CTA */}
+            <div className="text-center pt-4">
+              <Button 
+                size="lg" 
+                className="h-14 px-10 text-lg font-semibold gap-2"
+                onClick={() => setShowWizard(true)}
+              >
+                <Shield className="h-5 w-5" />
                 {t.startAssessment}
               </Button>
-            </CardContent>
-          </Card>
+              <p className="text-sm text-muted-foreground mt-3">
+                {locale === 'pt' 
+                  ? 'Aproximadamente 5 minutos para completar' 
+                  : 'Approximately 5 minutes to complete'}
+              </p>
+            </div>
+          </div>
         )}
       </main>
       <Footer />
