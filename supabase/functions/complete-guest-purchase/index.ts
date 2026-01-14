@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,91 @@ const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[COMPLETE-GUEST-PURCHASE] ${step}${detailsStr}`);
 };
+
+// ============= Welcome Email Template =============
+
+const BASE_URL = "https://am-i-ready.com";
+const BILLING_PORTAL_URL = "https://billing.stripe.com/p/login/dRm8wP1JE5SPfSUf6s5Ne00";
+const FROM_EMAIL = 'Am I Ready? <noreply@am-i-ready.com>';
+
+function getWelcomeEmailHtml(): string {
+  const ctaUrl = `${BASE_URL}/login`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to AM-I-READY.com</title>
+</head>
+
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f6f9fc; padding: 40px 20px; margin: 0;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+
+    <!-- Header -->
+    <div style="padding: 32px 48px; text-align: center;">
+      <h1 style="color: #1a1a1a; font-size: 28px; font-weight: 700; margin: 0;">
+        Welcome to AM-I-READY.com!
+      </h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 0 48px 32px;">
+      <p style="color: #525f7f; font-size: 16px; line-height: 26px; margin-bottom: 20px;">
+        You've taken the first step toward being prepared, organized, and confident — congratulations!
+      </p>
+
+      <p style="color: #525f7f; font-size: 16px; line-height: 26px; margin-bottom: 24px;">
+        With your one-time payment of <strong>€49</strong>, you now have lifetime access to all the tools you need to build and activate your personal protection plan.
+      </p>
+
+      <!-- Feature List -->
+      <ul style="color: #525f7f; font-size: 16px; line-height: 26px; padding-left: 22px; margin-bottom: 28px;">
+        <li>Assess your readiness and identify gaps</li>
+        <li>Create simple, actionable plans for any situation</li>
+        <li>Secure important information in a private, encrypted vault</li>
+        <li>Activate your plan instantly when it matters most</li>
+      </ul>
+
+      <!-- CTA -->
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${ctaUrl}"
+           style="background-color: #2563eb; border-radius: 8px; color: #ffffff; display: inline-block; font-size: 16px; font-weight: 600; padding: 14px 32px; text-decoration: none;">
+          Start My Plan
+        </a>
+      </div>
+
+      <!-- Billing Portal -->
+      <div style="margin-top: 32px; text-align: center;">
+        <p style="color: #8898aa; font-size: 14px; margin-bottom: 8px;">
+          Need to manage your billing or payment details?
+        </p>
+        <a href="${BILLING_PORTAL_URL}"
+           style="color: #2563eb; font-size: 14px; text-decoration: underline;">
+          Open Billing Portal
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding: 24px 48px; border-top: 1px solid #e6ebf1; text-align: center;">
+      <p style="color: #8898aa; font-size: 13px; margin-bottom: 8px;">
+        Thank you for trusting AM-I-READY.com — your plan, your control, your confidence.
+      </p>
+      <p style="color: #8898aa; font-size: 13px; margin: 0;">
+        Need help? Contact us at
+        <a href="mailto:support@am-i-ready.com" style="color:#2563eb;">
+          support@am-i-ready.com
+        </a>
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+}
+
+// ============= Main Handler =============
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -42,6 +128,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const appUrl = Deno.env.get("APP_URL");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not configured");
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not configured");
@@ -63,8 +150,11 @@ serve(async (req) => {
       customerEmail: session.customer_details?.email 
     });
 
-    // Verify payment was successful
-    if (session.payment_status !== "paid") {
+    // Verify payment was successful (paid or free coupon)
+    const isPaidOrFree = session.payment_status === "paid" || 
+                         session.payment_status === "no_payment_required";
+    
+    if (!isPaidOrFree) {
       throw new Error("Payment not completed");
     }
 
@@ -74,11 +164,12 @@ serve(async (req) => {
       throw new Error("Customer email not available");
     }
 
-    logStep("Processing for email", { email: customerEmail });
+    const normalizedEmail = customerEmail.toLowerCase().trim();
+    logStep("Processing for email", { email: normalizedEmail });
 
     // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === customerEmail);
+    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === normalizedEmail);
 
     let userId: string;
 
@@ -89,7 +180,7 @@ serve(async (req) => {
     } else {
       // Create new user account
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: customerEmail,
+        email: normalizedEmail,
         email_confirm: true, // Auto-confirm the email
       });
 
@@ -104,7 +195,7 @@ serve(async (req) => {
     // Generate magic link for the user to access their account
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email: customerEmail,
+      email: normalizedEmail,
       options: {
         redirectTo: `${appUrl}/dashboard?welcome=true`
       }
@@ -117,6 +208,9 @@ serve(async (req) => {
       logStep("Magic link generated", { hasLink: !!linkData });
     }
 
+    // Determine if this is a free coupon checkout
+    const isFreeCheckout = session.payment_status === "no_payment_required";
+
     // Grant premium entitlement
     const { error: entitlementError } = await supabaseAdmin
       .from("premium_entitlements")
@@ -124,7 +218,7 @@ serve(async (req) => {
         user_id: userId,
         is_premium: true,
         plan_name: "Premium Resiliency Plan",
-        price_eur: 49,
+        price_eur: isFreeCheckout ? 0 : 49,
         granted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
@@ -133,7 +227,7 @@ serve(async (req) => {
       throw new Error(`Failed to grant premium: ${entitlementError.message}`);
     }
 
-    logStep("Premium entitlement granted", { userId });
+    logStep("Premium entitlement granted", { userId, isFreeCheckout });
 
     // Store Stripe customer mapping
     const stripeCustomerId = typeof session.customer === 'string' 
@@ -153,9 +247,51 @@ serve(async (req) => {
       logStep("Stripe customer mapping stored", { stripeCustomerId });
     }
 
+    // ============= Send Welcome Email with Deduplication =============
+    
+    // Check if welcome email already sent to this address
+    const { data: existingEmail } = await supabaseAdmin
+      .from('emails_sent')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .eq('template_type', 'welcome')
+      .maybeSingle();
+
+    if (!existingEmail && resendApiKey) {
+      try {
+        const resend = new Resend(resendApiKey);
+        const { error: emailError } = await resend.emails.send({
+          from: FROM_EMAIL,
+          to: [normalizedEmail],
+          subject: 'Welcome to Am I Ready? – Your journey starts now',
+          html: getWelcomeEmailHtml()
+        });
+
+        if (emailError) {
+          logStep("Warning: Failed to send welcome email", { error: emailError.message });
+        } else {
+          // Record in database to prevent future duplicates
+          await supabaseAdmin
+            .from('emails_sent')
+            .insert({
+              email: normalizedEmail,
+              template_type: 'welcome',
+              source: 'complete_guest_purchase'
+            });
+          logStep("Welcome email sent and recorded", { email: normalizedEmail });
+        }
+      } catch (emailErr) {
+        logStep("Warning: Email send error", { error: String(emailErr) });
+      }
+    } else if (existingEmail) {
+      logStep("Welcome email already sent, skipping", { email: normalizedEmail });
+    } else {
+      logStep("RESEND_API_KEY not configured, skipping welcome email");
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
-      email: customerEmail,
+      email: normalizedEmail,
       is_new_user: !existingUser
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
