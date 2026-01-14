@@ -38,6 +38,7 @@ import PurchaseSuccess from "./pages/PurchaseSuccess";
 import Claim from "./pages/Claim";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import ScrollToTop from "./components/ScrollToTop";
 
 // DEV-only: Lazy load AuthDebugPanel
 const AuthDebugPanel = import.meta.env.DEV 
@@ -55,6 +56,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/be-prepared" element={<BePrepared />} />
