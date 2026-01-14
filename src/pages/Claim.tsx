@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,27 @@ export default function Claim() {
     // User is logged in, attempt to claim
     claimPurchase();
   }, [user, authLoading, claimCode]);
+
+  // Inject conversion tracking script on success
+  const conversionScriptRef = useRef<HTMLScriptElement | null>(null);
+  useEffect(() => {
+    if (status === 'success' && !conversionScriptRef.current) {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = '//blas6.ttrk.io/postback.js';
+      script.async = true;
+      document.body.appendChild(script);
+      conversionScriptRef.current = script;
+      console.log('[Claim] Conversion tracking script injected');
+
+      return () => {
+        if (conversionScriptRef.current && document.body.contains(conversionScriptRef.current)) {
+          document.body.removeChild(conversionScriptRef.current);
+          conversionScriptRef.current = null;
+        }
+      };
+    }
+  }, [status]);
 
   const claimPurchase = async () => {
     if (!claimCode) return;
