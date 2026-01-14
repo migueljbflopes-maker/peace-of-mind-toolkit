@@ -178,6 +178,7 @@ export default function RiskAssessment() {
           <RiskWizardUI 
             onComplete={handleWizardComplete}
             showResultsInternally={false}
+            exitRoute="/dashboard"
           />
         </main>
         <Footer />
