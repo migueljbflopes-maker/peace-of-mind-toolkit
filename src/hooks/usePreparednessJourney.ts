@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { hasGeneratedPlans } from '@/lib/planWizard2Store';
 import { getAllCachedSections } from '@/lib/vaultStorage';
@@ -118,7 +118,8 @@ export function usePreparednessJourney(
   userId: string | undefined,
   isPremium: boolean
 ): PreparednessJourney {
-  const [loading, setLoading] = useState(true);
+  // Start loading only if we have a userId
+  const [loading, setLoading] = useState(!!userId);
   const [completion, setCompletion] = useState<CompletionStatus>({
     riskAssessment: false,
     riskInsights: false,
@@ -130,6 +131,9 @@ export function usePreparednessJourney(
     panicContacts: false,
     panicTest: false,
   });
+  
+  // Track if we've already fetched for this userId
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
   const fetchCompletionStatus = useCallback(async () => {
     if (!userId) {
@@ -137,7 +141,14 @@ export function usePreparednessJourney(
       return;
     }
 
+    // Prevent refetch for same user unless forced
+    if (lastFetchedUserIdRef.current === userId) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    lastFetchedUserIdRef.current = userId;
 
     try {
       // Batch all queries in parallel
@@ -217,9 +228,27 @@ export function usePreparednessJourney(
     }
   }, [userId]);
 
+  // Fetch when userId changes
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      lastFetchedUserIdRef.current = null;
+      return;
+    }
     fetchCompletionStatus();
-  }, [fetchCompletionStatus]);
+  }, [userId, fetchCompletionStatus]);
+
+  // Safety timeout: never stay loading for more than 5 seconds
+  useEffect(() => {
+    if (!loading) return;
+    
+    const timeout = setTimeout(() => {
+      console.warn('[PreparednessJourney] Loading timeout (5s), forcing complete');
+      setLoading(false);
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   // Build steps with completion, locks, and warnings
   const steps: JourneyStep[] = STEP_DEFINITIONS.map((def) => {

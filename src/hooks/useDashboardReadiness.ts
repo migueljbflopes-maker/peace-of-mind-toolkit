@@ -18,7 +18,8 @@ export interface DashboardReadiness {
 }
 
 export function useDashboardReadiness(userId: string | undefined): DashboardReadiness {
-  const [loading, setLoading] = useState(true);
+  // Start loading only if we have a userId
+  const [loading, setLoading] = useState(!!userId);
   const [readiness, setReadiness] = useState<Omit<DashboardReadiness, 'loading'>>({
     vault: false,
     plans: false,
@@ -74,6 +75,18 @@ export function useDashboardReadiness(userId: string | undefined): DashboardRead
 
     checkReadiness();
   }, [userId]);
+
+  // Safety timeout: never stay loading for more than 5 seconds
+  useEffect(() => {
+    if (!loading) return;
+    
+    const timeout = setTimeout(() => {
+      console.warn('[DashboardReadiness] Loading timeout (5s), forcing complete');
+      setLoading(false);
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   return {
     loading,
