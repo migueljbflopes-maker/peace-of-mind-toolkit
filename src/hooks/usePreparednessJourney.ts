@@ -133,21 +133,23 @@ export function usePreparednessJourney(
   
   // Track if we've already fetched for this userId
   const lastFetchedUserIdRef = useRef<string | null>(null);
+  const hasFetchedOnceRef = useRef(false);
 
-  const fetchCompletionStatus = useCallback(async () => {
+  const fetchCompletionStatus = useCallback(async (force = false) => {
     if (!userId) {
       setLoading(false);
       return;
     }
 
-    // Prevent refetch for same user unless forced
-    if (lastFetchedUserIdRef.current === userId) {
+    // Prevent redundant refetch for same user, but allow on mount
+    if (!force && lastFetchedUserIdRef.current === userId && hasFetchedOnceRef.current) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
     lastFetchedUserIdRef.current = userId;
+    hasFetchedOnceRef.current = true;
 
     try {
       // Batch all queries in parallel
@@ -206,7 +208,7 @@ export function usePreparednessJourney(
 
       // Filter vault sections that have actual data
       const vaultWithData = vaultSections.filter(
-        (s) => s.payload && s.payload.ciphertext
+        (s) => s.ciphertextB64 && s.ciphertextB64.length > 0
       );
 
       setCompletion({
@@ -227,14 +229,16 @@ export function usePreparednessJourney(
     }
   }, [userId]);
 
-  // Fetch when userId changes
+  // Fetch when userId changes or component remounts
   useEffect(() => {
     if (!userId) {
       setLoading(false);
       lastFetchedUserIdRef.current = null;
+      hasFetchedOnceRef.current = false;
       return;
     }
-    fetchCompletionStatus();
+    // Force fetch on initial mount
+    fetchCompletionStatus(true);
   }, [userId, fetchCompletionStatus]);
 
   // Safety timeout: never stay loading for more than 5 seconds
