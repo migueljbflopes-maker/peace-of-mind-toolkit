@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, Users, Bell, ChevronRight, Plus, Trash2, Clock, Send, Lock, Share2, Power } from "lucide-react";
+import { AlertCircle, Users, Bell, ChevronRight, Plus, Trash2, Clock, Send, Lock, Share2, Power, ArrowLeft } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -206,6 +206,21 @@ const PanicSetup = () => {
       <Navbar />
       <main className="py-8 md:py-12">
         <div className="container mx-auto px-4 max-w-2xl">
+          {/* Back to Dashboard */}
+          <div className="mb-6">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              asChild
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Link to="/dashboard">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          </div>
+
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive/10 text-destructive text-sm font-medium mb-4">
