@@ -63,7 +63,7 @@ serve(async (req) => {
         guest_session_id: guestSessionId,
         source: source || "riskfunnel1",
       },
-      success_url: `${appUrl}/claim?claim_code=${claimCode}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${appUrl}/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/riskfunnel1?canceled=true`,
     });
 

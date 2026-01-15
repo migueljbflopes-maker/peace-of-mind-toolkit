@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLocale } from '@/i18n/useLocale';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Loader2, Mail, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -17,11 +17,27 @@ export default function PurchaseSuccess() {
   const [email, setEmail] = useState<string>('');
   const [isNewUser, setIsNewUser] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [resending, setResending] = useState(false);
+  const processedRef = useRef(false);
 
   const sessionId = searchParams.get('session_id');
+  const claimCode = searchParams.get('claim_code');
+  const source = searchParams.get('source');
 
   useEffect(() => {
-    if (!sessionId) {
+    // Prevent double processing
+    if (processedRef.current) return;
+    
+    // Need either session_id (checkout) or claim_code (express pay)
+    if (!sessionId && !claimCode) {
+      // Try localStorage fallback for claim code
+      const fallbackCode = localStorage.getItem('resilient_claim_code_last');
+      if (fallbackCode) {
+        console.log('[PurchaseSuccess] Using fallback claim code from localStorage');
+        processExpressPurchase(fallbackCode);
+        return;
+      }
+      
       setStatus('error');
       setErrorMessage(locale === 'pt' 
         ? 'Sessão de pagamento não encontrada.' 
@@ -29,33 +45,99 @@ export default function PurchaseSuccess() {
       return;
     }
 
-    const completeGuest = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('complete-guest-purchase', {
-          body: { session_id: sessionId }
-        });
+    processedRef.current = true;
 
-        if (error) throw error;
+    if (sessionId) {
+      // Standard Stripe Checkout flow
+      completeGuestPurchase(sessionId);
+    } else if (claimCode) {
+      // Express Pay flow (Apple Pay / Google Pay)
+      processExpressPurchase(claimCode);
+    }
+  }, [sessionId, claimCode, locale]);
 
-        if (data?.success && data?.email) {
-          setEmail(data.email);
-          setIsNewUser(data.is_new_user ?? true);
-          setStatus('success');
-        } else {
-          throw new Error('Unexpected response');
-        }
-      } catch (err) {
-        console.error('Error completing purchase:', err);
-        setStatus('error');
-        setErrorMessage(
-          err instanceof Error ? err.message : 
-          locale === 'pt' ? 'Erro ao processar compra.' : 'Error processing purchase.'
-        );
+  const completeGuestPurchase = async (sid: string) => {
+    try {
+      console.log('[PurchaseSuccess] Completing guest purchase via session_id');
+      const { data, error } = await supabase.functions.invoke('complete-guest-purchase', {
+        body: { session_id: sid }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.email) {
+        setEmail(data.email);
+        setIsNewUser(data.is_new_user ?? true);
+        setStatus('success');
+        // Clear any stored claim code
+        localStorage.removeItem('resilient_claim_code_last');
+      } else {
+        throw new Error('Unexpected response');
       }
-    };
+    } catch (err) {
+      console.error('Error completing purchase:', err);
+      setStatus('error');
+      setErrorMessage(
+        err instanceof Error ? err.message : 
+        locale === 'pt' ? 'Erro ao processar compra.' : 'Error processing purchase.'
+      );
+    }
+  };
 
-    completeGuest();
-  }, [sessionId, locale]);
+  const processExpressPurchase = async (code: string) => {
+    try {
+      console.log('[PurchaseSuccess] Completing express purchase via claim_code');
+      const { data, error } = await supabase.functions.invoke('complete-express-purchase', {
+        body: { claimCode: code }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.email) {
+        setEmail(data.email);
+        setIsNewUser(data.is_new_user ?? true);
+        setStatus('success');
+        // Clear the stored claim code on success
+        localStorage.removeItem('resilient_claim_code_last');
+      } else {
+        throw new Error(data?.error || 'Unexpected response');
+      }
+    } catch (err) {
+      console.error('Error completing express purchase:', err);
+      setStatus('error');
+      setErrorMessage(
+        err instanceof Error ? err.message : 
+        locale === 'pt' ? 'Erro ao processar compra.' : 'Error processing purchase.'
+      );
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!email || resending) return;
+    
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?return_url=/dashboard`,
+        },
+      });
+      
+      if (error) throw error;
+      
+      toast.success(locale === 'pt' 
+        ? 'Email reenviado! Verifica a caixa de entrada.' 
+        : 'Email resent! Check your inbox.');
+    } catch (err) {
+      console.error('Error resending email:', err);
+      toast.error(locale === 'pt' 
+        ? 'Erro ao reenviar email. Tenta novamente.' 
+        : 'Failed to resend email. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   // Inject conversion tracking script on success
   const conversionScriptRef = useRef<HTMLScriptElement | null>(null);
@@ -185,13 +267,13 @@ export default function PurchaseSuccess() {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => {
-                toast.info(locale === 'pt' 
-                  ? 'Verifica a pasta de spam se não encontrares o email.'
-                  : 'Check your spam folder if you don\'t see the email.');
-              }}
+              onClick={handleResendEmail}
+              disabled={resending}
             >
-              {locale === 'pt' ? 'Não recebi o email' : 'I didn\'t receive the email'}
+              {resending ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              {locale === 'pt' ? 'Reenviar email de acesso' : 'Resend access email'}
             </Button>
           ) : (
             <Button 
@@ -201,6 +283,12 @@ export default function PurchaseSuccess() {
               {locale === 'pt' ? 'Ir para Login' : 'Go to Login'}
             </Button>
           )}
+          
+          <p className="text-xs text-muted-foreground">
+            {locale === 'pt' 
+              ? 'Verifica a pasta de spam se não encontrares o email.'
+              : 'Check your spam folder if you don\'t see the email.'}
+          </p>
         </div>
       </Card>
     </div>
