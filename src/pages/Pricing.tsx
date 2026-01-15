@@ -8,8 +8,6 @@ import {
   Download,
   Sparkles,
   User,
-  Heart,
-  ClipboardList,
   ArrowRight,
   Check,
   WifiOff,
@@ -18,6 +16,9 @@ import {
   Bell,
   MapPin,
   History,
+  Zap,
+  Clock,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -32,77 +33,9 @@ const Pricing = () => {
   const { isPremium } = useEntitlements();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const pillars = [
-    {
-      title: "Safe Toolkit",
-      icon: Shield,
-      features: [
-        { icon: Lock, label: "Encrypted Vault" },
-        { icon: Map, label: "Plans A & B" },
-        { icon: FileText, label: "Red Folder PDF" },
-        { icon: Download, label: "Backup & Restore" },
-      ],
-    },
-    {
-      title: "Panic Button",
-      icon: Bell,
-      features: [
-        { icon: Bell, label: "One-tap emergency alerts" },
-        { icon: User, label: "Notify trusted contacts" },
-        { icon: MapPin, label: "Location sharing" },
-        { icon: History, label: "Activation history" },
-      ],
-    },
-  ];
-
-  const benefits = [
-    {
-      icon: FileText,
-      title: "Printable offline PDF",
-      description: "Your complete plan in Red Folder format — works without internet or power.",
-    },
-    {
-      icon: Lock,
-      title: "Encrypted Vault",
-      description: "Securely store IDs, contacts, and medical basics with end-to-end encryption.",
-    },
-    {
-      icon: Map,
-      title: "Plans A & B",
-      description: "Exit routes and emergency protocols for your household.",
-    },
-    {
-      icon: Bell,
-      title: "Panic Button",
-      description: "One-tap emergency alerts to your trusted contacts with location sharing.",
-    },
-    {
-      icon: Download,
-      title: "Encrypted backup & restore",
-      description: "Never lose your data — restore across devices anytime.",
-    },
-    {
-      icon: Sparkles,
-      title: "Premium insights",
-      description: "Personalized explanations and next steps based on your situation.",
-    },
-  ];
-
-  const previewSections = [
-    { icon: ClipboardList, label: "Plan Summary" },
-    { icon: User, label: "Contacts" },
-    { icon: Heart, label: "Medical" },
-    { icon: FileText, label: "Essentials Checklist" },
-    { icon: Map, label: "Plans A/B" },
-    { icon: Bell, label: "Panic Button" },
-  ];
-
   const handleUnlockPremium = async () => {
     setCheckoutLoading(true);
     try {
-      // Choose the right checkout based on auth status
-      // Logged in: use existing email via create-checkout-session
-      // Guest: email collected at Stripe via create-guest-checkout
       const functionName = isAuthenticated && user 
         ? "create-checkout-session"
         : "create-guest-checkout";
@@ -118,7 +51,6 @@ const Pricing = () => {
       }
 
       if (data?.url) {
-        // Open in new tab (works in iframe environment)
         window.open(data.url, '_blank');
       } else {
         toast.error("No checkout URL received. Please try again.");
@@ -194,62 +126,83 @@ const Pricing = () => {
       <Navbar />
 
       <main className="pt-20">
-        {/* Hero Section */}
-        <section className="py-10 md:py-14">
-          <div className="container mx-auto px-4">
-            <div className="max-w-2xl mx-auto text-center">
+        {/* Hero Section - Redesigned */}
+        <section className="relative overflow-hidden py-16 md:py-20">
+          {/* Background gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
+          
+          <div className="container mx-auto px-4 relative">
+            <div className="max-w-3xl mx-auto text-center">
               {/* Badge */}
-              <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1 rounded-full mb-4">
-                <Lock className="h-3.5 w-3.5" />
-                Premium
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-sm font-medium px-4 py-2 rounded-full mb-6">
+                <Zap className="h-4 w-4" />
+                <span>One-time purchase • Yours forever</span>
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                Complete Premium Bundle
+              <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
+                Complete Peace of Mind
+                <span className="block text-primary">Premium Bundle</span>
               </h1>
-              <p className="text-sm text-muted-foreground mb-4">
-                Two powerful pillars. One payment. Yours forever.
+              
+              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
+                Two powerful pillars of preparedness. One payment. No subscription.
               </p>
 
-              {/* Price */}
-              <div className="mb-4">
-                <span className="text-3xl md:text-4xl font-bold text-foreground">€49</span>
-                <span className="text-base text-muted-foreground ml-2">one-time</span>
+              {/* Price Card */}
+              <div className="bg-card border-2 border-primary/20 rounded-2xl p-8 max-w-sm mx-auto mb-8 shadow-lg shadow-primary/5">
+                <div className="flex items-baseline justify-center gap-2 mb-2">
+                  <span className="text-5xl md:text-6xl font-bold text-foreground">€49</span>
+                  <span className="text-lg text-muted-foreground">one-time</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-6">
+                  No recurring fees. No hidden costs.
+                </p>
+                
+                <Button 
+                  size="lg" 
+                  onClick={handleUnlockPremium} 
+                  disabled={checkoutLoading}
+                  className="w-full gap-2 h-14 text-base font-semibold"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Starting checkout...
+                    </>
+                  ) : (
+                    <>
+                      Unlock Premium Now
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+
+                {/* Trust badges inside card */}
+                <div className="flex items-center justify-center gap-6 mt-6 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span>Secure payment</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span>Instant access</span>
+                  </div>
+                </div>
               </div>
 
-              <p className="text-sm text-muted-foreground mb-6">
-                No subscription. No recurring fees.
-              </p>
-
-              {/* Primary CTA */}
-              <Button 
-                size="lg" 
-                onClick={handleUnlockPremium} 
-                disabled={checkoutLoading}
-                className="gap-2 mb-6"
-              >
-                {checkoutLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Starting checkout...
-                  </>
-                ) : (
-                  <>
-                    Unlock Premium (€49)
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-
-              {/* Reassurance */}
-              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <WifiOff className="h-3.5 w-3.5" />
-                  <span>Offline-first</span>
+              {/* Core values */}
+              <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <WifiOff className="h-4 w-4 text-primary" />
+                  <span>Works offline</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-primary" />
+                  <span>End-to-end encrypted</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-primary" />
                   <span>Privacy by design</span>
                 </div>
               </div>
@@ -257,99 +210,121 @@ const Pricing = () => {
           </div>
         </section>
 
-        {/* Two Pillars Section */}
-        <section className="bg-section-light py-10">
+        {/* Two Pillars Section - Enhanced */}
+        <section className="py-16 bg-muted/30">
           <div className="container mx-auto px-4">
-            <p className="text-xs font-medium text-muted-foreground text-center mb-6 uppercase tracking-wide">
-              Two pillars, one bundle
-            </p>
-            <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-              {pillars.map((pillar, index) => {
-                const PillarIcon = pillar.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-card rounded-xl border border-border p-5"
-                  >
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <PillarIcon className="h-5 w-5 text-primary" />
-                      </div>
-                      <h3 className="text-base font-semibold text-foreground">
-                        {pillar.title}
-                      </h3>
-                    </div>
-                    <ul className="space-y-2">
-                      {pillar.features.map((feature, fIndex) => {
-                        const FeatureIcon = feature.icon;
-                        return (
-                          <li key={fIndex} className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <FeatureIcon className="h-4 w-4 text-primary/70" />
-                            {feature.label}
-                          </li>
-                        );
-                      })}
-                    </ul>
+            <div className="text-center mb-12">
+              <p className="text-sm font-semibold text-primary uppercase tracking-wide mb-2">
+                What's included
+              </p>
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+                Two Pillars, One Bundle
+              </h2>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* Safe Toolkit Pillar */}
+              <div className="bg-card rounded-2xl border border-border p-8 hover:border-primary/30 transition-colors">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center">
+                    <Shield className="h-7 w-7 text-primary" />
                   </div>
-                );
-              })}
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">Safe Toolkit</h3>
+                    <p className="text-sm text-muted-foreground">Prepare & protect</p>
+                  </div>
+                </div>
+                <ul className="space-y-4">
+                  {[
+                    { icon: Lock, label: "Encrypted Vault", desc: "Store IDs, contacts, medical info securely" },
+                    { icon: Map, label: "Plans A & B", desc: "Exit routes and emergency protocols" },
+                    { icon: FileText, label: "Red Folder PDF", desc: "Printable offline document" },
+                    { icon: Download, label: "Backup & Restore", desc: "Never lose your data" },
+                  ].map((feature, idx) => {
+                    const Icon = feature.icon;
+                    return (
+                      <li key={idx} className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-foreground block">{feature.label}</span>
+                          <span className="text-xs text-muted-foreground">{feature.desc}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              {/* Panic Button Pillar */}
+              <div className="bg-card rounded-2xl border border-border p-8 hover:border-primary/30 transition-colors">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-gradient-to-br from-destructive/20 to-destructive/10 rounded-xl flex items-center justify-center">
+                    <Bell className="h-7 w-7 text-destructive" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">Panic Button</h3>
+                    <p className="text-sm text-muted-foreground">Respond & alert</p>
+                  </div>
+                </div>
+                <ul className="space-y-4">
+                  {[
+                    { icon: Zap, label: "One-tap emergency alerts", desc: "Activate in seconds" },
+                    { icon: User, label: "Notify trusted contacts", desc: "Automatic notifications" },
+                    { icon: MapPin, label: "Location sharing", desc: "Share your position when needed" },
+                    { icon: History, label: "Activation history", desc: "Track all activations" },
+                  ].map((feature, idx) => {
+                    const Icon = feature.icon;
+                    return (
+                      <li key={idx} className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-destructive/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon className="h-4 w-4 text-destructive" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-foreground block">{feature.label}</span>
+                          <span className="text-xs text-muted-foreground">{feature.desc}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Preview Grid */}
-        <section className="py-8">
+        {/* Benefits Grid */}
+        <section className="py-16">
           <div className="container mx-auto px-4">
-            <p className="text-xs font-medium text-muted-foreground text-center mb-4 uppercase tracking-wide">
-              What's included in your plan
-            </p>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-xl mx-auto">
-              {previewSections.map((section, index) => {
-                const IconComponent = section.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-card rounded-lg border border-border p-3 text-center"
-                  >
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                      <IconComponent className="h-4 w-4 text-primary" />
-                    </div>
-                    <span className="text-[10px] font-medium text-foreground leading-tight block">
-                      {section.label}
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="text-center mb-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                Everything you need
+              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                One purchase unlocks the complete preparedness toolkit
+              </p>
             </div>
-          </div>
-        </section>
 
-        {/* Benefits */}
-        <section className="py-10">
-          <div className="container mx-auto px-4">
-            <h2 className="text-lg font-semibold text-foreground text-center mb-6">
-              What you get
-            </h2>
-            <div className="max-w-xl mx-auto space-y-4">
-              {benefits.map((benefit, index) => {
-                const IconComponent = benefit.icon;
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+              {[
+                { icon: FileText, title: "Printable PDF", desc: "Works without internet or power" },
+                { icon: Lock, title: "End-to-end encryption", desc: "Only you can read your data" },
+                { icon: WifiOff, title: "Offline-first", desc: "Full functionality without internet" },
+                { icon: Download, title: "Cloud backup", desc: "Encrypted sync across devices" },
+                { icon: Sparkles, title: "AI-assisted plans", desc: "Personalized recommendations" },
+                { icon: Shield, title: "Privacy focused", desc: "No tracking, no ads, no data selling" },
+              ].map((benefit, idx) => {
+                const Icon = benefit.icon;
                 return (
-                  <div
-                    key={index}
-                    className="flex items-start gap-4 bg-card rounded-xl border border-border p-4"
-                  >
+                  <div key={idx} className="flex items-start gap-4 p-5 bg-card rounded-xl border border-border">
                     <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                      <IconComponent className="h-5 w-5 text-primary" />
+                      <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-foreground mb-0.5">
-                        {benefit.title}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {benefit.description}
-                      </p>
+                      <h3 className="text-sm font-semibold text-foreground mb-1">{benefit.title}</h3>
+                      <p className="text-xs text-muted-foreground">{benefit.desc}</p>
                     </div>
-                    <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   </div>
                 );
               })}
@@ -357,79 +332,128 @@ const Pricing = () => {
           </div>
         </section>
 
-        {/* Bottom CTA */}
-        <section className="bg-gradient-to-br from-primary/5 to-primary/10 py-10">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-lg font-semibold text-foreground mb-2">
-              Ready to be prepared?
-            </h2>
-            <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-              Your personalized plan, encrypted and always accessible — even offline.
-            </p>
-            <Button 
-              size="lg" 
-              onClick={handleUnlockPremium} 
-              disabled={checkoutLoading}
-              className="gap-2 mb-4"
-            >
-              {checkoutLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Starting checkout...
-                </>
-              ) : (
-                <>
-                  Unlock Premium (€49)
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              One-time purchase. No subscription.
-            </p>
+        {/* Comparison / Value Prop */}
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-10">
+                <h2 className="text-2xl font-bold text-foreground mb-3">
+                  Why choose Premium?
+                </h2>
+              </div>
+
+              <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                <div className="grid grid-cols-2">
+                  <div className="p-6 border-r border-border">
+                    <p className="text-sm font-medium text-muted-foreground mb-4">Free Tools</p>
+                    <ul className="space-y-3">
+                      {["Risk Calculator", "14-Day Supplies Plan", "Tips & Guidance", "Weekly Briefing"].map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="h-4 w-4 text-primary" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="p-6 bg-primary/5">
+                    <p className="text-sm font-medium text-primary mb-4">Premium Bundle</p>
+                    <ul className="space-y-3">
+                      {["Everything in Free", "Encrypted Vault", "Plans A & B", "Red Folder PDF", "Panic Button", "Backup & Restore"].map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-sm text-foreground">
+                          <Check className="h-4 w-4 text-primary" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Trust/Privacy Note */}
-        <section className="py-8">
+        {/* Final CTA */}
+        <section className="py-16">
           <div className="container mx-auto px-4">
-            <div className="max-w-lg mx-auto bg-muted/30 rounded-xl p-5 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Shield className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">
-                  Your data stays yours
-                </span>
+            <div className="max-w-xl mx-auto text-center">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
+                Ready to be prepared?
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                Join thousands who've secured their family's peace of mind.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+                <Button 
+                  size="lg" 
+                  onClick={handleUnlockPremium} 
+                  disabled={checkoutLoading}
+                  className="gap-2 h-14 px-8 text-base font-semibold"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Starting checkout...
+                    </>
+                  ) : (
+                    <>
+                      Unlock Premium — €49
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </Button>
               </div>
+
               <p className="text-xs text-muted-foreground">
-                Everything is encrypted end-to-end. We can't read your data, and it works offline.
-                No tracking, no ads, no selling your information.
+                One-time purchase. No subscription. Instant access.
               </p>
             </div>
           </div>
         </section>
 
+        {/* Trust/Privacy */}
+        <section className="py-8 border-t border-border">
+          <div className="container mx-auto px-4">
+            <div className="max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 text-center sm:text-left">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Your data stays yours
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  End-to-end encryption means we can't read your data. It works offline, and we never track, advertise, or sell your information.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Free Tools Reminder */}
-        <section className="pb-10">
+        <section className="py-8 bg-muted/30">
           <div className="container mx-auto px-4 text-center">
-            <p className="text-xs text-muted-foreground mb-3">
+            <p className="text-sm text-muted-foreground mb-4">
               Not ready for Premium? Our core tools are always free.
             </p>
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
                 to="/tools/risk"
-                className="text-xs text-primary hover:underline"
+                className="text-sm text-primary hover:underline font-medium"
               >
                 Risk Calculator
               </Link>
+              <span className="text-muted-foreground">•</span>
               <Link
                 to="/tools/supplies"
-                className="text-xs text-primary hover:underline"
+                className="text-sm text-primary hover:underline font-medium"
               >
                 Supplies Planner
               </Link>
+              <span className="text-muted-foreground">•</span>
               <Link
                 to="/library"
-                className="text-xs text-primary hover:underline"
+                className="text-sm text-primary hover:underline font-medium"
               >
                 Library
               </Link>
