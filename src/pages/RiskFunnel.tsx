@@ -722,7 +722,8 @@ export default function RiskFunnel() {
             console.log("[RiskFunnel] Stored claimCode in localStorage:", piRes.claimCode);
           }
           
-          navigateRef.current(`/claim?claim=${piRes?.claimCode}`);
+          // Redirect to unified thank you page
+          window.location.href = `/purchase-success?claim_code=${piRes?.claimCode}&source=express`;
         } catch (err) {
           console.error("[RiskFunnel] Express Pay: paymentmethod handler failed:", err);
           try {

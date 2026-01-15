@@ -743,7 +743,8 @@ export default function RiskFunnel1() {
             console.log("[RiskFunnel1] Stored claimCode in localStorage:", siRes.claimCode);
           }
           
-          navigateRef.current(`/claim?claim=${siRes?.claimCode}`);
+          // Redirect to unified thank you page
+          window.location.href = `/purchase-success?claim_code=${siRes?.claimCode}&source=express`;
         } catch (err) {
           console.error("[RiskFunnel1] Express Pay: paymentmethod handler failed:", err);
           try {
