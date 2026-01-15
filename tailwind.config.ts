@@ -137,6 +137,7 @@ export default {
         "fade-in-up": "fade-in-up 0.6s ease-out forwards",
         "scale-in": "scale-in 0.4s ease-out forwards",
         "slide-in-right": "slide-in-right 0.5s ease-out forwards",
+        "shake": "shake 0.4s ease-in-out",
       },
     },
   },

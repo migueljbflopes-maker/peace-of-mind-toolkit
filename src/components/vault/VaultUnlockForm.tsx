@@ -28,6 +28,7 @@ export function VaultUnlockForm({ onUnlock }: VaultUnlockFormProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [isFirstTime, setIsFirstTime] = useState<boolean | null>(null);
   const [checkingFirstTime, setCheckingFirstTime] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   // Check if this is first-time setup
   useEffect(() => {
@@ -48,6 +49,7 @@ export function VaultUnlockForm({ onUnlock }: VaultUnlockFormProps) {
     if (!passphrase.trim()) return;
     
     setIsLoading(true);
+    setHasError(false);
     try {
       const cached = await getAllCachedSections();
       
@@ -64,10 +66,15 @@ export function VaultUnlockForm({ onUnlock }: VaultUnlockFormProps) {
       if (success) {
         onUnlock();
       } else {
+        setHasError(true);
         toast.error(t.vault.wrongPassphrase);
+        // Reset error state after animation completes
+        setTimeout(() => setHasError(false), 400);
       }
     } catch {
+      setHasError(true);
       toast.error(t.vault.wrongPassphrase);
+      setTimeout(() => setHasError(false), 400);
     } finally {
       setIsLoading(false);
     }
@@ -101,13 +108,14 @@ export function VaultUnlockForm({ onUnlock }: VaultUnlockFormProps) {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative">
+          <div className={`relative ${hasError ? 'animate-shake' : ''}`}>
             <Input
               type={showPassphrase ? 'text' : 'password'}
               placeholder={t.vault.passphrasePlaceholder}
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+              className={hasError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
             <Button
               type="button"
