@@ -3,6 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { hasGeneratedPlans } from '@/lib/planWizard2Store';
 import { getAllCachedSections } from '@/lib/vaultStorage';
 
+// Helper to timeout slow async operations with a fallback value
+function withTimeout<T>(promise: Promise<T>, fallback: T, ms = 2000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+  ]);
+}
+
 export interface JourneyStep {
   id: string;
   phase: 'assess' | 'prepare' | 'secure' | 'activate';
@@ -152,12 +160,12 @@ export function usePreparednessJourney(
     hasFetchedOnceRef.current = true;
 
     try {
-      // Batch all queries in parallel
+      // Batch all queries in parallel with timeouts for IndexedDB operations
       const [
         riskRes,
         riskWithInsightsRes,
         suppliesRes,
-        plansStatus,
+        localPlansStatus,
         vaultSections,
         backupsRes,
         exportsRes,
@@ -180,8 +188,9 @@ export function usePreparednessJourney(
           .select('id')
           .eq('user_id', userId)
           .limit(1),
-        hasGeneratedPlans(userId),
-        getAllCachedSections().catch(() => []),
+        // Wrap IndexedDB operations with timeout fallback
+        withTimeout(hasGeneratedPlans(userId), { hasPlanA: false, hasPlanB: false }),
+        withTimeout(getAllCachedSections(), []),
         supabase
           .from('backups')
           .select('id')
@@ -205,6 +214,23 @@ export function usePreparednessJourney(
           .eq('is_test', true)
           .limit(1),
       ]);
+
+      // If IndexedDB didn't return plans, check cloud as fallback
+      let plansStatus = localPlansStatus;
+      if (!localPlansStatus.hasPlanA && !localPlansStatus.hasPlanB) {
+        const { data: cloudPlan } = await supabase
+          .from('premium_plans')
+          .select('plan_a_json, plan_b_json')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (cloudPlan) {
+          plansStatus = {
+            hasPlanA: cloudPlan.plan_a_json !== null,
+            hasPlanB: cloudPlan.plan_b_json !== null,
+          };
+        }
+      }
 
       // Filter vault sections that have actual data
       const vaultWithData = vaultSections.filter(
