@@ -35,36 +35,178 @@ export interface VaultContactData {
   email?: string;
 }
 
+// Emergency Contact V2
+export interface VaultEmergencyContact {
+  id?: string;
+  name: string;
+  relationship: string;
+  phone: string;
+  secondaryPhone?: string;
+  email?: string;
+  address?: string;
+  hasKeyToHome?: boolean;
+  isICE?: boolean;
+}
+
+// Household Member V2
+export interface VaultHouseholdMember {
+  id?: string;
+  name: string;
+  relationship: string;
+  relationshipOther?: string;
+  dob?: string;
+  bloodType?: string;
+  nationalId?: string;
+  passportNumber?: string;
+  specialNeeds?: string;
+}
+
+// Medication V2
+export interface VaultMedication {
+  id?: string;
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  prescriber?: string;
+  forMember?: string;
+}
+
+// Pet V2
+export interface VaultPet {
+  id?: string;
+  name: string;
+  species: string;
+  breed?: string;
+  color?: string;
+  microchipId?: string;
+  vetName?: string;
+  vetPhone?: string;
+  medications?: string;
+  specialNeeds?: string;
+}
+
+// Vehicle V2
+export interface VaultVehicle {
+  id?: string;
+  type: string;
+  make: string;
+  model: string;
+  year?: string;
+  licensePlate: string;
+  vin?: string;
+  insurancePolicy?: string;
+  notes?: string;
+}
+
+// Service Contact V2
+export interface VaultServiceContact {
+  name?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+}
+
+// Insurance Info V2
+export interface VaultInsuranceInfo {
+  provider?: string;
+  policyNumber?: string;
+  phone?: string;
+  notes?: string;
+}
+
 export interface VaultSectionData {
   ids?: {
+    // Primary person (V1 & V2)
     fullName?: string;
     address?: string;
     nationalId?: string;
-    notes?: string;
+    nationalIdExpiry?: string;
+    passportNumber?: string;
+    passportExpiry?: string;
+    drivingLicense?: string;
+    drivingLicenseExpiry?: string;
+    taxId?: string;
+    nationality?: string;
     dob?: string;
+    notes?: string;
+    // V2 only
+    householdMembers?: VaultHouseholdMember[];
+    copiesMade?: boolean;
+    storedInOnePlace?: boolean;
+    _schemaVersion?: number;
   };
   contacts?: {
+    // V1 compatibility
     primary?: VaultContactData[];
     doctor?: string;
     vet?: string;
     insurance?: string;
     importantServices?: string;
+    // V2 structure
+    emergencyContacts?: VaultEmergencyContact[];
+    familyDoctor?: VaultServiceContact;
+    pediatrician?: VaultServiceContact;
+    dentist?: VaultServiceContact;
+    healthInsurance?: VaultInsuranceInfo;
+    homeInsurance?: VaultInsuranceInfo;
+    carInsurance?: VaultInsuranceInfo;
+    lifeInsurance?: VaultInsuranceInfo;
+    lawyer?: string;
+    accountant?: string;
+    employer?: string;
+    _schemaVersion?: number;
   };
   medical?: {
+    // V1 & V2
     allergies?: string;
     medications?: string;
     conditions?: string;
     emergencyNotes?: string;
+    // V2 only
+    bloodType?: string;
+    chronicConditions?: string;
+    currentMedications?: VaultMedication[];
+    surgeries?: string;
+    donorStatus?: string;
+    advanceDirectives?: string;
+    powerOfAttorney?: string;
+    _schemaVersion?: number;
   };
   finance?: {
     banks?: string;
     policyNumbers?: string;
     emergencyCash?: string;
+    _schemaVersion?: number;
   };
   devices?: {
     phones?: string;
     accounts?: string;
     recoveryNotes?: string;
+    _schemaVersion?: number;
+  };
+  pets?: {
+    pets?: VaultPet[];
+    petInsurance?: VaultInsuranceInfo;
+    evacuationPlan?: string;
+    emergencyCaretaker?: string;
+    _schemaVersion?: number;
+  };
+  property?: {
+    address?: string;
+    propertyType?: string;
+    ownershipType?: string;
+    electricityProvider?: string;
+    gasProvider?: string;
+    waterProvider?: string;
+    internetProvider?: string;
+    mainShutoffLocations?: string;
+    alarmCode?: string;
+    safeLocation?: string;
+    safeCode?: string;
+    valuableItems?: string;
+    importantDocumentsLocation?: string;
+    vehicles?: VaultVehicle[];
+    _schemaVersion?: number;
   };
 }
 
@@ -133,6 +275,8 @@ const labels = {
     address: 'Address',
     dob: 'Date of Birth',
     idNumber: 'ID/Passport',
+    bloodType: 'Blood Type',
+    householdMembers: 'Household Members',
     // Plans
     plansTitle: 'Emergency Plans A & B',
     planA: 'PLAN A — Shelter in Place',
@@ -156,6 +300,26 @@ const labels = {
     banks: 'Banks',
     insurance: 'Insurance Policies',
     emergencyCash: 'Emergency Cash',
+    // Pets
+    petsSection: 'Pets & Animals',
+    petName: 'Pet Name',
+    species: 'Species',
+    breed: 'Breed',
+    microchip: 'Microchip ID',
+    vetContact: 'Veterinarian',
+    evacuationPlan: 'Evacuation Plan',
+    emergencyCaretaker: 'Emergency Caretaker',
+    petInsurance: 'Pet Insurance',
+    specialNeeds: 'Special Needs',
+    // Property
+    propertySection: 'Property & Vehicles',
+    propertyType: 'Property Type',
+    shutoffLocations: 'Main Shutoff Locations',
+    alarmCode: 'Alarm Code',
+    safeLocation: 'Safe Location',
+    documentsLocation: 'Important Documents Location',
+    vehicles: 'Vehicles',
+    utilities: 'Utilities',
   },
   pt: {
     title: 'RED FOLDER DE EMERGÊNCIA',
@@ -191,6 +355,8 @@ const labels = {
     address: 'Morada',
     dob: 'Data de Nascimento',
     idNumber: 'BI/Passaporte',
+    bloodType: 'Tipo de Sangue',
+    householdMembers: 'Membros do Agregado',
     // Plans
     plansTitle: 'Planos de Emergência A & B',
     planA: 'PLANO A — Permanecer em Casa',
@@ -214,6 +380,26 @@ const labels = {
     banks: 'Bancos',
     insurance: 'Apólices de Seguro',
     emergencyCash: 'Dinheiro de Emergência',
+    // Pets
+    petsSection: 'Animais de Estimação',
+    petName: 'Nome do Animal',
+    species: 'Espécie',
+    breed: 'Raça',
+    microchip: 'Chip ID',
+    vetContact: 'Veterinário',
+    evacuationPlan: 'Plano de Evacuação',
+    emergencyCaretaker: 'Cuidador de Emergência',
+    petInsurance: 'Seguro de Animais',
+    specialNeeds: 'Necessidades Especiais',
+    // Property
+    propertySection: 'Propriedade & Veículos',
+    propertyType: 'Tipo de Propriedade',
+    shutoffLocations: 'Localizações de Corte',
+    alarmCode: 'Código de Alarme',
+    safeLocation: 'Localização do Cofre',
+    documentsLocation: 'Localização de Documentos',
+    vehicles: 'Veículos',
+    utilities: 'Serviços',
   },
 };
 
@@ -497,8 +683,12 @@ export async function buildRedFolderPdf(
 
   addSectionHeader(l.emergencyContacts, COLORS.primary);
 
-  const contacts = vault.contacts?.primary || [];
-  if (contacts.length > 0) {
+  // Support both V1 (primary) and V2 (emergencyContacts) formats
+  const v1Contacts = vault.contacts?.primary || [];
+  const v2Contacts = vault.contacts?.emergencyContacts || [];
+  const hasContacts = v1Contacts.length > 0 || v2Contacts.length > 0;
+  
+  if (hasContacts) {
     // Table header
     setFillColor(COLORS.background);
     doc.rect(margin, y, contentWidth, 7, 'F');
@@ -511,8 +701,13 @@ export async function buildRedFolderPdf(
     if (includeFullVault) doc.text('EMAIL', margin + 140, y + 4.5);
     y += 8;
 
+    // Use V2 contacts if available, otherwise V1
+    const contactsToRender = v2Contacts.length > 0 
+      ? v2Contacts.map(c => ({ name: c.name, relationship: c.relationship, phone: c.phone, email: c.email }))
+      : v1Contacts;
+
     // Table rows
-    contacts.slice(0, 8).forEach((contact, idx) => {
+    contactsToRender.slice(0, 8).forEach((contact, idx) => {
       const rowY = y;
       if (idx % 2 === 1) {
         setFillColor(COLORS.background);
@@ -533,11 +728,31 @@ export async function buildRedFolderPdf(
     addText(l.notProvided);
   }
 
-  // Additional contacts
+  // Additional contacts (V1 format or V2 service contacts)
   addSpacer(6);
-  if (vault.contacts?.doctor) addBullet(`Doctor: ${vault.contacts.doctor}`);
-  if (vault.contacts?.vet) addBullet(`Vet: ${vault.contacts.vet}`);
-  if (vault.contacts?.insurance) addBullet(`Insurance: ${vault.contacts.insurance}`);
+  
+  // V2 service contacts
+  if (vault.contacts?.familyDoctor?.name) {
+    addBullet(`${locale === 'pt' ? 'Médico' : 'Doctor'}: ${vault.contacts.familyDoctor.name}${vault.contacts.familyDoctor.phone ? ` - ${vault.contacts.familyDoctor.phone}` : ''}`);
+  } else if (vault.contacts?.doctor) {
+    addBullet(`Doctor: ${vault.contacts.doctor}`);
+  }
+  
+  // Vet - check V2 vet service contact first
+  const vetInfo = vault.contacts?.vet as VaultServiceContact | string | undefined;
+  if (typeof vetInfo === 'object' && vetInfo?.name) {
+    addBullet(`Vet: ${vetInfo.name}${vetInfo.phone ? ` - ${vetInfo.phone}` : ''}`);
+  } else if (typeof vetInfo === 'string' && vetInfo) {
+    addBullet(`Vet: ${vetInfo}`);
+  }
+  
+  // Insurance info - V2 or V1
+  if (vault.contacts?.healthInsurance?.provider) {
+    addBullet(`${locale === 'pt' ? 'Seguro Saúde' : 'Health Insurance'}: ${vault.contacts.healthInsurance.provider}${vault.contacts.healthInsurance.policyNumber ? ` - ${vault.contacts.healthInsurance.policyNumber}` : ''}`);
+  } else if (vault.contacts?.insurance) {
+    addBullet(`Insurance: ${vault.contacts.insurance}`);
+  }
+  
   if (vault.contacts?.importantServices) addBullet(`Services: ${vault.contacts.importantServices}`);
 
   addSpacer(8);
@@ -547,8 +762,11 @@ export async function buildRedFolderPdf(
   // Medical Section
   addSectionHeader(l.medicalInfo, COLORS.primary);
 
+  // Check for V1 or V2 medical data
   const hasMedical = vault.medical?.allergies || vault.medical?.medications || 
-                     vault.medical?.conditions || vault.medical?.emergencyNotes;
+                     vault.medical?.conditions || vault.medical?.emergencyNotes ||
+                     vault.medical?.bloodType || vault.medical?.chronicConditions ||
+                     (vault.medical?.currentMedications && vault.medical.currentMedications.length > 0);
 
   if (hasMedical) {
     // Two-column layout for medical
@@ -556,14 +774,23 @@ export async function buildRedFolderPdf(
     const startY = y;
 
     // Left column
+    // Blood type (V2)
+    if (vault.medical?.bloodType) {
+      addLabelValue(l.bloodType, vault.medical.bloodType);
+      addSpacer(2);
+    }
+    
     if (vault.medical?.allergies) {
       addSubsectionHeader(l.allergies);
       addText(vault.medical.allergies, 2);
       addSpacer(4);
     }
-    if (vault.medical?.conditions) {
+    
+    // Conditions - V2 chronicConditions or V1 conditions
+    const conditionsText = vault.medical?.chronicConditions || vault.medical?.conditions;
+    if (conditionsText) {
       addSubsectionHeader(l.conditions);
-      addText(vault.medical.conditions, 2);
+      addText(conditionsText, 2);
     }
 
     const leftEndY = y;
@@ -572,7 +799,24 @@ export async function buildRedFolderPdf(
     y = startY;
     const rightStart = margin + colWidth + 8;
 
-    if (vault.medical?.medications) {
+    // Medications - V2 currentMedications array or V1 medications string
+    if (vault.medical?.currentMedications && vault.medical.currentMedications.length > 0) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      setColor(COLORS.text);
+      doc.text(l.medications, rightStart, y);
+      y += 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      
+      vault.medical.currentMedications.slice(0, 6).forEach(med => {
+        setColor(COLORS.text);
+        const medText = `• ${med.name}${med.dosage ? ` (${med.dosage})` : ''}${med.frequency ? ` - ${med.frequency}` : ''}`;
+        doc.text(medText, rightStart + 2, y);
+        y += 4.5;
+      });
+      y += 2;
+    } else if (vault.medical?.medications) {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       setColor(COLORS.text);
@@ -613,6 +857,150 @@ export async function buildRedFolderPdf(
     if (vault.finance.banks) addLabelValue(l.banks, vault.finance.banks);
     if (vault.finance.policyNumbers) addLabelValue(l.insurance, vault.finance.policyNumbers);
     if (vault.finance.emergencyCash) addLabelValue(l.emergencyCash, vault.finance.emergencyCash);
+  }
+
+  // Pets section if full vault
+  if (includeFullVault && vault.pets) {
+    const hasPetsData = (vault.pets.pets && vault.pets.pets.length > 0) || 
+                        vault.pets.evacuationPlan || 
+                        vault.pets.emergencyCaretaker;
+    
+    if (hasPetsData) {
+      checkPageBreak(50);
+      addSpacer(8);
+      addDivider();
+      addSpacer(4);
+      addSectionHeader(l.petsSection, COLORS.secondary);
+      
+      // Pet table
+      if (vault.pets.pets && vault.pets.pets.length > 0) {
+        // Table header
+        setFillColor(COLORS.background);
+        doc.rect(margin, y, contentWidth, 7, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        setColor(COLORS.textMuted);
+        doc.text(l.petName.toUpperCase(), margin + 2, y + 4.5);
+        doc.text(l.species.toUpperCase(), margin + 45, y + 4.5);
+        doc.text(l.microchip.toUpperCase(), margin + 85, y + 4.5);
+        doc.text(l.vetContact.toUpperCase(), margin + 130, y + 4.5);
+        y += 8;
+
+        // Table rows
+        vault.pets.pets.slice(0, 6).forEach((pet, idx) => {
+          const rowY = y;
+          if (idx % 2 === 1) {
+            setFillColor(COLORS.background);
+            doc.rect(margin, rowY - 1, contentWidth, 6, 'F');
+          }
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          setColor(COLORS.text);
+          doc.text(pet.name || '-', margin + 2, rowY + 3);
+          doc.text(`${pet.species || ''}${pet.breed ? ` (${pet.breed})` : ''}` || '-', margin + 45, rowY + 3);
+          doc.text(pet.microchipId || '-', margin + 85, rowY + 3);
+          doc.text(pet.vetName || '-', margin + 130, rowY + 3);
+          y += 6;
+        });
+        
+        addSpacer(4);
+      }
+      
+      // Evacuation plan & caretaker
+      if (vault.pets.evacuationPlan) {
+        addLabelValue(l.evacuationPlan, vault.pets.evacuationPlan);
+      }
+      if (vault.pets.emergencyCaretaker) {
+        addLabelValue(l.emergencyCaretaker, vault.pets.emergencyCaretaker);
+      }
+      if (vault.pets.petInsurance?.provider) {
+        addLabelValue(l.petInsurance, `${vault.pets.petInsurance.provider} - ${vault.pets.petInsurance.policyNumber || ''}`);
+      }
+    }
+  }
+
+  // Property section if full vault
+  if (includeFullVault && vault.property) {
+    const hasPropertyData = vault.property.address || 
+                            vault.property.mainShutoffLocations || 
+                            vault.property.alarmCode ||
+                            (vault.property.vehicles && vault.property.vehicles.length > 0);
+    
+    if (hasPropertyData) {
+      checkPageBreak(50);
+      addSpacer(8);
+      addDivider();
+      addSpacer(4);
+      addSectionHeader(l.propertySection, COLORS.secondary);
+      
+      // Property info
+      if (vault.property.address) {
+        addLabelValue(l.address, vault.property.address);
+      }
+      if (vault.property.propertyType) {
+        addLabelValue(l.propertyType, vault.property.propertyType);
+      }
+      if (vault.property.mainShutoffLocations) {
+        addLabelValue(l.shutoffLocations, vault.property.mainShutoffLocations);
+      }
+      if (vault.property.alarmCode) {
+        addLabelValue(l.alarmCode, vault.property.alarmCode);
+      }
+      if (vault.property.safeLocation) {
+        addLabelValue(l.safeLocation, vault.property.safeLocation);
+      }
+      if (vault.property.importantDocumentsLocation) {
+        addLabelValue(l.documentsLocation, vault.property.importantDocumentsLocation);
+      }
+      
+      // Utilities
+      const utilities = [
+        vault.property.electricityProvider,
+        vault.property.gasProvider,
+        vault.property.waterProvider,
+        vault.property.internetProvider
+      ].filter(Boolean);
+      
+      if (utilities.length > 0) {
+        addSpacer(4);
+        addLabelValue(l.utilities, utilities.join(' | '));
+      }
+      
+      // Vehicles table
+      if (vault.property.vehicles && vault.property.vehicles.length > 0) {
+        addSpacer(6);
+        addSubsectionHeader(l.vehicles);
+        
+        // Table header
+        setFillColor(COLORS.background);
+        doc.rect(margin, y, contentWidth, 7, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        setColor(COLORS.textMuted);
+        doc.text('TYPE', margin + 2, y + 4.5);
+        doc.text('MAKE/MODEL', margin + 30, y + 4.5);
+        doc.text('LICENSE PLATE', margin + 100, y + 4.5);
+        doc.text('VIN', margin + 145, y + 4.5);
+        y += 8;
+
+        // Table rows
+        vault.property.vehicles.slice(0, 4).forEach((vehicle, idx) => {
+          const rowY = y;
+          if (idx % 2 === 1) {
+            setFillColor(COLORS.background);
+            doc.rect(margin, rowY - 1, contentWidth, 6, 'F');
+          }
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          setColor(COLORS.text);
+          doc.text(vehicle.type || '-', margin + 2, rowY + 3);
+          doc.text(`${vehicle.make || ''} ${vehicle.model || ''}`.trim() || '-', margin + 30, rowY + 3);
+          doc.text(vehicle.licensePlate || '-', margin + 100, rowY + 3);
+          doc.text(vehicle.vin || '-', margin + 145, rowY + 3);
+          y += 6;
+        });
+      }
+    }
   }
 
   addFooter(2, 5);
