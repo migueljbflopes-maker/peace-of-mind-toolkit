@@ -1,44 +1,31 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Send, Loader2, Clock, CheckCircle2 } from "lucide-react";
+import { MessageSquare, ExternalLink, Loader2, Clock, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-
-type QuestionCategory = "security" | "medical" | "supplies" | "evacuation" | "general";
+import { useLocale } from "@/i18n/useLocale";
 
 interface ExpertQuestion {
   id: string;
-  category: QuestionCategory;
+  category: string;
   question: string;
   answer: string | null;
   status: "pending" | "answered";
   created_at: string;
-  answered_at: string | null;
 }
 
 const MAX_QUESTIONS = 3;
 
-const categoryLabels: Record<QuestionCategory, string> = {
-  security: "Security",
-  medical: "Medical",
-  supplies: "Supplies",
-  evacuation: "Evacuation",
-  general: "General",
-};
-
 export function ExpertQASection({ userId }: { userId: string }) {
+  const { locale } = useLocale();
   const [questions, setQuestions] = useState<ExpertQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [category, setCategory] = useState<QuestionCategory>("general");
-  const [questionText, setQuestionText] = useState("");
 
   const remainingQuestions = MAX_QUESTIONS - questions.length;
-  const canAsk = remainingQuestions > 0;
+  const latestQuestion = questions[0];
+  const pendingCount = questions.filter(q => q.status === "pending").length;
+  const answeredCount = questions.filter(q => q.status === "answered").length;
 
   // Fetch existing questions
   useEffect(() => {
@@ -62,66 +49,8 @@ export function ExpertQASection({ userId }: { userId: string }) {
     fetchQuestions();
   }, [userId]);
 
-  const handleSubmit = async () => {
-    if (!questionText.trim() || !canAsk) return;
-
-    setSubmitting(true);
-    try {
-      // Insert the question
-      const { data: insertData, error: insertError } = await supabase
-        .from("expert_questions")
-        .insert({
-          user_id: userId,
-          category,
-          question: questionText.trim(),
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Add to local state
-      setQuestions((prev) => [insertData as ExpertQuestion, ...prev]);
-      setQuestionText("");
-
-      toast.success("Question submitted!", {
-        description: "Our expert will respond shortly.",
-      });
-
-      // Call the expert-chat edge function to get an AI response
-      const { data: chatData, error: chatError } = await supabase.functions.invoke("expert-chat", {
-        body: {
-          question_id: insertData.id,
-          category,
-          question: questionText.trim(),
-        },
-      });
-
-      if (chatError) {
-        console.error("Expert chat error:", chatError);
-        // Don't show error toast - the question is saved, just waiting for response
-        return;
-      }
-
-      if (chatData?.answer) {
-        // Update local state with the answer
-        setQuestions((prev) =>
-          prev.map((q) =>
-            q.id === insertData.id
-              ? { ...q, answer: chatData.answer, status: "answered" as const, answered_at: new Date().toISOString() }
-              : q
-          )
-        );
-      }
-    } catch (err: any) {
-      console.error("Failed to submit question:", err);
-      toast.error("Failed to submit question", {
-        description: err.message || "Please try again.",
-      });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleOpenExpert = () => {
+    window.open('/premium/expert', '_blank');
   };
 
   if (loading) {
@@ -140,90 +69,55 @@ export function ExpertQASection({ userId }: { userId: string }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
-            Ask a Security Expert
+            {locale === "pt" ? "Especialista em Segurança" : "Security Expert"}
           </CardTitle>
-          <Badge variant={canAsk ? "secondary" : "outline"}>
-            {remainingQuestions}/{MAX_QUESTIONS} questions left
+          <Badge variant={remainingQuestions > 0 ? "secondary" : "outline"}>
+            {remainingQuestions}/{MAX_QUESTIONS} {locale === "pt" ? "restantes" : "left"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Question Form */}
-        {canAsk ? (
-          <div className="space-y-3">
-            <Select value={category} onValueChange={(v) => setCategory(v as QuestionCategory)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(categoryLabels) as QuestionCategory[]).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {categoryLabels[key]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Stats Summary */}
+        <div className="flex gap-4 text-sm">
+          {pendingCount > 0 && (
+            <div className="flex items-center gap-1.5 text-amber-600">
+              <Clock className="h-4 w-4" />
+              <span>{pendingCount} {locale === "pt" ? "pendente(s)" : "pending"}</span>
+            </div>
+          )}
+          {answeredCount > 0 && (
+            <div className="flex items-center gap-1.5 text-primary">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{answeredCount} {locale === "pt" ? "respondida(s)" : "answered"}</span>
+            </div>
+          )}
+        </div>
 
-            <Textarea
-              placeholder="Type your question here... (e.g., 'How do I create a 72-hour emergency kit for a family of 4?')"
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
-              rows={3}
-              className="resize-none"
-            />
-
-            <Button
-              onClick={handleSubmit}
-              disabled={!questionText.trim() || submitting}
-              className="w-full"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Ask Expert
-                </>
-              )}
-            </Button>
-          </div>
-        ) : (
-          <div className="text-center py-4 text-muted-foreground">
-            <p className="text-sm">You've used all {MAX_QUESTIONS} expert questions.</p>
-          </div>
-        )}
-
-        {/* Questions List */}
-        {questions.length > 0 && (
-          <div className="space-y-3 pt-2 border-t">
-            <h4 className="text-sm font-medium text-muted-foreground">Your Questions</h4>
-            {questions.map((q) => (
-              <div key={q.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
-                <div className="flex items-start gap-2">
-                  <Badge variant="outline" className="shrink-0 text-xs">
-                    {categoryLabels[q.category]}
-                  </Badge>
-                  <p className="text-sm font-medium flex-1">{q.question}</p>
-                </div>
-                
-                {q.status === "answered" && q.answer ? (
-                  <div className="flex items-start gap-2 pl-2 border-l-2 border-primary/30">
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground">{q.answer}</p>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>Awaiting expert response...</span>
-                  </div>
-                )}
+        {/* Latest Question Preview */}
+        {latestQuestion && (
+          <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+            <p className="text-sm font-medium line-clamp-2">{latestQuestion.question}</p>
+            {latestQuestion.status === "answered" && latestQuestion.answer ? (
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                {latestQuestion.answer}
+              </p>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <Clock className="h-3 w-3" />
+                <span>{locale === "pt" ? "Aguardando resposta..." : "Awaiting response..."}</span>
               </div>
-            ))}
+            )}
           </div>
         )}
+
+        {/* Open Expert Page Button */}
+        <Button onClick={handleOpenExpert} variant="outline" className="w-full">
+          <ExternalLink className="h-4 w-4 mr-2" />
+          {questions.length > 0 
+            ? (locale === "pt" ? "Ver Todas / Fazer Pergunta" : "View All / Ask Question")
+            : (locale === "pt" ? "Fazer Pergunta" : "Ask a Question")
+          }
+        </Button>
       </CardContent>
     </Card>
   );
