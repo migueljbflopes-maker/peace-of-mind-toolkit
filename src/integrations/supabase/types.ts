@@ -840,6 +840,45 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_emails: {
+        Row: {
+          created_at: string | null
+          email: string
+          error: string | null
+          id: string
+          send_at: string
+          sent_at: string | null
+          status: string | null
+          stripe_event_id: string | null
+          template_data: Json | null
+          template_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          error?: string | null
+          id?: string
+          send_at: string
+          sent_at?: string | null
+          status?: string | null
+          stripe_event_id?: string | null
+          template_data?: Json | null
+          template_type: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          error?: string | null
+          id?: string
+          send_at?: string
+          sent_at?: string | null
+          status?: string | null
+          stripe_event_id?: string | null
+          template_data?: Json | null
+          template_type?: string
+        }
+        Relationships: []
+      }
       stripe_customer_map: {
         Row: {
           created_at: string | null
