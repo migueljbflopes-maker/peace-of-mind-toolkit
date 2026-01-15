@@ -32,6 +32,16 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+
+// Affiliate link from database
+interface AffiliateLink {
+  id: string;
+  product_id: string;
+  market: string;
+  affiliate_tag: string;
+  base_url: string | null;
+}
 
 // Types
 type Market = "NL" | "DE" | "UK" | "US";
@@ -59,8 +69,8 @@ const tldByMarket: Record<Market, string> = {
   US: "amazon.com",
 };
 
-// Affiliate tags - replace with your actual tags
-const tagsByMarket: Record<Market, string> = {
+// Fallback affiliate tags (used when no DB config exists)
+const fallbackTagsByMarket: Record<Market, string> = {
   NL: "YOURTAG",
   DE: "YOURTAG",
   UK: "YOURTAG",
@@ -428,13 +438,45 @@ const getDefaultMarket = (): Market => {
   return "US";
 };
 
-// Helper: build Amazon URL
+// Helper: build Amazon URL using affiliate link from DB or fallback
 const buildAmazonUrl = (
   product: Product,
-  market: Market
+  market: Market,
+  affiliateLink?: AffiliateLink
 ): { url: string; isFallback: boolean } => {
   const tld = tldByMarket[market];
-  const tag = tagsByMarket[market];
+  
+  // If we have a configured affiliate link from the database
+  if (affiliateLink) {
+    // If there's a direct base_url, use it with the tag
+    if (affiliateLink.base_url) {
+      const separator = affiliateLink.base_url.includes('?') ? '&' : '?';
+      return {
+        url: `${affiliateLink.base_url}${separator}tag=${affiliateLink.affiliate_tag}`,
+        isFallback: false,
+      };
+    }
+    
+    // Otherwise use ASIN if available
+    const marketKey = market.toLowerCase() as keyof typeof product.asinByMarket;
+    const asin = product.asinByMarket[marketKey];
+    if (asin) {
+      return {
+        url: `https://www.${tld}/dp/${asin}?tag=${affiliateLink.affiliate_tag}`,
+        isFallback: false,
+      };
+    }
+    
+    // Fallback to search with the affiliate tag
+    const encodedQuery = encodeURIComponent(product.searchQuery);
+    return {
+      url: `https://www.${tld}/s?k=${encodedQuery}&tag=${affiliateLink.affiliate_tag}`,
+      isFallback: true,
+    };
+  }
+  
+  // No affiliate link configured, use fallback tags
+  const tag = fallbackTagsByMarket[market];
   const marketKey = market.toLowerCase() as keyof typeof product.asinByMarket;
   const asin = product.asinByMarket[marketKey];
 
@@ -455,6 +497,9 @@ const buildAmazonUrl = (
 const AmazonProductsSection = () => {
   const location = useLocation();
   
+  // Affiliate links from database
+  const [affiliateLinks, setAffiliateLinks] = useState<AffiliateLink[]>([]);
+  
   // Market state
   const [selectedMarket, setSelectedMarket] = useState<Market>(() => {
     const saved = localStorage.getItem(MARKET_STORAGE_KEY);
@@ -469,6 +514,33 @@ const AmazonProductsSection = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [mustHavesOnly, setMustHavesOnly] = useState(false);
   const [sortByPriority, setSortByPriority] = useState(true);
+
+  // Fetch affiliate links on mount
+  useEffect(() => {
+    const fetchAffiliateLinks = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('affiliate_links')
+          .select('id, product_id, market, affiliate_tag, base_url');
+        
+        if (error) {
+          console.error('Error fetching affiliate links:', error);
+          return;
+        }
+        
+        setAffiliateLinks(data || []);
+      } catch (err) {
+        console.error('Error fetching affiliate links:', err);
+      }
+    };
+    
+    fetchAffiliateLinks();
+  }, []);
+  
+  // Helper to get affiliate link for a product and market
+  const getAffiliateLink = (productId: string, market: Market): AffiliateLink | undefined => {
+    return affiliateLinks.find(l => l.product_id === productId && l.market === market);
+  };
 
   // Parse URL query param for search
   useEffect(() => {
@@ -530,7 +602,8 @@ const AmazonProductsSection = () => {
   }, []);
 
   const ProductCard = ({ product }: { product: Product }) => {
-    const { url, isFallback } = buildAmazonUrl(product, selectedMarket);
+    const affiliateLink = getAffiliateLink(product.id, selectedMarket);
+    const { url, isFallback } = buildAmazonUrl(product, selectedMarket, affiliateLink);
     const IconComponent = categoryIcons[product.category] || AlertCircle;
 
     return (
@@ -635,7 +708,8 @@ const AmazonProductsSection = () => {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {topPriorityItems.map((product) => {
-              const { url, isFallback } = buildAmazonUrl(product, selectedMarket);
+              const affiliateLink = getAffiliateLink(product.id, selectedMarket);
+              const { url, isFallback } = buildAmazonUrl(product, selectedMarket, affiliateLink);
               return (
                 <a
                   key={product.id}
