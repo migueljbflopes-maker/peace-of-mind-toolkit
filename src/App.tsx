@@ -9,7 +9,6 @@ import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
 import { lazy, Suspense } from "react";
 import { usePageTracking } from "@/hooks/usePageTracking";
 import Index from "./pages/Index";
-import BePrepared from "./pages/BePrepared";
 import Products from "./pages/Products";
 import Pricing from "./pages/Pricing";
 import Library from "./pages/Library";
@@ -74,7 +73,6 @@ const App = () => (
               <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/be-prepared" element={<BePrepared />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/tips" element={<Tips />} />
