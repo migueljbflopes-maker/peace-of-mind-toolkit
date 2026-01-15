@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock, WifiOff, Clock } from 'lucide-react';
+import { Lock, WifiOff, Clock, ArrowLeft } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
@@ -20,6 +21,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function Vault() {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
   const { t } = useLocale();
@@ -187,6 +189,17 @@ export default function Vault() {
           />
         ) : (
           <div className="container-wide section-padding py-8">
+            {/* Back to Dashboard */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="mb-4 gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
               <div>

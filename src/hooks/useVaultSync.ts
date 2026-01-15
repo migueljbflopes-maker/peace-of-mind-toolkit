@@ -18,9 +18,9 @@ import {
 import { EncryptedPayload } from '@/lib/crypto';
 import { getStorageMode, VaultStorageMode } from '@/lib/vaultPreferences';
 
-export type VaultSection = 'ids' | 'contacts' | 'medical' | 'finance' | 'devices';
+export type VaultSection = 'ids' | 'contacts' | 'medical' | 'pets' | 'property' | 'finance' | 'devices';
 
-export const VAULT_SECTIONS: VaultSection[] = ['ids', 'contacts', 'medical', 'finance', 'devices'];
+export const VAULT_SECTIONS: VaultSection[] = ['ids', 'contacts', 'medical', 'pets', 'property', 'finance', 'devices'];
 
 export interface VaultSectionStatus {
   section: VaultSection;

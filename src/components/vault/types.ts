@@ -141,13 +141,80 @@ export interface DevicesDataV2 {
   _schemaVersion: 2;
 }
 
+// === PET ===
+export interface Pet {
+  id: string;
+  name: string;
+  species: 'dog' | 'cat' | 'bird' | 'fish' | 'other';
+  breed: string;
+  color: string;
+  microchipId: string;
+  vetName: string;
+  vetPhone: string;
+  medications: string;
+  specialNeeds: string;
+}
+
+// === PETS DATA ===
+export interface PetsDataV2 {
+  pets: Pet[];
+  petInsurance: InsuranceInfo;
+  evacuationPlan: string;
+  emergencyCaretaker: string;
+  _schemaVersion: 2;
+}
+
+// === PROPERTY DATA ===
+export interface PropertyDataV2 {
+  // Primary residence
+  address: string;
+  propertyType: 'house' | 'apartment' | 'condo' | 'other';
+  ownershipType: 'owned' | 'rented' | 'other';
+  
+  // Utilities
+  electricityProvider: string;
+  gasProvider: string;
+  waterProvider: string;
+  internetProvider: string;
+  
+  // Critical info
+  mainShutoffLocations: string;
+  alarmCode: string;
+  safeLocation: string;
+  safeCode: string;
+  
+  // Important items
+  valuableItems: string;
+  importantDocumentsLocation: string;
+  
+  // Vehicles
+  vehicles: Vehicle[];
+  
+  _schemaVersion: 2;
+}
+
+// === VEHICLE ===
+export interface Vehicle {
+  id: string;
+  type: 'car' | 'motorcycle' | 'boat' | 'other';
+  make: string;
+  model: string;
+  year: string;
+  licensePlate: string;
+  vin: string;
+  insurancePolicy: string;
+  notes: string;
+}
+
 // === UNION TYPE ===
 export type VaultSectionDataV2 = 
   | IdsDataV2 
   | ContactsDataV2 
   | MedicalDataV2 
   | FinanceDataV2 
-  | DevicesDataV2;
+  | DevicesDataV2
+  | PetsDataV2
+  | PropertyDataV2;
 
 // === STORAGE MODE ===
 export type VaultStorageMode = 'device-only' | 'device-cloud';
@@ -233,6 +300,32 @@ export const DEFAULT_DEVICES_DATA: DevicesDataV2 = {
   phones: '',
   accounts: '',
   recoveryNotes: '',
+  _schemaVersion: 2,
+};
+
+export const DEFAULT_PETS_DATA: PetsDataV2 = {
+  pets: [],
+  petInsurance: { ...DEFAULT_INSURANCE_INFO },
+  evacuationPlan: '',
+  emergencyCaretaker: '',
+  _schemaVersion: 2,
+};
+
+export const DEFAULT_PROPERTY_DATA: PropertyDataV2 = {
+  address: '',
+  propertyType: 'house',
+  ownershipType: 'owned',
+  electricityProvider: '',
+  gasProvider: '',
+  waterProvider: '',
+  internetProvider: '',
+  mainShutoffLocations: '',
+  alarmCode: '',
+  safeLocation: '',
+  safeCode: '',
+  valuableItems: '',
+  importantDocumentsLocation: '',
+  vehicles: [],
   _schemaVersion: 2,
 };
 

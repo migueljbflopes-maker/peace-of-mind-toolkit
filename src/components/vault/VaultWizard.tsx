@@ -1,9 +1,10 @@
 /**
  * Vault Wizard - Step-by-step onboarding with Hero-style design
- * Updated with expanded data schema from Vault 2.0
+ * Updated with expanded data schema from Vault 2.0 including Pets & Property
  */
 
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +25,11 @@ import {
   Check,
   ShieldCheck,
   AlertTriangle,
-  UserPlus
+  UserPlus,
+  PawPrint,
+  Home,
+  ArrowLeft,
+  X
 } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
 import { VaultSection, VAULT_SECTIONS } from '@/hooks/useVaultSync';
@@ -32,12 +37,20 @@ import {
   IdsDataV2 as IdsDataExpanded, 
   ContactsDataV2 as ContactsDataExpanded, 
   MedicalDataV2 as MedicalDataExpanded,
+  PetsDataV2 as PetsDataExpanded,
+  PropertyDataV2 as PropertyDataExpanded,
   HouseholdMember,
   EmergencyContact,
   Medication,
+  Pet,
+  Vehicle,
   DEFAULT_IDS_DATA,
   DEFAULT_CONTACTS_DATA,
   DEFAULT_MEDICAL_DATA,
+  DEFAULT_PETS_DATA,
+  DEFAULT_PROPERTY_DATA,
+  DEFAULT_FINANCE_DATA,
+  DEFAULT_DEVICES_DATA,
   generateId,
 } from './types';
 import { DataLossWarning } from './DataLossWarning';
@@ -89,7 +102,7 @@ interface DevicesData {
   recoveryNotes: string;
 }
 
-export type VaultSectionData = IdsDataExpanded | ContactsDataExpanded | MedicalDataExpanded | FinanceData | DevicesData;
+export type VaultSectionData = IdsDataExpanded | ContactsDataExpanded | MedicalDataExpanded | PetsDataExpanded | PropertyDataExpanded | FinanceData | DevicesData;
 
 interface VaultWizardProps {
   onSaveSection: (section: VaultSection, data: VaultSectionData) => Promise<void>;
@@ -97,10 +110,12 @@ interface VaultWizardProps {
   isSaving: boolean;
 }
 
-const STEP_ICONS = {
+const STEP_ICONS: Record<VaultSection, React.ComponentType<{ className?: string }>> = {
   ids: User,
   contacts: Users,
   medical: Heart,
+  pets: PawPrint,
+  property: Home,
   finance: Wallet,
   devices: Smartphone,
 };
@@ -109,16 +124,10 @@ const defaultData: Record<VaultSection, VaultSectionData> = {
   ids: { ...DEFAULT_IDS_DATA },
   contacts: { ...DEFAULT_CONTACTS_DATA },
   medical: { ...DEFAULT_MEDICAL_DATA },
-  finance: {
-    banks: '',
-    policyNumbers: '',
-    emergencyCash: '',
-  },
-  devices: {
-    phones: '',
-    accounts: '',
-    recoveryNotes: '',
-  },
+  pets: { ...DEFAULT_PETS_DATA },
+  property: { ...DEFAULT_PROPERTY_DATA },
+  finance: { ...DEFAULT_FINANCE_DATA },
+  devices: { ...DEFAULT_DEVICES_DATA },
 };
 
 export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizardProps) {
@@ -988,6 +997,368 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
     );
   };
 
+  // ============ Pets Form ============
+  const renderPetsForm = () => {
+    const data = sectionData.pets as PetsDataExpanded;
+    
+    const addPet = () => {
+      const newPet: Pet = {
+        id: generateId(),
+        name: '',
+        species: 'dog',
+        breed: '',
+        color: '',
+        microchipId: '',
+        vetName: '',
+        vetPhone: '',
+        medications: '',
+        specialNeeds: '',
+      };
+      setSectionData(prev => ({
+        ...prev,
+        pets: {
+          ...prev.pets as PetsDataExpanded,
+          pets: [...(prev.pets as PetsDataExpanded).pets, newPet],
+        },
+      }));
+    };
+
+    const removePet = (id: string) => {
+      setSectionData(prev => ({
+        ...prev,
+        pets: {
+          ...prev.pets as PetsDataExpanded,
+          pets: (prev.pets as PetsDataExpanded).pets.filter(p => p.id !== id),
+        },
+      }));
+    };
+
+    const updatePet = (id: string, field: keyof Pet, value: string) => {
+      setSectionData(prev => ({
+        ...prev,
+        pets: {
+          ...prev.pets as PetsDataExpanded,
+          pets: (prev.pets as PetsDataExpanded).pets.map(p =>
+            p.id === id ? { ...p, [field]: value } : p
+          ),
+        },
+      }));
+    };
+
+    return (
+      <div className="space-y-5">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-white/90 flex items-center gap-2">
+              <PawPrint className="h-4 w-4" />
+              Your Pets
+            </h4>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={addPet}
+              className="h-8 gap-1 text-white/70 hover:text-white hover:bg-white/10"
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
+          </div>
+          
+          {data.pets.length === 0 ? (
+            <p className="text-sm text-white/50 italic">No pets added yet. Click "Add" to add a pet.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.pets.map((pet) => (
+                <div key={pet.id} className="p-3 bg-white/5 border border-white/20 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-white/90">{pet.name || 'New Pet'}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removePet(pet.id)}
+                      className="h-7 w-7 p-0 text-white/50 hover:text-white hover:bg-white/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Name"
+                      value={pet.name}
+                      onChange={(e) => updatePet(pet.id, 'name', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                    <Select
+                      value={pet.species}
+                      onValueChange={(value) => updatePet(pet.id, 'species', value)}
+                    >
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white text-sm">
+                        <SelectValue placeholder="Species" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dog">Dog</SelectItem>
+                        <SelectItem value="cat">Cat</SelectItem>
+                        <SelectItem value="bird">Bird</SelectItem>
+                        <SelectItem value="fish">Fish</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Breed"
+                      value={pet.breed}
+                      onChange={(e) => updatePet(pet.id, 'breed', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                    <Input
+                      placeholder="Microchip ID"
+                      value={pet.microchipId}
+                      onChange={(e) => updatePet(pet.id, 'microchipId', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                  </div>
+                  <Input
+                    placeholder="Special needs / medications"
+                    value={pet.specialNeeds}
+                    onChange={(e) => updatePet(pet.id, 'specialNeeds', e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-white/20">
+          <div>
+            <Label htmlFor="evacuationPlan" className="text-white/80 text-sm">Pet Evacuation Plan</Label>
+            <Textarea
+              id="evacuationPlan"
+              value={data.evacuationPlan}
+              onChange={(e) => updateField('evacuationPlan', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              placeholder="Where will pets go in an emergency? Include carriers location..."
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label htmlFor="emergencyCaretaker" className="text-white/80 text-sm">Emergency Caretaker</Label>
+            <Input
+              id="emergencyCaretaker"
+              value={data.emergencyCaretaker}
+              onChange={(e) => updateField('emergencyCaretaker', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              placeholder="Name and contact of someone who can care for pets"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ============ Property Form ============
+  const renderPropertyForm = () => {
+    const data = sectionData.property as PropertyDataExpanded;
+    
+    const addVehicle = () => {
+      const newVehicle: Vehicle = {
+        id: generateId(),
+        type: 'car',
+        make: '',
+        model: '',
+        year: '',
+        licensePlate: '',
+        vin: '',
+        insurancePolicy: '',
+        notes: '',
+      };
+      setSectionData(prev => ({
+        ...prev,
+        property: {
+          ...prev.property as PropertyDataExpanded,
+          vehicles: [...(prev.property as PropertyDataExpanded).vehicles, newVehicle],
+        },
+      }));
+    };
+
+    const removeVehicle = (id: string) => {
+      setSectionData(prev => ({
+        ...prev,
+        property: {
+          ...prev.property as PropertyDataExpanded,
+          vehicles: (prev.property as PropertyDataExpanded).vehicles.filter(v => v.id !== id),
+        },
+      }));
+    };
+
+    const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
+      setSectionData(prev => ({
+        ...prev,
+        property: {
+          ...prev.property as PropertyDataExpanded,
+          vehicles: (prev.property as PropertyDataExpanded).vehicles.map(v =>
+            v.id === id ? { ...v, [field]: value } : v
+          ),
+        },
+      }));
+    };
+
+    return (
+      <div className="space-y-5">
+        {/* Property Details */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-white/90 flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Property Details
+          </h4>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-white/80 text-sm">Property Type</Label>
+              <Select
+                value={data.propertyType}
+                onValueChange={(value) => updateField('propertyType', value)}
+              >
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="house">House</SelectItem>
+                  <SelectItem value="apartment">Apartment</SelectItem>
+                  <SelectItem value="condo">Condo</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-white/80 text-sm">Ownership</Label>
+              <Select
+                value={data.ownershipType}
+                onValueChange={(value) => updateField('ownershipType', value)}
+              >
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owned">Owned</SelectItem>
+                  <SelectItem value="rented">Rented</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Utilities */}
+        <div className="space-y-3 pt-3 border-t border-white/20">
+          <h4 className="text-sm font-medium text-white/90">Utilities & Shutoffs</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              placeholder="Electricity Provider"
+              value={data.electricityProvider}
+              onChange={(e) => updateField('electricityProvider', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+            />
+            <Input
+              placeholder="Gas Provider"
+              value={data.gasProvider}
+              onChange={(e) => updateField('gasProvider', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+            />
+            <Input
+              placeholder="Water Provider"
+              value={data.waterProvider}
+              onChange={(e) => updateField('waterProvider', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+            />
+            <Input
+              placeholder="Internet Provider"
+              value={data.internetProvider}
+              onChange={(e) => updateField('internetProvider', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+            />
+          </div>
+          <div>
+            <Label htmlFor="mainShutoffLocations" className="text-white/80 text-sm">Main Shutoff Locations</Label>
+            <Textarea
+              id="mainShutoffLocations"
+              value={data.mainShutoffLocations}
+              onChange={(e) => updateField('mainShutoffLocations', e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              placeholder="Water: basement left. Gas: meter outside. Electricity: main panel..."
+              rows={2}
+            />
+          </div>
+        </div>
+
+        {/* Vehicles */}
+        <div className="space-y-3 pt-3 border-t border-white/20">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-white/90">Vehicles</h4>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={addVehicle}
+              className="h-8 gap-1 text-white/70 hover:text-white hover:bg-white/10"
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
+          </div>
+          
+          {data.vehicles.length === 0 ? (
+            <p className="text-sm text-white/50 italic">No vehicles added yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.vehicles.map((vehicle) => (
+                <div key={vehicle.id} className="p-3 bg-white/5 border border-white/20 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-white/90">
+                      {vehicle.make} {vehicle.model || 'New Vehicle'}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeVehicle(vehicle.id)}
+                      className="h-7 w-7 p-0 text-white/50 hover:text-white hover:bg-white/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Make"
+                      value={vehicle.make}
+                      onChange={(e) => updateVehicle(vehicle.id, 'make', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                    <Input
+                      placeholder="Model"
+                      value={vehicle.model}
+                      onChange={(e) => updateVehicle(vehicle.id, 'model', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                    <Input
+                      placeholder="License Plate"
+                      value={vehicle.licensePlate}
+                      onChange={(e) => updateVehicle(vehicle.id, 'licensePlate', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                    <Input
+                      placeholder="Insurance Policy"
+                      value={vehicle.insurancePolicy}
+                      onChange={(e) => updateVehicle(vehicle.id, 'insurancePolicy', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderCurrentForm = () => {
     switch (currentSection) {
       case 'ids':
@@ -996,6 +1367,10 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
         return renderContactsForm();
       case 'medical':
         return renderMedicalForm();
+      case 'pets':
+        return renderPetsForm();
+      case 'property':
+        return renderPropertyForm();
       case 'finance':
         return renderFinanceForm();
       case 'devices':

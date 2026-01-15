@@ -21,6 +21,10 @@ import {
   MedicalDataV2,
   FinanceDataV2,
   DevicesDataV2,
+  PetsDataV2,
+  PropertyDataV2,
+  Pet,
+  Vehicle,
   VaultSectionDataV2,
   HouseholdMember,
   EmergencyContact,
@@ -30,6 +34,8 @@ import {
   DEFAULT_MEDICAL_DATA,
   DEFAULT_FINANCE_DATA,
   DEFAULT_DEVICES_DATA,
+  DEFAULT_PETS_DATA,
+  DEFAULT_PROPERTY_DATA,
   DEFAULT_SERVICE_CONTACT,
   DEFAULT_INSURANCE_INFO,
   generateId,
@@ -166,6 +172,8 @@ const defaultData: Record<VaultSection, VaultSectionDataV2> = {
   ids: DEFAULT_IDS_DATA,
   contacts: DEFAULT_CONTACTS_DATA,
   medical: DEFAULT_MEDICAL_DATA,
+  pets: DEFAULT_PETS_DATA,
+  property: DEFAULT_PROPERTY_DATA,
   finance: DEFAULT_FINANCE_DATA,
   devices: DEFAULT_DEVICES_DATA,
 };
@@ -209,6 +217,12 @@ export function VaultSectionEditor({
           break;
         case 'devices':
           migrated = initialData ? migrateDevicesData(initialData as DevicesData | DevicesDataV2) : DEFAULT_DEVICES_DATA;
+          break;
+        case 'pets':
+          migrated = (initialData as PetsDataV2) || DEFAULT_PETS_DATA;
+          break;
+        case 'property':
+          migrated = (initialData as PropertyDataV2) || DEFAULT_PROPERTY_DATA;
           break;
         default:
           migrated = defaultData[section];
@@ -723,11 +737,262 @@ export function VaultSectionEditor({
     );
   };
 
+  // === PETS FORM ===
+  const renderPetsForm = () => {
+    const petsData = data as PetsDataV2;
+    
+    const addPet = () => {
+      const newPet: Pet = {
+        id: generateId(),
+        name: '',
+        species: 'dog',
+        breed: '',
+        color: '',
+        microchipId: '',
+        vetName: '',
+        vetPhone: '',
+        medications: '',
+        specialNeeds: '',
+      };
+      setData(prev => ({
+        ...prev,
+        pets: [...(prev as PetsDataV2).pets, newPet],
+      }));
+    };
+
+    const removePet = (id: string) => {
+      setData(prev => ({
+        ...prev,
+        pets: (prev as PetsDataV2).pets.filter(p => p.id !== id),
+      }));
+    };
+
+    const updatePet = (id: string, field: keyof Pet, value: string) => {
+      setData(prev => ({
+        ...prev,
+        pets: (prev as PetsDataV2).pets.map(p => 
+          p.id === id ? { ...p, [field]: value } : p
+        ),
+      }));
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <Label>Pets</Label>
+          <Button type="button" variant="outline" size="sm" onClick={addPet}>
+            <Plus className="h-4 w-4 mr-1" /> Add Pet
+          </Button>
+        </div>
+        
+        {petsData.pets.length === 0 && (
+          <p className="text-sm text-muted-foreground">No pets added yet.</p>
+        )}
+        
+        {petsData.pets.map(pet => (
+          <div key={pet.id} className="p-4 border rounded-lg space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">{pet.name || 'New Pet'}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removePet(pet.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Name" value={pet.name} onChange={(e) => updatePet(pet.id, 'name', e.target.value)} />
+              <Select value={pet.species} onValueChange={(value) => updatePet(pet.id, 'species', value)}>
+                <SelectTrigger><SelectValue placeholder="Species" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dog">Dog</SelectItem>
+                  <SelectItem value="cat">Cat</SelectItem>
+                  <SelectItem value="bird">Bird</SelectItem>
+                  <SelectItem value="fish">Fish</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input placeholder="Breed" value={pet.breed} onChange={(e) => updatePet(pet.id, 'breed', e.target.value)} />
+              <Input placeholder="Color" value={pet.color} onChange={(e) => updatePet(pet.id, 'color', e.target.value)} />
+              <Input placeholder="Microchip ID" value={pet.microchipId} onChange={(e) => updatePet(pet.id, 'microchipId', e.target.value)} />
+              <Input placeholder="Vet Phone" value={pet.vetPhone} onChange={(e) => updatePet(pet.id, 'vetPhone', e.target.value)} />
+            </div>
+            <Input placeholder="Special needs/medications" value={pet.specialNeeds} onChange={(e) => updatePet(pet.id, 'specialNeeds', e.target.value)} />
+          </div>
+        ))}
+
+        <div>
+          <Label htmlFor="evacuationPlan">Pet Evacuation Plan</Label>
+          <Textarea id="evacuationPlan" value={petsData.evacuationPlan} onChange={(e) => updateField('evacuationPlan', e.target.value)} rows={2} placeholder="Where will pets go in an emergency?" />
+        </div>
+        <div>
+          <Label htmlFor="emergencyCaretaker">Emergency Caretaker</Label>
+          <Input id="emergencyCaretaker" value={petsData.emergencyCaretaker} onChange={(e) => updateField('emergencyCaretaker', e.target.value)} placeholder="Name and contact info" />
+        </div>
+      </div>
+    );
+  };
+
+  // === PROPERTY FORM ===
+  const renderPropertyForm = () => {
+    const propertyData = data as PropertyDataV2;
+    
+    const addVehicle = () => {
+      const newVehicle: Vehicle = {
+        id: generateId(),
+        type: 'car',
+        make: '',
+        model: '',
+        year: '',
+        licensePlate: '',
+        vin: '',
+        insurancePolicy: '',
+        notes: '',
+      };
+      setData(prev => ({
+        ...prev,
+        vehicles: [...(prev as PropertyDataV2).vehicles, newVehicle],
+      }));
+    };
+
+    const removeVehicle = (id: string) => {
+      setData(prev => ({
+        ...prev,
+        vehicles: (prev as PropertyDataV2).vehicles.filter(v => v.id !== id),
+      }));
+    };
+
+    const updateVehicle = (id: string, field: keyof Vehicle, value: string) => {
+      setData(prev => ({
+        ...prev,
+        vehicles: (prev as PropertyDataV2).vehicles.map(v => 
+          v.id === id ? { ...v, [field]: value } : v
+        ),
+      }));
+    };
+
+    return (
+      <div className="space-y-4">
+        <Accordion type="single" collapsible defaultValue="property">
+          <AccordionItem value="property">
+            <AccordionTrigger>Property Details</AccordionTrigger>
+            <AccordionContent className="space-y-3">
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <Textarea id="address" value={propertyData.address} onChange={(e) => updateField('address', e.target.value)} rows={2} placeholder="Full address with postal code" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Property Type</Label>
+                  <Select value={propertyData.propertyType} onValueChange={(value) => updateField('propertyType', value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="house">House</SelectItem>
+                      <SelectItem value="apartment">Apartment</SelectItem>
+                      <SelectItem value="condo">Condo</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Ownership</Label>
+                  <Select value={propertyData.ownershipType} onValueChange={(value) => updateField('ownershipType', value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="owned">Owned</SelectItem>
+                      <SelectItem value="rented">Rented</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="utilities">
+            <AccordionTrigger>Utilities</AccordionTrigger>
+            <AccordionContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="Electricity Provider" value={propertyData.electricityProvider} onChange={(e) => updateField('electricityProvider', e.target.value)} />
+                <Input placeholder="Gas Provider" value={propertyData.gasProvider} onChange={(e) => updateField('gasProvider', e.target.value)} />
+                <Input placeholder="Water Provider" value={propertyData.waterProvider} onChange={(e) => updateField('waterProvider', e.target.value)} />
+                <Input placeholder="Internet Provider" value={propertyData.internetProvider} onChange={(e) => updateField('internetProvider', e.target.value)} />
+              </div>
+              <div>
+                <Label>Main Shutoff Locations</Label>
+                <Textarea value={propertyData.mainShutoffLocations} onChange={(e) => updateField('mainShutoffLocations', e.target.value)} rows={2} placeholder="Water: basement left. Gas: meter outside..." />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="security">
+            <AccordionTrigger>Security & Valuables</AccordionTrigger>
+            <AccordionContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Input type="password" placeholder="Alarm Code" value={propertyData.alarmCode} onChange={(e) => updateField('alarmCode', e.target.value)} />
+                <Input placeholder="Safe Location" value={propertyData.safeLocation} onChange={(e) => updateField('safeLocation', e.target.value)} />
+              </div>
+              <Input type="password" placeholder="Safe Code" value={propertyData.safeCode} onChange={(e) => updateField('safeCode', e.target.value)} />
+              <div>
+                <Label>Valuable Items</Label>
+                <Textarea value={propertyData.valuableItems} onChange={(e) => updateField('valuableItems', e.target.value)} rows={2} placeholder="List valuables and their locations" />
+              </div>
+              <div>
+                <Label>Important Documents Location</Label>
+                <Input value={propertyData.importantDocumentsLocation} onChange={(e) => updateField('importantDocumentsLocation', e.target.value)} placeholder="Where are important documents stored?" />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="vehicles">
+            <AccordionTrigger>Vehicles</AccordionTrigger>
+            <AccordionContent className="space-y-3">
+              <Button type="button" variant="outline" size="sm" onClick={addVehicle}>
+                <Plus className="h-4 w-4 mr-1" /> Add Vehicle
+              </Button>
+              
+              {propertyData.vehicles.length === 0 && (
+                <p className="text-sm text-muted-foreground">No vehicles added yet.</p>
+              )}
+              
+              {propertyData.vehicles.map(vehicle => (
+                <div key={vehicle.id} className="p-3 border rounded-lg space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{vehicle.make} {vehicle.model || 'New Vehicle'}</span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeVehicle(vehicle.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={vehicle.type} onValueChange={(value) => updateVehicle(vehicle.id, 'type', value)}>
+                      <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="car">Car</SelectItem>
+                        <SelectItem value="motorcycle">Motorcycle</SelectItem>
+                        <SelectItem value="boat">Boat</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input placeholder="Year" value={vehicle.year} onChange={(e) => updateVehicle(vehicle.id, 'year', e.target.value)} />
+                    <Input placeholder="Make" value={vehicle.make} onChange={(e) => updateVehicle(vehicle.id, 'make', e.target.value)} />
+                    <Input placeholder="Model" value={vehicle.model} onChange={(e) => updateVehicle(vehicle.id, 'model', e.target.value)} />
+                    <Input placeholder="License Plate" value={vehicle.licensePlate} onChange={(e) => updateVehicle(vehicle.id, 'licensePlate', e.target.value)} />
+                    <Input placeholder="VIN" value={vehicle.vin} onChange={(e) => updateVehicle(vehicle.id, 'vin', e.target.value)} />
+                  </div>
+                  <Input placeholder="Insurance Policy #" value={vehicle.insurancePolicy} onChange={(e) => updateVehicle(vehicle.id, 'insurancePolicy', e.target.value)} />
+                </div>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+    );
+  };
+
   const renderForm = () => {
     switch (section) {
       case 'ids': return renderIdsForm();
       case 'contacts': return renderContactsForm();
       case 'medical': return renderMedicalForm();
+      case 'pets': return renderPetsForm();
+      case 'property': return renderPropertyForm();
       case 'finance': return renderFinanceForm();
       case 'devices': return renderDevicesForm();
     }
