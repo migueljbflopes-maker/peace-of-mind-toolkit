@@ -2,7 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock, WifiOff, Clock, ArrowLeft } from 'lucide-react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Lock, WifiOff, Clock, ArrowLeft, Settings } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
@@ -13,9 +21,11 @@ import { VaultSectionCard } from '@/components/vault/VaultSectionCard';
 import { VaultSyncStatus } from '@/components/vault/VaultSyncStatus';
 import { VaultSectionEditor, VaultSectionData } from '@/components/vault/VaultSectionEditor';
 import { VaultWizard } from '@/components/vault/VaultWizard';
+import { StorageModeSelector } from '@/components/vault/StorageModeSelector';
 import { useVaultSession } from '@/hooks/useVaultSession';
 import { useVaultSync, VaultSection, VAULT_SECTIONS } from '@/hooks/useVaultSync';
 import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
+import { getStorageMode, setStorageMode, VaultStorageMode } from '@/lib/vaultPreferences';
 import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -43,6 +53,8 @@ export default function Vault() {
   const [isLoadingSection, setIsLoadingSection] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentStorageMode, setCurrentStorageMode] = useState<VaultStorageMode>(() => getStorageMode());
 
   // Check if user has any vault data (first-time detection)
   useEffect(() => {
@@ -133,6 +145,17 @@ export default function Vault() {
       sync();
     }
   }, [isOnline, isUnlocked, hasUnsyncedChanges, sync]);
+
+  // Handle storage mode change
+  const handleStorageModeChange = (mode: VaultStorageMode) => {
+    setCurrentStorageMode(mode);
+    setStorageMode(mode);
+    toast.success(mode === 'device-cloud' 
+      ? 'Backup cloud ativado' 
+      : 'Modo apenas dispositivo ativado'
+    );
+    setShowSettings(false);
+  };
 
   // Sync on mount if premium and unlocked
   useEffect(() => {
@@ -226,6 +249,16 @@ export default function Vault() {
                   onSync={sync}
                 />
 
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setShowSettings(true)}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Vault Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+
                 <Button variant="outline" onClick={lock} className="gap-2">
                   <Lock className="h-4 w-4" />
                   {t.vault.lockVault}
@@ -284,6 +317,34 @@ export default function Vault() {
           isSaving={isSaving}
         />
       )}
+
+      {/* Settings Dialog */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Definições do Cofre
+            </DialogTitle>
+            <DialogDescription>
+              Configura como os teus dados são guardados.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <StorageModeSelector 
+              value={currentStorageMode}
+              onChange={handleStorageModeChange}
+            />
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSettings(false)}>
+              {t.common.close}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
