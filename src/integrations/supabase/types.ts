@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_links: {
+        Row: {
+          affiliate_tag: string
+          base_url: string | null
+          created_at: string | null
+          id: string
+          market: string
+          product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          affiliate_tag: string
+          base_url?: string | null
+          created_at?: string | null
+          id?: string
+          market?: string
+          product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          affiliate_tag?: string
+          base_url?: string | null
+          created_at?: string | null
+          id?: string
+          market?: string
+          product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_jobs: {
         Row: {
           created_at: string
@@ -325,6 +355,36 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_usage: {
+        Row: {
+          action: string
+          created_at: string | null
+          feature_name: string
+          id: string
+          metadata: Json | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          feature_name: string
+          id?: string
+          metadata?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          feature_name?: string
+          id?: string
+          metadata?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       guest_purchases: {
         Row: {
           amount_cents: number
@@ -513,6 +573,36 @@ export type Database = {
           step?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      page_views: {
+        Row: {
+          created_at: string | null
+          id: string
+          path: string
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          path: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          path?: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1047,6 +1137,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       vault_items: {
         Row: {
           ciphertext: string
@@ -1121,10 +1232,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       alert_frequency: "immediate" | "daily" | "weekly"
+      app_role: "admin" | "user"
       news_severity: "major" | "moderate"
       news_source_type: "rss" | "api"
       panic_activation_status:
@@ -1263,6 +1383,7 @@ export const Constants = {
   public: {
     Enums: {
       alert_frequency: ["immediate", "daily", "weekly"],
+      app_role: ["admin", "user"],
       news_severity: ["major", "moderate"],
       news_source_type: ["rss", "api"],
       panic_activation_status: [
