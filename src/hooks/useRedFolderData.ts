@@ -29,6 +29,8 @@ export interface DataReadiness {
   vaultMedical: boolean;
   vaultFinance: boolean;
   vaultDevices: boolean;
+  vaultPets: boolean;
+  vaultProperty: boolean;
   planA: boolean;
   planB: boolean;
   plansUpdatedAt?: string;
@@ -47,6 +49,8 @@ export function useRedFolderData() {
     vaultMedical: false,
     vaultFinance: false,
     vaultDevices: false,
+    vaultPets: false,
+    vaultProperty: false,
     planA: false,
     planB: false,
   });
@@ -61,6 +65,8 @@ export function useRedFolderData() {
       vaultMedical: false,
       vaultFinance: false,
       vaultDevices: false,
+      vaultPets: false,
+      vaultProperty: false,
       planA: false,
       planB: false,
     };
@@ -103,7 +109,7 @@ export function useRedFolderData() {
         newReadiness.suppliesPlan = !!localSupplies;
       }
 
-      // Check vault sections from local cache
+      // Check vault sections from local cache (all 7 V2 sections)
       const vaultSections = await getAllCachedSections();
       vaultSections.forEach(section => {
         if (section.section === 'ids') newReadiness.vaultIds = true;
@@ -111,6 +117,8 @@ export function useRedFolderData() {
         if (section.section === 'medical') newReadiness.vaultMedical = true;
         if (section.section === 'finance') newReadiness.vaultFinance = true;
         if (section.section === 'devices') newReadiness.vaultDevices = true;
+        if (section.section === 'pets') newReadiness.vaultPets = true;
+        if (section.section === 'property') newReadiness.vaultProperty = true;
       });
 
       // Check wizard v2 plans from local cache
@@ -253,11 +261,14 @@ export function useRedFolderData() {
       for (const section of vaultSections) {
         try {
           const decrypted = await decryptVaultSection(section, passphrase);
+          // Map all 7 V2 sections
           if (section.section === 'ids') vault.ids = decrypted as VaultSectionData['ids'];
           if (section.section === 'contacts') vault.contacts = decrypted as VaultSectionData['contacts'];
           if (section.section === 'medical') vault.medical = decrypted as VaultSectionData['medical'];
           if (section.section === 'finance') vault.finance = decrypted as VaultSectionData['finance'];
           if (section.section === 'devices') vault.devices = decrypted as VaultSectionData['devices'];
+          if (section.section === 'pets') vault.pets = decrypted as VaultSectionData['pets'];
+          if (section.section === 'property') vault.property = decrypted as VaultSectionData['property'];
         } catch {
           // Skip sections that fail to decrypt
         }
