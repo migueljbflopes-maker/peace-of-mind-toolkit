@@ -376,11 +376,39 @@ serve(async (req) => {
       // ----- Subscription Created -----
       case "customer.subscription.created": {
         const sub = event.data.object as Stripe.Subscription;
-        if (sub.metadata?.claim_code) {
+        const subClaimCode = sub.metadata?.claim_code;
+        
+        if (subClaimCode) {
+          // Get customer email from Stripe customer
+          let subEmail: string | null = null;
+          if (sub.customer) {
+            try {
+              const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+              const customer = await stripe.customers.retrieve(customerId);
+              if (customer && !customer.deleted && 'email' in customer) {
+                subEmail = customer.email;
+              }
+            } catch (e) {
+              logStep("Warning: Could not retrieve customer for subscription", { error: String(e) });
+            }
+          }
+          
+          // Update with email if available (use upsert-style update to preserve existing data)
+          const updateData: Record<string, unknown> = { status: "subscription_active" };
+          if (subEmail) {
+            updateData.payer_email = subEmail.toLowerCase().trim();
+            updateData.paid_at = new Date().toISOString();
+          }
+          
           await supabase
             .from("guest_purchases")
-            .update({ status: "subscription_active" })
-            .eq("claim_code", sub.metadata.claim_code);
+            .update(updateData)
+            .eq("claim_code", subClaimCode);
+            
+          logStep("Subscription created - guest_purchases updated", { 
+            claimCode: subClaimCode, 
+            email: subEmail 
+          });
         }
         break;
       }
