@@ -56,8 +56,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
-    const { action, user_id } = await req.json();
+    // Parse request body once
+    const body = await req.json();
+    const { action, user_id, email, password, make_premium } = body;
     console.log('Admin action:', { action, user_id, adminId: user.id });
 
     switch (action) {
@@ -151,6 +152,72 @@ Deno.serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'create_test_user': {
+        if (!email || !password) {
+          throw new Error('email and password required');
+        }
+
+        console.log('Creating test user:', { email, make_premium });
+
+        // Create user via admin API with auto-confirm
+        const { data: newUserData, error: createError } = await serviceClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true, // Auto-confirm email
+        });
+
+        if (createError) {
+          console.error('Error creating user:', createError);
+          throw createError;
+        }
+
+        const newUserId = newUserData.user.id;
+        console.log('User created:', newUserId);
+
+        // Create user profile
+        const { error: profileError } = await serviceClient
+          .from('user_profiles')
+          .insert({
+            user_id: newUserId,
+            locale: 'en',
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          // Don't throw - profile creation is not critical
+        }
+
+        // If premium requested, add entitlement
+        if (make_premium) {
+          const { error: premiumError } = await serviceClient
+            .from('premium_entitlements')
+            .insert({
+              user_id: newUserId,
+              is_premium: true,
+              plan_name: 'Test Premium',
+              price_eur: 0,
+              granted_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+          if (premiumError) {
+            console.error('Error granting premium:', premiumError);
+            throw premiumError;
+          }
+          console.log('Premium granted to user:', newUserId);
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            user_id: newUserId,
+            email,
+            is_premium: make_premium || false
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
