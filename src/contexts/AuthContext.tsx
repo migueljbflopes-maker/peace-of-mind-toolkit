@@ -83,9 +83,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // THEN check for existing session and validate it
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       dbg('getSession result:', { userId: session?.user?.id ?? null, hasSession: !!session });
+      
+      // Validate session by checking if user exists in user_profiles
+      // This catches orphaned sessions from deleted/recreated accounts
+      if (session?.user?.id) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        
+        if (!profile) {
+          dbg('Session has orphaned user ID, clearing...');
+          // Clear the orphaned session
+          await supabase.auth.signOut({ scope: 'local' });
+          clearAuthCaches();
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
