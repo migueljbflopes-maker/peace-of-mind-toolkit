@@ -7,6 +7,7 @@ import { LocaleProvider } from "@/i18n";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
 import { lazy, Suspense } from "react";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Index from "./pages/Index";
 import BePrepared from "./pages/BePrepared";
 import Products from "./pages/Products";
@@ -40,11 +41,23 @@ import Claim from "./pages/Claim";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import ScrollToTop from "./components/ScrollToTop";
+// Admin pages
+import AdminIndex from "./pages/admin/Index";
+import AdminUsers from "./pages/admin/Users";
+import AdminAnalytics from "./pages/admin/Analytics";
+import AdminFeatures from "./pages/admin/Features";
+import AdminAffiliates from "./pages/admin/Affiliates";
 
 // DEV-only: Lazy load AuthDebugPanel
 const AuthDebugPanel = import.meta.env.DEV 
   ? lazy(() => import("./components/AuthDebugPanel"))
   : null;
+
+// Page tracking wrapper
+function PageTracker({ children }: { children: React.ReactNode }) {
+  usePageTracking();
+  return <>{children}</>;
+}
 
 const queryClient = new QueryClient();
 
@@ -57,11 +70,11 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <PageTracker>
               <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/be-prepared" element={<BePrepared />} />
-                <Route path="/products" element={<Products />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/tips" element={<Tips />} />
@@ -93,6 +106,12 @@ const App = () => (
                 {/* Legal pages */}
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                {/* Admin pages */}
+                <Route path="/admin" element={<AdminIndex />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/features" element={<AdminFeatures />} />
+                <Route path="/admin/affiliates" element={<AdminAffiliates />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
@@ -102,6 +121,7 @@ const App = () => (
                   <AuthDebugPanel />
                 </Suspense>
               )}
+              </PageTracker>
             </BrowserRouter>
           </TooltipProvider>
         </EntitlementsProvider>
