@@ -1,5 +1,6 @@
 /**
  * Vault sync hook - handles syncing encrypted data between local cache and Supabase
+ * Respects user's storage mode preference (device-only vs device-cloud)
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -15,6 +16,7 @@ import {
   VaultSectionCache 
 } from '@/lib/vaultStorage';
 import { EncryptedPayload } from '@/lib/crypto';
+import { shouldSyncToCloud, getStorageMode, VaultStorageMode } from '@/lib/vaultPreferences';
 
 export type VaultSection = 'ids' | 'contacts' | 'medical' | 'finance' | 'devices';
 
@@ -34,6 +36,15 @@ export function useVaultSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [sectionStatuses, setSectionStatuses] = useState<VaultSectionStatus[]>([]);
   const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false);
+  const [storageMode, setStorageModeState] = useState<VaultStorageMode>(getStorageMode());
+  
+  // Check if cloud sync is enabled based on user preference
+  const isCloudSyncEnabled = storageMode === 'device-cloud';
+  
+  // Refresh storage mode when it might have changed
+  const refreshStorageMode = useCallback(() => {
+    setStorageModeState(getStorageMode());
+  }, []);
 
   // Track online status
   useEffect(() => {
@@ -77,7 +88,7 @@ export function useVaultSync() {
     return getCachedSection(section);
   }, []);
 
-  // Save section locally and sync to Supabase if online
+  // Save section locally and sync to Supabase if online and cloud sync is enabled
   const saveSection = useCallback(async (
     section: VaultSection, 
     payload: EncryptedPayload
@@ -87,8 +98,8 @@ export function useVaultSync() {
     
     let synced = false;
     
-    // Sync to Supabase if online and authenticated
-    if (isOnline && isAuthenticated && isPremium && user) {
+    // Only sync to Supabase if cloud sync is enabled AND user is online/authenticated/premium
+    if (isCloudSyncEnabled && isOnline && isAuthenticated && isPremium && user) {
       try {
         const { error } = await supabase
           .from('vault_items')
@@ -111,14 +122,20 @@ export function useVaultSync() {
       } catch {
         // Sync failed, will retry later
       }
+    } else if (!isCloudSyncEnabled) {
+      // In device-only mode, mark as "synced" locally (no cloud sync needed)
+      await markSectionSynced(section);
+      synced = true; // Consider it synced since user chose device-only
     }
     
     await loadSectionStatuses();
     return { savedLocally: true, synced };
-  }, [isOnline, isAuthenticated, isPremium, user, loadSectionStatuses]);
+  }, [isCloudSyncEnabled, isOnline, isAuthenticated, isPremium, user, loadSectionStatuses]);
 
-  // Sync from Supabase to local cache
+  // Sync from Supabase to local cache (only if cloud sync enabled)
   const syncFromCloud = useCallback(async (): Promise<boolean> => {
+    // Don't sync if user has device-only mode
+    if (!isCloudSyncEnabled) return false;
     if (!isOnline || !isAuthenticated || !isPremium || !user) return false;
     
     setIsSyncing(true);
@@ -152,10 +169,12 @@ export function useVaultSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, isAuthenticated, isPremium, user, loadSectionStatuses]);
+  }, [isCloudSyncEnabled, isOnline, isAuthenticated, isPremium, user, loadSectionStatuses]);
 
-  // Sync local changes to cloud
+  // Sync local changes to cloud (only if cloud sync enabled)
   const syncToCloud = useCallback(async (): Promise<boolean> => {
+    // Don't sync if user has device-only mode
+    if (!isCloudSyncEnabled) return false;
     if (!isOnline || !isAuthenticated || !isPremium || !user) return false;
     
     setIsSyncing(true);
@@ -189,7 +208,7 @@ export function useVaultSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, isAuthenticated, isPremium, user, loadSectionStatuses]);
+  }, [isCloudSyncEnabled, isOnline, isAuthenticated, isPremium, user, loadSectionStatuses]);
 
   // Full sync (both directions)
   const sync = useCallback(async (): Promise<boolean> => {
@@ -203,11 +222,14 @@ export function useVaultSync() {
     isSyncing,
     sectionStatuses,
     hasUnsyncedChanges,
+    storageMode,
+    isCloudSyncEnabled,
     getSection,
     saveSection,
     sync,
     syncFromCloud,
     syncToCloud,
     refresh: loadSectionStatuses,
+    refreshStorageMode,
   };
 }

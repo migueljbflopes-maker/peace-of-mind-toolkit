@@ -4,6 +4,9 @@
 
 import { VaultPreferences, VaultStorageMode } from '@/components/vault/types';
 
+// Re-export the type for convenience
+export type { VaultStorageMode };
+
 const VAULT_PREFERENCES_KEY = 'vault_preferences';
 
 const DEFAULT_PREFERENCES: VaultPreferences = {
