@@ -246,6 +246,7 @@ export const translations = {
       downloadPdf: 'Download PDF',
       regenerate: 'Regenerate',
       preview: 'Preview Sections',
+      viewPdf: 'View Red Folder',
       generating: 'Generating PDF...',
       pdfReady: 'PDF Ready',
       pdfReadyDesc: 'Your Red Folder PDF is ready to download.',
@@ -266,7 +267,10 @@ export const translations = {
       notFound: 'Not found',
       missingDataNote: 'Missing sections will show as "Not provided" in the PDF.',
       offlineBanner: 'Offline: generating from local data.',
-      premiumNote: 'Included in Premium — Personalized Resiliency Plan (49€ one-time).',
+      backToDashboard: 'Back to Dashboard',
+      includeFullVault: 'Include sensitive vault data',
+      fullVaultWarning: 'Includes full document numbers for printing. Active for 10 minutes.',
+      fullVaultExpired: 'Full vault access expired',
     },
     // Backup page
     backup: {
@@ -700,6 +704,7 @@ export const translations = {
       downloadPdf: 'Descarregar PDF',
       regenerate: 'Regenerar',
       preview: 'Pré-visualizar Secções',
+      viewPdf: 'Ver Red Folder',
       generating: 'A gerar PDF...',
       pdfReady: 'PDF Pronto',
       pdfReadyDesc: 'O teu PDF Red Folder está pronto para descarregar.',
@@ -720,7 +725,10 @@ export const translations = {
       notFound: 'Não encontrado',
       missingDataNote: 'Secções em falta aparecerão como "Não fornecido" no PDF.',
       offlineBanner: 'Offline: a gerar a partir de dados locais.',
-      premiumNote: 'Incluído no Premium — Plano de Resiliência Personalizado (49€ único).',
+      backToDashboard: 'Voltar ao Dashboard',
+      includeFullVault: 'Incluir dados sensíveis do cofre',
+      fullVaultWarning: 'Inclui números de documentos completos para imprimir. Ativo por 10 minutos.',
+      fullVaultExpired: 'Acesso completo ao cofre expirou',
     },
     // Backup page
     backup: {

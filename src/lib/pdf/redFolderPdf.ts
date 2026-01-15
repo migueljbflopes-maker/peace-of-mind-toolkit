@@ -41,6 +41,7 @@ export interface VaultSectionData {
     address?: string;
     nationalId?: string;
     notes?: string;
+    dob?: string;
   };
   contacts?: {
     primary?: VaultContactData[];
@@ -77,104 +78,156 @@ export interface RedFolderPdfData {
   generatedAt: string;
 }
 
+export interface PdfOptions {
+  includeFullVault?: boolean;
+}
+
+// Color palette (RGB values)
+const COLORS = {
+  primary: { r: 220, g: 38, b: 38 },      // Red
+  primaryLight: { r: 254, g: 242, b: 242 }, // Light red bg
+  secondary: { r: 245, g: 158, b: 11 },    // Amber
+  secondaryLight: { r: 255, g: 251, b: 235 }, // Light amber bg
+  text: { r: 15, g: 23, b: 42 },           // Slate-900
+  textMuted: { r: 100, g: 116, b: 139 },   // Slate-500
+  border: { r: 226, g: 232, b: 240 },      // Slate-200
+  success: { r: 34, g: 197, b: 94 },       // Green
+  white: { r: 255, g: 255, b: 255 },
+  background: { r: 248, g: 250, b: 252 },  // Slate-50
+};
+
 // PDF labels by locale
 const labels = {
   en: {
-    title: 'Personalized Resiliency Plan',
-    subtitle: 'Red Folder Format',
+    title: 'EMERGENCY RED FOLDER',
+    subtitle: 'Personalized Resiliency Plan',
     generated: 'Generated',
     disclaimer: 'This document is for personal preparedness purposes only. Always follow official guidance from local authorities during emergencies.',
     page: 'Page',
-    // Page 1
-    coverSummary: 'Summary',
+    confidential: 'CONFIDENTIAL - Keep in a safe place',
+    // Cover
+    coverSummary: 'Summary Overview',
     riskLevel: 'Risk Level',
-    topPriorities: 'Top Priorities',
+    location: 'Location',
+    topPriorities: 'Top Priority Areas',
     notProvided: 'Not provided',
     noAssessment: 'No risk assessment saved',
-    // Page 2
+    // Essentials
     essentialsChecklist: '14-Day Essentials Checklist',
-    preparedness: 'Preparedness',
-    grabAndGo: 'Grab-and-Go Essentials',
+    preparedness: 'Preparedness Score',
+    grabAndGo: 'Grab-and-Go Kit Essentials',
     noSuppliesPlan: 'No supplies plan saved',
     category: 'Category',
-    // Page 3
-    contactsMedical: 'Contacts & Medical Basics',
+    items: 'Items',
+    // Contacts
+    contactsMedical: 'Emergency Contacts & Medical',
     emergencyContacts: 'Emergency Contacts',
     medicalInfo: 'Medical Information',
     allergies: 'Allergies',
-    medications: 'Medications',
-    conditions: 'Conditions',
-    notes: 'Notes',
-    // Page 4+
-    plansTitle: 'Plans A & B',
-    planA: 'Plan A — Shelter in Place',
-    planB: 'Plan B — Leave / Relocate',
-    triggers: 'Triggers',
-    firstHour: 'First Hour',
+    medications: 'Current Medications',
+    conditions: 'Medical Conditions',
+    notes: 'Emergency Notes',
+    personalInfo: 'Personal Information',
+    name: 'Name',
+    address: 'Address',
+    dob: 'Date of Birth',
+    idNumber: 'ID/Passport',
+    // Plans
+    plansTitle: 'Emergency Plans A & B',
+    planA: 'PLAN A — Shelter in Place',
+    planB: 'PLAN B — Evacuate / Relocate',
+    triggers: 'When to Activate',
+    firstHour: 'First Hour Actions',
     first24h: 'First 24 Hours',
-    firstWeek: 'First Week',
-    routes: 'Routes',
-    primaryRoute: 'Primary',
+    firstWeek: 'Extended Period',
+    routes: 'Evacuation Routes',
+    primaryRoute: 'Primary Route',
     altRoute1: 'Alternative 1',
     altRoute2: 'Alternative 2',
-    destinations: 'Destinations',
-    noGoZones: 'No-Go Zones',
-    meetingPoints: 'Meeting Points',
+    destinations: 'Safe Destinations',
+    noGoZones: 'Areas to Avoid',
+    meetingPoints: 'Family Meeting Points',
     commsPlan: 'Communication Plan',
     noPlan: 'No plan saved',
     overview: 'Overview',
+    // Financial
+    financialInfo: 'Financial Reference',
+    banks: 'Banks',
+    insurance: 'Insurance Policies',
+    emergencyCash: 'Emergency Cash',
   },
   pt: {
-    title: 'Plano de Resiliência Personalizado',
-    subtitle: 'Formato Red Folder',
-    generated: 'Gerado',
+    title: 'RED FOLDER DE EMERGÊNCIA',
+    subtitle: 'Plano de Resiliência Personalizado',
+    generated: 'Gerado em',
     disclaimer: 'Este documento é apenas para preparação pessoal. Siga sempre as orientações oficiais das autoridades locais durante emergências.',
     page: 'Página',
-    // Page 1
-    coverSummary: 'Resumo',
+    confidential: 'CONFIDENCIAL - Guardar em local seguro',
+    // Cover
+    coverSummary: 'Resumo Geral',
     riskLevel: 'Nível de Risco',
-    topPriorities: 'Prioridades Principais',
+    location: 'Localização',
+    topPriorities: 'Áreas Prioritárias',
     notProvided: 'Não fornecido',
     noAssessment: 'Sem avaliação de risco guardada',
-    // Page 2
+    // Essentials
     essentialsChecklist: 'Lista de Essenciais 14 Dias',
-    preparedness: 'Preparação',
-    grabAndGo: 'Essenciais para Levar',
+    preparedness: 'Nível de Preparação',
+    grabAndGo: 'Kit de Emergência',
     noSuppliesPlan: 'Sem plano de suprimentos guardado',
     category: 'Categoria',
-    // Page 3
-    contactsMedical: 'Contactos & Dados Médicos',
+    items: 'Itens',
+    // Contacts
+    contactsMedical: 'Contactos de Emergência & Médicos',
     emergencyContacts: 'Contactos de Emergência',
     medicalInfo: 'Informação Médica',
     allergies: 'Alergias',
-    medications: 'Medicações',
-    conditions: 'Condições',
-    notes: 'Notas',
-    // Page 4+
-    plansTitle: 'Planos A & B',
-    planA: 'Plano A — Ficar em Casa',
-    planB: 'Plano B — Sair / Evacuar',
-    triggers: 'Gatilhos de Ação',
-    firstHour: 'Primeira Hora',
+    medications: 'Medicações Atuais',
+    conditions: 'Condições Médicas',
+    notes: 'Notas de Emergência',
+    personalInfo: 'Informação Pessoal',
+    name: 'Nome',
+    address: 'Morada',
+    dob: 'Data de Nascimento',
+    idNumber: 'BI/Passaporte',
+    // Plans
+    plansTitle: 'Planos de Emergência A & B',
+    planA: 'PLANO A — Permanecer em Casa',
+    planB: 'PLANO B — Evacuar / Relocalizar',
+    triggers: 'Quando Ativar',
+    firstHour: 'Ações da Primeira Hora',
     first24h: 'Primeiras 24 Horas',
-    firstWeek: 'Primeira Semana',
-    routes: 'Rotas',
-    primaryRoute: 'Principal',
+    firstWeek: 'Período Prolongado',
+    routes: 'Rotas de Evacuação',
+    primaryRoute: 'Rota Principal',
     altRoute1: 'Alternativa 1',
     altRoute2: 'Alternativa 2',
-    destinations: 'Destinos',
+    destinations: 'Destinos Seguros',
     noGoZones: 'Zonas a Evitar',
-    meetingPoints: 'Pontos de Encontro',
+    meetingPoints: 'Pontos de Encontro Familiar',
     commsPlan: 'Plano de Comunicação',
     noPlan: 'Sem plano guardado',
     overview: 'Resumo',
+    // Financial
+    financialInfo: 'Referência Financeira',
+    banks: 'Bancos',
+    insurance: 'Apólices de Seguro',
+    emergencyCash: 'Dinheiro de Emergência',
   },
 };
 
-// Risk level translations
-const riskLevelLabels = {
-  en: { low: 'Low', medium: 'Medium', high: 'High' },
-  pt: { low: 'Baixo', medium: 'Médio', high: 'Alto' },
+// Risk level translations and colors
+const riskLevelConfig = {
+  en: { 
+    low: { label: 'Low Risk', color: COLORS.success },
+    medium: { label: 'Medium Risk', color: COLORS.secondary },
+    high: { label: 'High Risk', color: COLORS.primary },
+  },
+  pt: { 
+    low: { label: 'Risco Baixo', color: COLORS.success },
+    medium: { label: 'Risco Médio', color: COLORS.secondary },
+    high: { label: 'Risco Alto', color: COLORS.primary },
+  },
 };
 
 // Format date by locale
@@ -188,13 +241,14 @@ function formatDate(dateStr: string, locale: Locale): string {
 }
 
 // Build the PDF blob
-export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
+export async function buildRedFolderPdf(
+  data: RedFolderPdfData, 
+  options: PdfOptions = {}
+): Promise<Blob> {
   const { locale, risk, supplies, vault, planA, planB, generatedAt } = data;
+  const { includeFullVault = false } = options;
   const l = labels[locale];
-  const riskLabels = riskLevelLabels[locale];
-  
-  // Calculate total pages: 3 base + 1 for Plan A + 1 for Plan B if they exist
-  const totalPages = 3 + (planA ? 1 : 0) + (planB ? 1 : 0) + (planA || planB ? 0 : 1);
+  const riskConfig = riskLevelConfig[locale];
   
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -204,56 +258,120 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = 15;
   const contentWidth = pageWidth - 2 * margin;
   let y = margin;
   let currentPage = 1;
 
-  // Helper functions
-  const addPageNumber = (pageNum: number) => {
-    doc.setFontSize(9);
-    doc.setTextColor(128);
-    doc.text(`${l.page} ${pageNum}/${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-    doc.setTextColor(0);
+  // ==================== HELPER FUNCTIONS ====================
+
+  const setColor = (color: { r: number; g: number; b: number }) => {
+    doc.setTextColor(color.r, color.g, color.b);
   };
 
-  const addHeader = (text: string, size: number = 16) => {
-    doc.setFontSize(size);
+  const setFillColor = (color: { r: number; g: number; b: number }) => {
+    doc.setFillColor(color.r, color.g, color.b);
+  };
+
+  const setDrawColor = (color: { r: number; g: number; b: number }) => {
+    doc.setDrawColor(color.r, color.g, color.b);
+  };
+
+  const addFooter = (pageNum: number, totalPages: number) => {
+    // Footer line
+    setDrawColor(COLORS.border);
+    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+    
+    // Page number
+    doc.setFontSize(8);
+    setColor(COLORS.textMuted);
+    doc.text(`${l.page} ${pageNum} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    
+    // Confidential note
+    doc.text(l.confidential, margin, pageHeight - 10);
+  };
+
+  const addSectionHeader = (text: string, iconColor = COLORS.primary) => {
+    // Colored bar
+    setFillColor(iconColor);
+    doc.rect(margin, y, contentWidth, 8, 'F');
+    
+    // Text on bar
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(text, margin, y);
-    y += size * 0.5;
+    setColor(COLORS.white);
+    doc.text(text.toUpperCase(), margin + 4, y + 5.5);
+    
+    y += 12;
+    setColor(COLORS.text);
   };
 
-  const addSubheader = (text: string) => {
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(text, margin, y);
-    y += 7;
-  };
-
-  const addText = (text: string, indent: number = 0) => {
+  const addSubsectionHeader = (text: string) => {
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'bold');
+    setColor(COLORS.text);
+    doc.text(text, margin, y);
+    y += 6;
+  };
+
+  const addText = (text: string, indent: number = 0, bold = false) => {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    setColor(COLORS.text);
     const lines = doc.splitTextToSize(text, contentWidth - indent);
     doc.text(lines, margin + indent, y);
-    y += lines.length * 5;
+    y += lines.length * 4.5;
   };
 
-  const addBullet = (text: string) => {
-    doc.setFontSize(10);
+  const addLabelValue = (label: string, value: string | undefined, indent: number = 0) => {
+    if (!value) return;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    setColor(COLORS.textMuted);
+    doc.text(`${label}:`, margin + indent, y);
     doc.setFont('helvetica', 'normal');
-    doc.text('•', margin, y);
-    const lines = doc.splitTextToSize(text, contentWidth - 8);
-    doc.text(lines, margin + 6, y);
-    y += lines.length * 5;
+    setColor(COLORS.text);
+    const labelWidth = doc.getTextWidth(`${label}: `);
+    const valueLines = doc.splitTextToSize(value, contentWidth - indent - labelWidth - 2);
+    doc.text(valueLines, margin + indent + labelWidth + 1, y);
+    y += valueLines.length * 4.5;
   };
 
-  const addSpacer = (height: number = 5) => {
+  const addBullet = (text: string, indent: number = 0) => {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    setColor(COLORS.text);
+    doc.text('•', margin + indent, y);
+    const lines = doc.splitTextToSize(text, contentWidth - indent - 6);
+    doc.text(lines, margin + indent + 4, y);
+    y += lines.length * 4.5;
+  };
+
+  const addNumberedItem = (num: number, text: string, indent: number = 0) => {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    setColor(COLORS.primary);
+    doc.text(`${num}.`, margin + indent, y);
+    doc.setFont('helvetica', 'normal');
+    setColor(COLORS.text);
+    const lines = doc.splitTextToSize(text, contentWidth - indent - 8);
+    doc.text(lines, margin + indent + 6, y);
+    y += lines.length * 4.5;
+  };
+
+  const addSpacer = (height: number = 4) => {
     y += height;
   };
 
-  const checkPageBreak = (needed: number = 30) => {
-    if (y + needed > pageHeight - margin) {
+  const addDivider = () => {
+    setDrawColor(COLORS.border);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 4;
+  };
+
+  const checkPageBreak = (needed: number = 25): boolean => {
+    if (y + needed > pageHeight - 20) {
+      addFooter(currentPage, 5);
       doc.addPage();
       currentPage++;
       y = margin;
@@ -262,52 +380,84 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
     return false;
   };
 
-  // ==================== PAGE 1: Cover + Summary ====================
-  
-  // Title
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.text(l.title, pageWidth / 2, y + 10, { align: 'center' });
-  y += 18;
-  
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100);
-  doc.text(l.subtitle, pageWidth / 2, y, { align: 'center' });
-  doc.setTextColor(0);
-  y += 15;
+  const addInfoBox = (content: string[], bgColor = COLORS.background) => {
+    const boxHeight = content.length * 5 + 6;
+    setFillColor(bgColor);
+    setDrawColor(COLORS.border);
+    doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, 'FD');
+    y += 4;
+    content.forEach(line => {
+      doc.setFontSize(9);
+      setColor(COLORS.text);
+      doc.text(line, margin + 4, y);
+      y += 5;
+    });
+    y += 2;
+  };
 
-  // Generated date
+  // ==================== PAGE 1: COVER ====================
+
+  // Red header band
+  setFillColor(COLORS.primary);
+  doc.rect(0, 0, pageWidth, 45, 'F');
+
+  // Title
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  setColor(COLORS.white);
+  doc.text(l.title, pageWidth / 2, 22, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(l.subtitle, pageWidth / 2, 32, { align: 'center' });
+
+  y = 55;
+
+  // Generated date box
+  setFillColor(COLORS.background);
+  setDrawColor(COLORS.border);
+  doc.roundedRect(margin, y, contentWidth, 12, 2, 2, 'FD');
   doc.setFontSize(10);
-  doc.text(`${l.generated}: ${formatDate(generatedAt, locale)}`, pageWidth / 2, y, { align: 'center' });
+  setColor(COLORS.text);
+  doc.text(`${l.generated}: ${formatDate(generatedAt, locale)}`, pageWidth / 2, y + 7.5, { align: 'center' });
   y += 20;
 
-  // Horizontal line
-  doc.setDrawColor(200);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 15;
-
-  // Summary section
-  addHeader(l.coverSummary, 14);
-  addSpacer(5);
+  // Risk Summary Section
+  addSectionHeader(l.coverSummary, COLORS.primary);
 
   if (risk) {
     const levelKey = (risk.riskLevel || 'medium').toLowerCase() as 'low' | 'medium' | 'high';
-    addText(`${l.riskLevel}: ${riskLabels[levelKey] || risk.riskLevel} (${risk.score || 0}/100)`);
-    if (risk.city || risk.country) {
-      addText(`${risk.city || ''}${risk.city && risk.country ? ', ' : ''}${risk.country || ''}`);
-    }
-    addSpacer(10);
+    const levelConfig = riskConfig[levelKey] || riskConfig.medium;
     
-    // Top priorities from breakdown
-    addSubheader(l.topPriorities);
+    // Risk level badge
+    setFillColor(levelConfig.color);
+    doc.roundedRect(margin, y, 50, 10, 2, 2, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    setColor(COLORS.white);
+    doc.text(levelConfig.label, margin + 25, y + 6.5, { align: 'center' });
+    
+    // Score
+    setColor(COLORS.text);
+    doc.text(`Score: ${risk.score || 0}/100`, margin + 60, y + 6.5);
+    
+    y += 14;
+
+    // Location
+    if (risk.city || risk.country) {
+      addLabelValue(l.location, `${risk.city || ''}${risk.city && risk.country ? ', ' : ''}${risk.country || ''}`);
+    }
+    addSpacer(4);
+
+    // Top priorities
+    addSubsectionHeader(l.topPriorities);
     const breakdownItems = Object.entries(risk.breakdown || {})
       .sort(([, a], [, b]) => (b as number) - (a as number))
-      .slice(0, 3);
-    
+      .slice(0, 4);
+
     if (breakdownItems.length > 0) {
-      breakdownItems.forEach(([key, value]) => {
-        addBullet(`${key}: ${value}%`);
+      breakdownItems.forEach(([key, value], idx) => {
+        addNumberedItem(idx + 1, `${key}: ${value}%`);
       });
     } else {
       addText(l.notProvided);
@@ -316,255 +466,430 @@ export async function buildRedFolderPdf(data: RedFolderPdfData): Promise<Blob> {
     addText(l.noAssessment);
   }
 
-  addSpacer(20);
+  addSpacer(8);
 
-  // Disclaimer
-  doc.setFontSize(9);
-  doc.setTextColor(100);
-  const disclaimerLines = doc.splitTextToSize(l.disclaimer, contentWidth);
-  doc.text(disclaimerLines, margin, pageHeight - 25);
-  doc.setTextColor(0);
-
-  addPageNumber(1);
-
-  // ==================== PAGE 2: Essentials Checklist ====================
-  doc.addPage();
-  currentPage++;
-  y = margin;
-
-  addHeader(l.essentialsChecklist, 16);
-  addSpacer(5);
-
-  if (supplies) {
-    addText(`${l.preparedness}: ${supplies.preparednessPercent || 0}%`);
-    addSpacer(10);
-
-    // Categories from supplies plan
-    const plan = supplies.plan as Record<string, { items?: Array<{ name: string; quantity?: number; unit?: string }> }>;
-    const categories = Object.entries(plan || {}).slice(0, 8);
-
-    if (categories.length > 0) {
-      categories.forEach(([category, data]) => {
-        checkPageBreak(20);
-        addSubheader(category);
-        const items = data?.items || [];
-        items.slice(0, 5).forEach((item) => {
-          addBullet(`${item.name}${item.quantity ? ` (${item.quantity}${item.unit ? ' ' + item.unit : ''})` : ''}`);
-        });
-        addSpacer(5);
-      });
-    }
-
-    // Grab-and-go section
-    checkPageBreak(30);
-    addSpacer(10);
-    addSubheader(l.grabAndGo);
-    const essentials = ['Water (3L/person)', 'First aid kit', 'Flashlight', 'Important documents', 'Cash'];
-    const essentialsPt = ['Água (3L/pessoa)', 'Kit primeiros socorros', 'Lanterna', 'Documentos importantes', 'Dinheiro'];
-    (locale === 'pt' ? essentialsPt : essentials).forEach(item => addBullet(item));
-  } else {
-    addText(l.noSuppliesPlan);
+  // Personal Info (if includeFullVault)
+  if (includeFullVault && vault.ids) {
+    addSectionHeader(l.personalInfo, COLORS.secondary);
+    if (vault.ids.fullName) addLabelValue(l.name, vault.ids.fullName);
+    if (vault.ids.address) addLabelValue(l.address, vault.ids.address);
+    if (vault.ids.dob) addLabelValue(l.dob, vault.ids.dob);
+    if (vault.ids.nationalId) addLabelValue(l.idNumber, vault.ids.nationalId);
+    addSpacer(4);
   }
 
-  addPageNumber(2);
+  // Disclaimer
+  y = pageHeight - 35;
+  setFillColor(COLORS.primaryLight);
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
+  doc.setFontSize(8);
+  setColor(COLORS.textMuted);
+  const disclaimerLines = doc.splitTextToSize(l.disclaimer, contentWidth - 8);
+  doc.text(disclaimerLines, margin + 4, y + 6);
 
-  // ==================== PAGE 3: Contacts & Medical ====================
+  addFooter(1, 5);
+
+  // ==================== PAGE 2: CONTACTS & MEDICAL ====================
   doc.addPage();
   currentPage++;
   y = margin;
 
-  addHeader(l.contactsMedical, 16);
-  addSpacer(10);
+  addSectionHeader(l.emergencyContacts, COLORS.primary);
 
-  // Contacts
-  addSubheader(l.emergencyContacts);
   const contacts = vault.contacts?.primary || [];
   if (contacts.length > 0) {
-    contacts.forEach((contact) => {
-      addBullet(`${contact.name}${contact.relationship ? ` (${contact.relationship})` : ''}${contact.phone ? `: ${contact.phone}` : ''}`);
+    // Table header
+    setFillColor(COLORS.background);
+    doc.rect(margin, y, contentWidth, 7, 'F');
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    setColor(COLORS.textMuted);
+    doc.text('NAME', margin + 2, y + 4.5);
+    doc.text('RELATIONSHIP', margin + 50, y + 4.5);
+    doc.text('PHONE', margin + 100, y + 4.5);
+    if (includeFullVault) doc.text('EMAIL', margin + 140, y + 4.5);
+    y += 8;
+
+    // Table rows
+    contacts.slice(0, 8).forEach((contact, idx) => {
+      const rowY = y;
+      if (idx % 2 === 1) {
+        setFillColor(COLORS.background);
+        doc.rect(margin, rowY - 1, contentWidth, 6, 'F');
+      }
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      setColor(COLORS.text);
+      doc.text(contact.name || '-', margin + 2, rowY + 3);
+      doc.text(contact.relationship || '-', margin + 50, rowY + 3);
+      doc.text(contact.phone || '-', margin + 100, rowY + 3);
+      if (includeFullVault && contact.email) {
+        doc.text(contact.email, margin + 140, rowY + 3);
+      }
+      y += 6;
     });
   } else {
     addText(l.notProvided);
   }
 
-  // Doctor, Vet, Insurance
+  // Additional contacts
+  addSpacer(6);
   if (vault.contacts?.doctor) addBullet(`Doctor: ${vault.contacts.doctor}`);
   if (vault.contacts?.vet) addBullet(`Vet: ${vault.contacts.vet}`);
   if (vault.contacts?.insurance) addBullet(`Insurance: ${vault.contacts.insurance}`);
+  if (vault.contacts?.importantServices) addBullet(`Services: ${vault.contacts.importantServices}`);
 
-  addSpacer(15);
+  addSpacer(8);
+  addDivider();
+  addSpacer(4);
 
-  // Medical info
-  addSubheader(l.medicalInfo);
-  
-  if (vault.medical?.allergies) {
-    addText(`${l.allergies}: ${vault.medical.allergies}`);
-  }
-  if (vault.medical?.medications) {
-    addText(`${l.medications}: ${vault.medical.medications}`);
-  }
-  if (vault.medical?.conditions) {
-    addText(`${l.conditions}: ${vault.medical.conditions}`);
-  }
-  if (vault.medical?.emergencyNotes) {
-    addText(`${l.notes}: ${vault.medical.emergencyNotes}`);
-  }
+  // Medical Section
+  addSectionHeader(l.medicalInfo, COLORS.primary);
 
-  if (!vault.medical?.allergies && !vault.medical?.medications && !vault.medical?.conditions) {
+  const hasMedical = vault.medical?.allergies || vault.medical?.medications || 
+                     vault.medical?.conditions || vault.medical?.emergencyNotes;
+
+  if (hasMedical) {
+    // Two-column layout for medical
+    const colWidth = contentWidth / 2 - 4;
+    const startY = y;
+
+    // Left column
+    if (vault.medical?.allergies) {
+      addSubsectionHeader(l.allergies);
+      addText(vault.medical.allergies, 2);
+      addSpacer(4);
+    }
+    if (vault.medical?.conditions) {
+      addSubsectionHeader(l.conditions);
+      addText(vault.medical.conditions, 2);
+    }
+
+    const leftEndY = y;
+
+    // Right column
+    y = startY;
+    const rightStart = margin + colWidth + 8;
+
+    if (vault.medical?.medications) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      setColor(COLORS.text);
+      doc.text(l.medications, rightStart, y);
+      y += 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const medLines = doc.splitTextToSize(vault.medical.medications, colWidth - 4);
+      doc.text(medLines, rightStart + 2, y);
+      y += medLines.length * 4.5 + 4;
+    }
+
+    y = Math.max(y, leftEndY);
+
+    if (vault.medical?.emergencyNotes) {
+      addSpacer(4);
+      addSubsectionHeader(l.notes);
+      setFillColor(COLORS.secondaryLight);
+      const noteLines = doc.splitTextToSize(vault.medical.emergencyNotes, contentWidth - 8);
+      const boxH = noteLines.length * 4.5 + 6;
+      doc.roundedRect(margin, y, contentWidth, boxH, 2, 2, 'F');
+      doc.setFontSize(9);
+      setColor(COLORS.text);
+      doc.text(noteLines, margin + 4, y + 5);
+      y += boxH + 4;
+    }
+  } else {
     addText(l.notProvided);
   }
 
-  addPageNumber(3);
+  // Financial info if full vault
+  if (includeFullVault && vault.finance) {
+    checkPageBreak(40);
+    addSpacer(8);
+    addDivider();
+    addSpacer(4);
+    addSectionHeader(l.financialInfo, COLORS.secondary);
+    if (vault.finance.banks) addLabelValue(l.banks, vault.finance.banks);
+    if (vault.finance.policyNumbers) addLabelValue(l.insurance, vault.finance.policyNumbers);
+    if (vault.finance.emergencyCash) addLabelValue(l.emergencyCash, vault.finance.emergencyCash);
+  }
 
-  // ==================== PAGE 4: Plan A (Shelter) ====================
+  addFooter(2, 5);
+
+  // ==================== PAGE 3: SUPPLIES ====================
   doc.addPage();
   currentPage++;
   y = margin;
 
-  addHeader(l.planA, 16);
-  addSpacer(5);
+  addSectionHeader(l.essentialsChecklist, COLORS.secondary);
+
+  if (supplies) {
+    // Preparedness score badge
+    const pct = supplies.preparednessPercent || 0;
+    const scoreColor = pct >= 70 ? COLORS.success : pct >= 40 ? COLORS.secondary : COLORS.primary;
+    
+    setFillColor(scoreColor);
+    doc.roundedRect(margin, y, 45, 12, 2, 2, 'F');
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    setColor(COLORS.white);
+    doc.text(`${pct}%`, margin + 22.5, y + 8, { align: 'center' });
+    
+    doc.setFontSize(10);
+    setColor(COLORS.text);
+    doc.text(l.preparedness, margin + 52, y + 8);
+    
+    y += 18;
+
+    // Categories
+    const plan = supplies.plan as Record<string, { items?: Array<{ name: string; quantity?: number; unit?: string }> }>;
+    const categories = Object.entries(plan || {}).slice(0, 10);
+
+    if (categories.length > 0) {
+      // Two-column layout
+      const colWidth = contentWidth / 2 - 4;
+      let leftY = y;
+      let rightY = y;
+      const rightX = margin + colWidth + 8;
+
+      categories.forEach(([category, data], idx) => {
+        const items = data?.items || [];
+        const isLeft = idx % 2 === 0;
+        const currentX = isLeft ? margin : rightX;
+        const currentY = isLeft ? leftY : rightY;
+
+        // Category header
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        setColor(COLORS.text);
+        doc.text(category.toUpperCase(), currentX, currentY);
+        
+        let itemY = currentY + 5;
+        items.slice(0, 5).forEach(item => {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          setColor(COLORS.textMuted);
+          doc.text('☐', currentX, itemY);
+          setColor(COLORS.text);
+          const itemText = `${item.name}${item.quantity ? ` (${item.quantity}${item.unit ? ' ' + item.unit : ''})` : ''}`;
+          doc.text(itemText, currentX + 5, itemY);
+          itemY += 4;
+        });
+
+        if (isLeft) {
+          leftY = itemY + 4;
+        } else {
+          rightY = itemY + 4;
+        }
+      });
+
+      y = Math.max(leftY, rightY) + 4;
+    }
+
+    // Grab-and-go section
+    checkPageBreak(40);
+    addSpacer(6);
+    addDivider();
+    addSpacer(4);
+    addSubsectionHeader(l.grabAndGo);
+    
+    const essentials = locale === 'pt' 
+      ? ['Água (3L/pessoa)', 'Kit primeiros socorros', 'Lanterna + pilhas', 'Documentos importantes', 'Dinheiro (notas pequenas)', 'Carregador telemóvel', 'Medicamentos essenciais', 'Muda de roupa']
+      : ['Water (3L/person)', 'First aid kit', 'Flashlight + batteries', 'Important documents', 'Cash (small bills)', 'Phone charger', 'Essential medications', 'Change of clothes'];
+    
+    // Checklist grid
+    const checkColWidth = contentWidth / 2 - 2;
+    essentials.forEach((item, idx) => {
+      const isLeft = idx % 2 === 0;
+      const xPos = isLeft ? margin : margin + checkColWidth + 4;
+      if (isLeft && idx > 0) y += 5;
+      doc.setFontSize(9);
+      setColor(COLORS.textMuted);
+      doc.text('☐', xPos, y);
+      setColor(COLORS.text);
+      doc.text(item, xPos + 5, y);
+    });
+    y += 8;
+  } else {
+    addText(l.noSuppliesPlan);
+  }
+
+  addFooter(3, 5);
+
+  // ==================== PAGE 4: PLAN A ====================
+  doc.addPage();
+  currentPage++;
+  y = margin;
+
+  addSectionHeader(l.planA, COLORS.success);
 
   if (planA) {
-    // Overview
+    // Overview box
     if (planA.overview) {
-      addText(planA.overview);
-      addSpacer(10);
+      setFillColor(COLORS.background);
+      const overviewLines = doc.splitTextToSize(planA.overview, contentWidth - 8);
+      const boxH = overviewLines.length * 4.5 + 6;
+      doc.roundedRect(margin, y, contentWidth, boxH, 2, 2, 'F');
+      doc.setFontSize(9);
+      setColor(COLORS.text);
+      doc.text(overviewLines, margin + 4, y + 5);
+      y += boxH + 6;
     }
 
     // Triggers
     if (planA.triggers.length > 0) {
-      addSubheader(l.triggers);
-      planA.triggers.slice(0, 5).forEach(t => addBullet(t));
-      addSpacer(8);
+      addSubsectionHeader(l.triggers);
+      planA.triggers.slice(0, 4).forEach(trigger => addBullet(trigger, 2));
+      addSpacer(6);
     }
 
-    // First hour
-    if (planA.first_hour.length > 0) {
-      checkPageBreak(30);
-      addSubheader(l.firstHour);
-      planA.first_hour.slice(0, 6).forEach(s => addBullet(s));
-      addSpacer(8);
-    }
+    // Timeline sections
+    const addTimelineSection = (title: string, items: string[]) => {
+      if (items.length === 0) return;
+      checkPageBreak(25);
+      addSubsectionHeader(title);
+      items.slice(0, 5).forEach((item, idx) => addNumberedItem(idx + 1, item, 2));
+      addSpacer(4);
+    };
 
-    // First 24h
-    if (planA.first_24h.length > 0) {
-      checkPageBreak(30);
-      addSubheader(l.first24h);
-      planA.first_24h.slice(0, 6).forEach(s => addBullet(s));
-      addSpacer(8);
-    }
-
-    // First week
-    if (planA.first_week.length > 0) {
-      checkPageBreak(30);
-      addSubheader(l.firstWeek);
-      planA.first_week.slice(0, 5).forEach(s => addBullet(s));
-      addSpacer(8);
-    }
+    addTimelineSection(l.firstHour, planA.first_hour);
+    addTimelineSection(l.first24h, planA.first_24h);
+    addTimelineSection(l.firstWeek, planA.first_week);
 
     // Meeting points
     if (planA.meetup_points?.primary) {
       checkPageBreak(20);
-      addSubheader(l.meetingPoints);
-      addBullet(`Primary: ${planA.meetup_points.primary}`);
+      addSubsectionHeader(l.meetingPoints);
+      addBullet(`Primary: ${planA.meetup_points.primary}`, 2);
       if (planA.meetup_points.secondary) {
-        addBullet(`Secondary: ${planA.meetup_points.secondary}`);
+        addBullet(`Secondary: ${planA.meetup_points.secondary}`, 2);
       }
-      addSpacer(8);
+      addSpacer(4);
     }
 
     // Comms plan
     if (planA.comms_plan) {
       checkPageBreak(20);
-      addSubheader(l.commsPlan);
-      addText(planA.comms_plan);
+      addSubsectionHeader(l.commsPlan);
+      addText(planA.comms_plan, 2);
     }
   } else {
     addText(l.noPlan);
   }
 
-  addPageNumber(currentPage);
+  addFooter(4, 5);
 
-  // ==================== PAGE 5: Plan B (Evacuate) ====================
+  // ==================== PAGE 5: PLAN B ====================
   doc.addPage();
   currentPage++;
   y = margin;
 
-  addHeader(l.planB, 16);
-  addSpacer(5);
+  addSectionHeader(l.planB, COLORS.primary);
 
   if (planB) {
-    // Overview
+    // Overview box
     if (planB.overview) {
-      addText(planB.overview);
-      addSpacer(10);
+      setFillColor(COLORS.primaryLight);
+      const overviewLines = doc.splitTextToSize(planB.overview, contentWidth - 8);
+      const boxH = overviewLines.length * 4.5 + 6;
+      doc.roundedRect(margin, y, contentWidth, boxH, 2, 2, 'F');
+      doc.setFontSize(9);
+      setColor(COLORS.text);
+      doc.text(overviewLines, margin + 4, y + 5);
+      y += boxH + 6;
     }
 
     // Triggers
     if (planB.triggers.length > 0) {
-      addSubheader(l.triggers);
-      planB.triggers.slice(0, 5).forEach(t => addBullet(t));
-      addSpacer(8);
+      addSubsectionHeader(l.triggers);
+      planB.triggers.slice(0, 4).forEach(trigger => addBullet(trigger, 2));
+      addSpacer(6);
     }
 
     // Go-now checklist
     if (planB.go_now_checklist.length > 0) {
       checkPageBreak(30);
-      addSubheader(l.grabAndGo);
-      planB.go_now_checklist.slice(0, 8).forEach(s => addBullet(s));
-      addSpacer(8);
+      addSubsectionHeader(l.grabAndGo);
+      const checkItems = planB.go_now_checklist.slice(0, 8);
+      const halfLen = Math.ceil(checkItems.length / 2);
+      
+      checkItems.forEach((item, idx) => {
+        const isLeft = idx < halfLen;
+        const xPos = isLeft ? margin + 2 : margin + contentWidth / 2;
+        if (!isLeft && idx === halfLen) y -= halfLen * 5;
+        doc.setFontSize(9);
+        setColor(COLORS.textMuted);
+        doc.text('☐', xPos, y);
+        setColor(COLORS.text);
+        doc.text(item, xPos + 5, y);
+        y += 5;
+      });
+      y += 4;
     }
 
     // Routes
     if (planB.routes) {
-      checkPageBreak(30);
-      addSubheader(l.routes);
-      if (planB.routes.primary) addBullet(`${l.primaryRoute}: ${planB.routes.primary}`);
-      if (planB.routes.alt1) addBullet(`${l.altRoute1}: ${planB.routes.alt1}`);
-      if (planB.routes.alt2) addBullet(`${l.altRoute2}: ${planB.routes.alt2}`);
-      addSpacer(8);
+      checkPageBreak(25);
+      addSubsectionHeader(l.routes);
+      if (planB.routes.primary) {
+        addLabelValue(l.primaryRoute, planB.routes.primary, 2);
+      }
+      if (planB.routes.alt1) {
+        addLabelValue(l.altRoute1, planB.routes.alt1, 2);
+      }
+      if (planB.routes.alt2) {
+        addLabelValue(l.altRoute2, planB.routes.alt2, 2);
+      }
+      addSpacer(4);
     }
 
     // Destinations
     if (planB.destinations_ranked && planB.destinations_ranked.length > 0) {
-      checkPageBreak(30);
-      addSubheader(l.destinations);
-      planB.destinations_ranked.slice(0, 3).forEach((dest, i) => {
-        addBullet(`${i + 1}. ${dest.label} — ${dest.reason}`);
+      checkPageBreak(25);
+      addSubsectionHeader(l.destinations);
+      planB.destinations_ranked.slice(0, 3).forEach((dest, idx) => {
+        addNumberedItem(idx + 1, `${dest.label} — ${dest.reason}`, 2);
       });
-      addSpacer(8);
+      addSpacer(4);
     }
 
     // No-go zones
     if (planB.no_go_zones && planB.no_go_zones.length > 0) {
       checkPageBreak(20);
-      addSubheader(l.noGoZones);
-      planB.no_go_zones.slice(0, 4).forEach(z => addBullet(z));
-      addSpacer(8);
+      addSubsectionHeader(l.noGoZones);
+      setFillColor(COLORS.primaryLight);
+      const zoneText = planB.no_go_zones.slice(0, 4).join(' • ');
+      const zoneLines = doc.splitTextToSize(zoneText, contentWidth - 8);
+      const boxH = zoneLines.length * 4.5 + 4;
+      doc.roundedRect(margin, y, contentWidth, boxH, 2, 2, 'F');
+      doc.setFontSize(9);
+      setColor(COLORS.primary);
+      doc.text(zoneLines, margin + 4, y + 4);
+      y += boxH + 4;
     }
 
     // Meeting points
     if (planB.meetup_points?.primary) {
       checkPageBreak(20);
-      addSubheader(l.meetingPoints);
-      addBullet(`Primary: ${planB.meetup_points.primary}`);
+      addSubsectionHeader(l.meetingPoints);
+      addBullet(`Primary: ${planB.meetup_points.primary}`, 2);
       if (planB.meetup_points.secondary) {
-        addBullet(`Secondary: ${planB.meetup_points.secondary}`);
+        addBullet(`Secondary: ${planB.meetup_points.secondary}`, 2);
       }
-      addSpacer(8);
+      addSpacer(4);
     }
 
     // Comms plan
     if (planB.comms_plan) {
       checkPageBreak(20);
-      addSubheader(l.commsPlan);
-      addText(planB.comms_plan);
+      addSubsectionHeader(l.commsPlan);
+      addText(planB.comms_plan, 2);
     }
   } else {
     addText(l.noPlan);
   }
 
-  addPageNumber(currentPage);
+  addFooter(5, 5);
 
   // Return as blob
   return doc.output('blob');
