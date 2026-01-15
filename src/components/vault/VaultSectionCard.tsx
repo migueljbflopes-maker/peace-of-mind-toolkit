@@ -4,7 +4,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Users, Heart, Wallet, Smartphone, CheckCircle, Circle, Clock } from 'lucide-react';
+import { CreditCard, Users, Heart, Wallet, Smartphone, CheckCircle, Circle, Clock, PawPrint, Home } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
 import { VaultSection, VaultSectionStatus } from '@/hooks/useVaultSync';
 
@@ -12,6 +12,8 @@ const sectionIcons: Record<VaultSection, React.ComponentType<{ className?: strin
   ids: CreditCard,
   contacts: Users,
   medical: Heart,
+  pets: PawPrint,
+  property: Home,
   finance: Wallet,
   devices: Smartphone,
 };
