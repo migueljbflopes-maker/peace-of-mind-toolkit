@@ -19,8 +19,10 @@ const BASE_URL = "https://am-i-ready.com";
 const BILLING_PORTAL_URL = "https://billing.stripe.com/p/login/dRm8wP1JE5SPfSUf6s5Ne00";
 const FROM_EMAIL = 'Am I Ready? <noreply@am-i-ready.com>';
 
-function getWelcomeEmailHtml(): string {
-  const ctaUrl = `${BASE_URL}/login`;
+function getWelcomeEmailHtml(magicLinkUrl?: string): string {
+  // Use magic link if available, otherwise fallback to login page
+  const ctaUrl = magicLinkUrl || `${BASE_URL}/login`;
+  const ctaText = magicLinkUrl ? 'Access My Account' : 'Start My Plan';
 
   return `<!DOCTYPE html>
 <html>
@@ -62,9 +64,15 @@ function getWelcomeEmailHtml(): string {
       <div style="text-align: center; margin: 32px 0;">
         <a href="${ctaUrl}"
            style="background-color: #2563eb; border-radius: 8px; color: #ffffff; display: inline-block; font-size: 16px; font-weight: 600; padding: 14px 32px; text-decoration: none;">
-          Start My Plan
+          ${ctaText}
         </a>
       </div>
+
+      ${magicLinkUrl ? `
+      <p style="color: #8898aa; font-size: 13px; text-align: center; margin-top: 16px;">
+        This link expires in 24 hours. If it doesn't work, you can request a new one at <a href="${BASE_URL}/login" style="color:#2563eb;">am-i-ready.com/login</a>
+      </p>
+      ` : ''}
 
       <!-- Billing Portal -->
       <div style="margin-top: 32px; text-align: center;">
@@ -178,10 +186,28 @@ serve(async (req) => {
       });
     }
 
-    // Get customer email - either from purchase record or from Stripe
+    // Get customer email - with retry logic for race condition with webhook
     let customerEmail = purchase.payer_email;
+    let emailRetryAttempts = 0;
+    const maxEmailRetries = 5;
 
-    // If no email in purchase, try to get from Stripe PaymentIntent
+    // If no email yet, wait and retry (webhook might still be processing)
+    while (!customerEmail && emailRetryAttempts < maxEmailRetries) {
+      emailRetryAttempts++;
+      logStep(`Email not available, retry ${emailRetryAttempts}/${maxEmailRetries}`);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      
+      const { data: refreshedPurchase } = await supabaseAdmin
+        .from("guest_purchases")
+        .select("payer_email")
+        .eq("claim_code", claimCode)
+        .maybeSingle();
+      
+      customerEmail = refreshedPurchase?.payer_email;
+    }
+
+    // If still no email, try to get from Stripe PaymentIntent
     if (!customerEmail && purchase.payment_intent_id) {
       try {
         // Check if it's a payment intent or checkout session
@@ -306,6 +332,10 @@ serve(async (req) => {
       .eq('template_type', 'welcome')
       .maybeSingle();
 
+    // Get the magic link URL to include in the welcome email
+    const magicLinkUrl = linkData?.properties?.action_link;
+    logStep("Magic link for email", { hasUrl: !!magicLinkUrl });
+
     if (!existingEmail && resendApiKey) {
       try {
         const resend = new Resend(resendApiKey);
@@ -313,7 +343,7 @@ serve(async (req) => {
           from: FROM_EMAIL,
           to: [normalizedEmail],
           subject: 'Welcome to Am I Ready? – Your journey starts now',
-          html: getWelcomeEmailHtml()
+          html: getWelcomeEmailHtml(magicLinkUrl)
         });
 
         if (emailError) {
