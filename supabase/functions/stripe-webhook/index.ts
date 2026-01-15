@@ -21,7 +21,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 // Import email templates
 import { getWelcomeEmailHtml } from "./_templates/welcome.ts";
 import { getPurchaseReceiptHtml } from "./_templates/purchase-receipt.ts";
-import { getOnboardingReminderHtml } from "./_templates/onboarding-reminder.ts";
+// Note: onboarding-reminder is now queued via scheduled_emails table, not sent immediately
 
 // Import email utilities
 import {
@@ -150,12 +150,14 @@ serve(async (req) => {
               event.id
             );
             
-            // Send onboarding reminder
-            await sendEmail(
-              email, 
-              'Complete your emergency preparedness setup',
-              getOnboardingReminderHtml(gp?.claim_code)
-            );
+            // Queue onboarding reminder for 24h later
+            await supabase.from("scheduled_emails").insert({
+              email,
+              template_type: "onboarding_reminder",
+              template_data: { claimCode: gp?.claim_code },
+              send_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+              stripe_event_id: event.id
+            });
           }
         } 
         // Logged-in user purchase flow
@@ -188,12 +190,14 @@ serve(async (req) => {
               event.id
             );
             
-            // Send onboarding reminder
-            await sendEmail(
-              email, 
-              'Complete your emergency preparedness setup',
-              getOnboardingReminderHtml()
-            );
+            // Queue onboarding reminder for 24h later
+            await supabase.from("scheduled_emails").insert({
+              email,
+              template_type: "onboarding_reminder",
+              template_data: {},
+              send_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+              stripe_event_id: event.id
+            });
           }
         } 
         // Generic payment (just send receipt)
@@ -270,12 +274,14 @@ serve(async (req) => {
             event.id
           );
           
-          // Send onboarding reminder
-          await sendEmail(
-            email, 
-            'Complete your emergency preparedness setup',
-            getOnboardingReminderHtml()
-          );
+          // Queue onboarding reminder for 24h later
+          await supabase.from("scheduled_emails").insert({
+            email,
+            template_type: "onboarding_reminder",
+            template_data: {},
+            send_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            stripe_event_id: event.id
+          });
         }
         break;
       }
@@ -331,11 +337,14 @@ serve(async (req) => {
             event.id
           );
           
-          await sendEmail(
-            email, 
-            'Complete your emergency preparedness setup',
-            getOnboardingReminderHtml(claimCode)
-          );
+          // Queue onboarding reminder for 24h later
+          await supabase.from("scheduled_emails").insert({
+            email,
+            template_type: "onboarding_reminder",
+            template_data: { claimCode },
+            send_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            stripe_event_id: event.id
+          });
         }
         break;
       }
