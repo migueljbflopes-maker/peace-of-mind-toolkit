@@ -21,7 +21,9 @@ import {
 
 export interface DataReadiness {
   riskAssessment: boolean;
+  riskUpdatedAt?: string;
   suppliesPlan: boolean;
+  suppliesUpdatedAt?: string;
   vaultIds: boolean;
   vaultContacts: boolean;
   vaultMedical: boolean;
@@ -29,6 +31,7 @@ export interface DataReadiness {
   vaultDevices: boolean;
   planA: boolean;
   planB: boolean;
+  plansUpdatedAt?: string;
 }
 
 export function useRedFolderData() {
@@ -68,20 +71,26 @@ export function useRedFolderData() {
         const [riskResult, suppliesResult] = await Promise.all([
           supabase
             .from('risk_assessments')
-            .select('id')
+            .select('id, updated_at')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1),
           supabase
             .from('supplies_plans')
-            .select('id')
+            .select('id, updated_at')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1),
         ]);
 
-        newReadiness.riskAssessment = (riskResult.data?.length || 0) > 0;
-        newReadiness.suppliesPlan = (suppliesResult.data?.length || 0) > 0;
+        if (riskResult.data?.length) {
+          newReadiness.riskAssessment = true;
+          newReadiness.riskUpdatedAt = riskResult.data[0].updated_at;
+        }
+        if (suppliesResult.data?.length) {
+          newReadiness.suppliesPlan = true;
+          newReadiness.suppliesUpdatedAt = suppliesResult.data[0].updated_at;
+        }
       }
 
       // Check local storage for risk/supplies as fallback
@@ -110,6 +119,7 @@ export function useRedFolderData() {
         if (wizardPlan) {
           newReadiness.planA = wizardPlan.plan_a_json !== null && wizardPlan.plan_a_json !== undefined;
           newReadiness.planB = wizardPlan.plan_b_json !== null && wizardPlan.plan_b_json !== undefined;
+          newReadiness.plansUpdatedAt = wizardPlan.updated_at;
         }
       }
 
