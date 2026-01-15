@@ -174,7 +174,7 @@ export function useRedFolderData() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .maybeSingle();
+          .single();
 
         if (riskData) {
           result.risk = {
@@ -216,7 +216,7 @@ export function useRedFolderData() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .maybeSingle();
+          .single();
 
         if (suppliesData) {
           result.supplies = {
