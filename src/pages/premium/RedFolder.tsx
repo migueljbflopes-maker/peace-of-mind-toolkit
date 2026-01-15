@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Download, Eye, Loader2, CheckCircle2, WifiOff, ArrowLeft, Lock, Clock } from 'lucide-react';
+import { FileText, Download, Eye, Loader2, CheckCircle2, WifiOff, ArrowLeft, Lock, Clock, ExternalLink } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
@@ -18,6 +18,8 @@ import Footer from '@/components/Footer';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDistanceToNow } from 'date-fns';
+import { pt, enUS } from 'date-fns/locale';
 
 const VAULT_PRINT_DURATION = 10 * 60 * 1000; // 10 minutes in ms
 
@@ -107,12 +109,31 @@ export default function RedFolder() {
     }
   };
 
+  // Calculate most recent timestamp from readiness data
+  const mostRecentTimestamp = useMemo(() => {
+    const timestamps = [
+      readiness.riskUpdatedAt,
+      readiness.suppliesUpdatedAt,
+      readiness.plansUpdatedAt,
+    ].filter(Boolean) as string[];
+    
+    if (timestamps.length === 0) return null;
+    
+    const dates = timestamps.map(t => new Date(t).getTime());
+    const mostRecent = new Date(Math.max(...dates));
+    
+    return formatDistanceToNow(mostRecent, { 
+      addSuffix: true, 
+      locale: locale === 'pt' ? pt : enUS 
+    });
+  }, [readiness, locale]);
+
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
       const data = await loadAllData();
       if (!data) {
-        toast.error('Failed to load data for PDF');
+        toast.error(t.redFolder.loadError);
         return;
       }
 
@@ -137,7 +158,8 @@ export default function RedFolder() {
 
       toast.success(t.redFolder.pdfReady);
     } catch (error) {
-      toast.error('Failed to generate PDF');
+      console.error('Generate PDF error:', error);
+      toast.error(t.redFolder.loadError);
     } finally {
       setIsGenerating(false);
     }
@@ -159,7 +181,7 @@ export default function RedFolder() {
     try {
       const data = await loadAllData();
       if (!data) {
-        toast.error('Failed to load data for preview');
+        toast.error(t.redFolder.loadError);
         return;
       }
 
@@ -172,7 +194,8 @@ export default function RedFolder() {
       // Cleanup after a delay
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (error) {
-      toast.error('Failed to generate preview');
+      console.error('Preview PDF error:', error);
+      toast.error(t.redFolder.previewError);
     } finally {
       setIsGenerating(false);
     }
@@ -276,13 +299,29 @@ export default function RedFolder() {
 
                   {/* Actions Card */}
                   <Card>
-                    <CardHeader>
+                    <CardHeader className="pb-2">
                       <CardTitle className="text-base">
-                        {pdfBlob ? t.redFolder.pdfReady : (locale === 'pt' ? 'Ações' : 'Actions')}
+                        {pdfBlob ? t.redFolder.pdfReady : t.redFolder.actionsTitle}
                       </CardTitle>
+                      {!pdfBlob && (
+                        <CardDescription className="text-sm">
+                          {t.redFolder.actionsExplainer}
+                        </CardDescription>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {pdfBlob ? (
+                      {/* Loading State */}
+                      {isGenerating && (
+                        <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          <div>
+                            <p className="text-sm font-medium">{t.redFolder.generating}</p>
+                            <p className="text-xs text-muted-foreground">{t.redFolder.preparingDocument}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {pdfBlob && !isGenerating ? (
                         <>
                           {/* Success State */}
                           <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -305,38 +344,12 @@ export default function RedFolder() {
                             onClick={handleRegenerate}
                             disabled={isGenerating}
                           >
-                            {isGenerating ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                {t.redFolder.generating}
-                              </>
-                            ) : (
-                              t.redFolder.regenerate
-                            )}
+                            {t.redFolder.regenerate}
                           </Button>
                         </>
-                      ) : (
+                      ) : !isGenerating && (
                         <>
-                          {/* Initial State */}
-                          <Button 
-                            className="w-full gap-2" 
-                            size="lg"
-                            onClick={handleGeneratePdf}
-                            disabled={isGenerating || isLoadingData}
-                          >
-                            {isGenerating ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                {t.redFolder.generating}
-                              </>
-                            ) : (
-                              <>
-                                <Download className="h-4 w-4" />
-                                {t.redFolder.generatePdf}
-                              </>
-                            )}
-                          </Button>
-
+                          {/* Initial State - Preview first, Download second */}
                           <Button 
                             variant="outline" 
                             className="w-full gap-2"
@@ -345,8 +358,31 @@ export default function RedFolder() {
                           >
                             <Eye className="h-4 w-4" />
                             {t.redFolder.viewPdf}
+                            <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
+                          </Button>
+                          
+                          <p className="text-xs text-muted-foreground text-center">
+                            {t.redFolder.opensInNewTab}
+                          </p>
+
+                          <Button 
+                            className="w-full gap-2" 
+                            size="lg"
+                            onClick={handleGeneratePdf}
+                            disabled={isGenerating || isLoadingData}
+                          >
+                            <Download className="h-4 w-4" />
+                            {t.redFolder.generatePdf}
                           </Button>
                         </>
+                      )}
+                      
+                      {/* Data timestamp */}
+                      {mostRecentTimestamp && !isGenerating && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-2 border-t">
+                          <Clock className="h-3 w-3" />
+                          {t.redFolder.dataUpdated}: {mostRecentTimestamp}
+                        </p>
                       )}
                     </CardContent>
                   </Card>
