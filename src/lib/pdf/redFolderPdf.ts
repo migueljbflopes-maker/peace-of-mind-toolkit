@@ -891,6 +891,7 @@ export async function buildRedFolderPdf(
 
   addFooter(5, 5);
 
-  // Return as blob
-  return doc.output('blob');
+  // Return as blob with explicit MIME type for iframe/embed compatibility
+  const pdfBlob = doc.output('blob');
+  return new Blob([pdfBlob], { type: 'application/pdf' });
 }

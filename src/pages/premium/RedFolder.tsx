@@ -471,11 +471,34 @@ export default function RedFolder() {
           </DialogHeader>
           
           {previewUrl && (
-            <iframe 
-              src={previewUrl} 
-              className="w-full flex-1 border-0"
-              title="Red Folder PDF Preview"
-            />
+            <div className="flex-1 w-full bg-muted overflow-hidden">
+              <object 
+                data={previewUrl}
+                type="application/pdf"
+                className="w-full h-full"
+                style={{ minHeight: 'calc(90vh - 80px)' }}
+              >
+                {/* Fallback se browser não suportar PDF inline */}
+                <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
+                  <FileText className="h-16 w-16 text-muted-foreground" />
+                  <p className="text-center text-muted-foreground">
+                    {locale === 'pt' 
+                      ? 'O teu browser não suporta preview de PDFs inline.' 
+                      : 'Your browser does not support inline PDF preview.'}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={handleDownloadFromPreview}>
+                      <Download className="h-4 w-4 mr-2" />
+                      {t.redFolder.downloadPdf}
+                    </Button>
+                    <Button variant="outline" onClick={() => window.open(previewUrl, '_blank')}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      {t.redFolder.openFullscreen}
+                    </Button>
+                  </div>
+                </div>
+              </object>
+            </div>
           )}
         </DialogContent>
       </Dialog>
