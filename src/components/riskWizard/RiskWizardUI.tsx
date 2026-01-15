@@ -28,7 +28,7 @@ interface RiskWizardUIProps {
 export default function RiskWizardUI({ 
   onComplete, 
   showResultsInternally = true,
-  exitRoute = '/be-prepared'
+  exitRoute = '/'
 }: RiskWizardUIProps) {
   const navigate = useNavigate();
   const { isPremium } = useEntitlements();
