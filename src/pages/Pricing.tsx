@@ -14,6 +14,7 @@ import {
   Target,
   ClipboardList,
   Zap,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -64,40 +65,44 @@ const Pricing = () => {
       step: 1,
       label: "Assess",
       title: "Know Your Risks",
-      description: "Understand your personal risk profile based on location and situation.",
+      description: "Understand your personal risk profile.",
       icon: Target,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
+      borderColor: "border-blue-200",
       free: true,
     },
     {
       step: 2,
       label: "Prepare",
       title: "Build Your Plan",
-      description: "14-day supplies checklist and personalized Plans A & B.",
+      description: "Supplies checklist and Plans A & B.",
       icon: ClipboardList,
       color: "text-amber-600",
       bgColor: "bg-amber-100",
+      borderColor: "border-amber-200",
       free: false,
     },
     {
       step: 3,
       label: "Secure",
       title: "Store & Protect",
-      description: "Encrypted Vault for documents, contacts, and medical info.",
+      description: "Encrypted Vault for documents.",
       icon: Lock,
       color: "text-emerald-600",
       bgColor: "bg-emerald-100",
+      borderColor: "border-emerald-200",
       free: false,
     },
     {
       step: 4,
       label: "Activate",
       title: "Act When Needed",
-      description: "One-tap Panic Button alerts your trusted contacts instantly.",
+      description: "One-tap Panic Button alerts.",
       icon: Bell,
       color: "text-red-600",
       bgColor: "bg-red-100",
+      borderColor: "border-red-200",
       free: false,
     },
   ];
@@ -163,86 +168,156 @@ const Pricing = () => {
       <Navbar />
 
       <main className="pt-16">
-        {/* Compact Hero */}
-        <section className="py-10 md:py-12">
+        {/* Compact Hero with CTA */}
+        <section className="py-8 md:py-10">
           <div className="container mx-auto px-4">
             <div className="max-w-2xl mx-auto text-center">
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
                 Complete Preparedness Bundle
               </h1>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-muted-foreground mb-5">
                 From risk assessment to emergency response — one purchase, lifetime access.
               </p>
               
-              {/* Price inline */}
-              <div className="inline-flex items-center gap-3 bg-card border border-border rounded-full px-6 py-3 mb-6">
-                <span className="text-2xl font-bold text-foreground">€49</span>
-                <span className="text-sm text-muted-foreground">one-time • no subscription</span>
+              {/* Price + CTA inline */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-bold text-foreground">€49</span>
+                  <span className="text-sm text-muted-foreground">one-time</span>
+                </div>
+                <Button 
+                  size="lg" 
+                  onClick={handleUnlockPremium} 
+                  disabled={checkoutLoading}
+                  className="gap-2 h-11"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      Unlock Premium
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 4-Step Journey */}
+        {/* 4-Step Journey with connectors */}
         <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-4xl mx-auto">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center mb-8">
                 Your preparedness journey
               </p>
               
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {journeySteps.map((item) => {
+              {/* Desktop: Horizontal with arrows */}
+              <div className="hidden lg:flex items-start justify-between gap-2">
+                {journeySteps.map((item, index) => {
                   const Icon = item.icon;
+                  const isLast = index === journeySteps.length - 1;
+                  
                   return (
-                    <div
-                      key={item.step}
-                      className="relative bg-card border border-border rounded-xl p-5 text-center"
-                    >
-                      {/* Step number */}
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className="inline-flex items-center justify-center w-6 h-6 bg-foreground text-background text-xs font-bold rounded-full">
-                          {item.step}
-                        </span>
+                    <div key={item.step} className="flex items-start flex-1">
+                      {/* Step Card */}
+                      <div className={`relative bg-card border ${item.borderColor} rounded-xl p-5 text-center flex-1 hover:shadow-md transition-shadow`}>
+                        {/* Icon with pulse animation on hover */}
+                        <div className={`w-14 h-14 ${item.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
+                          <Icon className={`h-7 w-7 ${item.color}`} />
+                        </div>
+                        
+                        {/* Step label */}
+                        <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${item.color}`}>
+                          {item.step}. {item.label}
+                        </p>
+                        
+                        {/* Title */}
+                        <h3 className="text-sm font-bold text-foreground mb-1.5">
+                          {item.title}
+                        </h3>
+                        
+                        {/* Description */}
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {item.description}
+                        </p>
+                        
+                        {/* Free/Premium badge */}
+                        <div className="mt-3">
+                          {item.free ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                              <Check className="h-3 w-3" />
+                              Free
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
+                              <Zap className="h-3 w-3" />
+                              Premium
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
-                      {/* Icon */}
-                      <div className={`w-12 h-12 ${item.bgColor} rounded-xl flex items-center justify-center mx-auto mt-2 mb-3`}>
-                        <Icon className={`h-6 w-6 ${item.color}`} />
-                      </div>
-                      
-                      {/* Label */}
-                      <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${item.color}`}>
-                        {item.label}
-                      </p>
-                      
-                      {/* Title */}
-                      <h3 className="text-sm font-bold text-foreground mb-2">
-                        {item.title}
-                      </h3>
-                      
-                      {/* Description */}
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {item.description}
-                      </p>
-                      
-                      {/* Free/Premium badge */}
-                      <div className="mt-3">
-                        {item.free ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                            <Check className="h-3 w-3" />
-                            Free
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                            <Zap className="h-3 w-3" />
-                            Premium
-                          </span>
-                        )}
-                      </div>
+                      {/* Arrow connector */}
+                      {!isLast && (
+                        <div className="flex items-center justify-center px-2 pt-8">
+                          <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Mobile/Tablet: Vertical with connecting line */}
+              <div className="lg:hidden relative">
+                {/* Vertical connecting line */}
+                <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-200 via-amber-200 via-emerald-200 to-red-200" />
+                
+                <div className="space-y-4">
+                  {journeySteps.map((item) => {
+                    const Icon = item.icon;
+                    
+                    return (
+                      <div key={item.step} className="relative flex gap-4">
+                        {/* Icon circle */}
+                        <div className={`relative z-10 w-12 h-12 ${item.bgColor} rounded-xl flex items-center justify-center shrink-0 border-2 ${item.borderColor} bg-card`}>
+                          <Icon className={`h-6 w-6 ${item.color}`} />
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="flex-1 pb-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className={`text-xs font-bold uppercase tracking-wide ${item.color}`}>
+                              {item.step}. {item.label}
+                            </p>
+                            {item.free ? (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                                <Check className="h-2.5 w-2.5" />
+                                Free
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                                <Zap className="h-2.5 w-2.5" />
+                                Premium
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-sm font-bold text-foreground mb-0.5">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -266,7 +341,7 @@ const Pricing = () => {
                 ].map((item, idx) => {
                   const Icon = item.icon;
                   return (
-                    <div key={idx} className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl">
+                    <div key={idx} className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl hover:border-primary/30 transition-colors">
                       <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
@@ -290,7 +365,7 @@ const Pricing = () => {
               <h2 className="text-xl font-bold text-foreground mb-2">
                 Get lifetime access
               </h2>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-sm text-muted-foreground mb-5">
                 One payment. No subscription. Works offline.
               </p>
               
