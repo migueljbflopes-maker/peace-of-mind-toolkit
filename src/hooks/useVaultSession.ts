@@ -42,8 +42,11 @@ export function useVaultSession() {
     setTimeUntilLock(vaultSession.getTimeUntilLock());
   }, []);
 
-  const unlock = useCallback(async (passphrase: string, testSalt?: string): Promise<boolean> => {
-    const success = await doUnlockVault(passphrase, testSalt);
+  const unlock = useCallback(async (
+    passphrase: string, 
+    testPayload?: { saltB64: string; ivB64: string; ciphertextB64: string }
+  ): Promise<boolean> => {
+    const success = await doUnlockVault(passphrase, testPayload);
     if (success) {
       setTimeUntilLock(vaultSession.getTimeUntilLock());
     }

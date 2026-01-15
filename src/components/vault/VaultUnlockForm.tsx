@@ -50,9 +50,16 @@ export function VaultUnlockForm({ onUnlock }: VaultUnlockFormProps) {
     setIsLoading(true);
     try {
       const cached = await getAllCachedSections();
-      const testSalt = cached.length > 0 ? cached[0].saltB64 : undefined;
       
-      const success = await unlock(passphrase, testSalt);
+      // Pass full encrypted payload for real decryption validation
+      // AES-GCM will fail with auth tag mismatch if passphrase is wrong
+      const testPayload = cached.length > 0 ? {
+        saltB64: cached[0].saltB64,
+        ivB64: cached[0].ivB64,
+        ciphertextB64: cached[0].ciphertextB64
+      } : undefined;
+      
+      const success = await unlock(passphrase, testPayload);
       
       if (success) {
         onUnlock();
