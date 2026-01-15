@@ -246,6 +246,11 @@ export const translations = {
       planBOverviewEmpty: 'Your evacuation strategy with routes, destinations, and go-bag essentials.',
       regeneratePlans: 'Regenerate Plans',
       edit: 'Edit',
+      editSection: 'Edit Section',
+      saveSection: 'Save',
+      cancelEdit: 'Cancel',
+      sectionSaved: 'Section saved',
+      sectionSaveError: 'Failed to save section',
     },
     // Red Folder page
     redFolder: {
@@ -713,6 +718,11 @@ export const translations = {
       planBOverviewEmpty: 'A tua estratégia de evacuação com rotas, destinos e essenciais da mala de emergência.',
       regeneratePlans: 'Regenerar Planos',
       edit: 'Editar',
+      editSection: 'Editar Secção',
+      saveSection: 'Guardar',
+      cancelEdit: 'Cancelar',
+      sectionSaved: 'Secção guardada',
+      sectionSaveError: 'Falha ao guardar secção',
     },
     // Red Folder page
     redFolder: {

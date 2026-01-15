@@ -358,3 +358,35 @@ export async function hasGeneratedPlans(userId: string): Promise<{ hasPlanA: boo
     hasPlanB: plan?.plan_b_json !== null && plan?.plan_b_json !== undefined,
   };
 }
+
+// Update existing generated plans (for inline editing)
+export async function updateGeneratedPlans(
+  userId: string,
+  planA: GeneratedPlanA,
+  planB: GeneratedPlanB
+): Promise<PremiumPlan | null> {
+  const existing = await getCachedPremiumPlan(userId);
+  
+  if (!existing) {
+    console.error('No existing plan to update');
+    return null;
+  }
+
+  const updatedPlan: PremiumPlan = {
+    ...existing,
+    plan_a_json: planA,
+    plan_b_json: planB,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Save to cache immediately
+  await savePlanToCache(updatedPlan);
+
+  // Sync to cloud
+  const cloudPlan = await savePlanToCloud(userId, {
+    plan_a_json: planA,
+    plan_b_json: planB,
+  });
+
+  return cloudPlan || updatedPlan;
+}
