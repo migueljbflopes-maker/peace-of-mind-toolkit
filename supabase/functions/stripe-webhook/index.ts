@@ -227,6 +227,27 @@ serve(async (req) => {
         
         logStep("Checkout valid", { isPaidOrFree, isSubscriptionStarted });
         
+        // Update guest_purchases with payer email if this is a subscription checkout
+        const claimCode = session.metadata?.claim_code;
+        const checkoutEmail = session.customer_details?.email;
+        
+        if (claimCode && checkoutEmail) {
+          const { error: updateError } = await supabase
+            .from("guest_purchases")
+            .update({ 
+              payer_email: checkoutEmail.toLowerCase().trim(),
+              status: isSubscriptionStarted ? "subscription_active" : "paid",
+              paid_at: new Date().toISOString()
+            })
+            .eq("claim_code", claimCode);
+          
+          if (updateError) {
+            logStep("Warning: Failed to update guest_purchases", { error: updateError.message });
+          } else {
+            logStep("Updated guest_purchases with email", { claimCode, email: checkoutEmail });
+          }
+        }
+        
         const userId = session.metadata?.user_id || session.client_reference_id;
         const email = await extractCheckoutEmail(stripe, session);
         const isFreeCheckout = session.payment_status === "no_payment_required";
