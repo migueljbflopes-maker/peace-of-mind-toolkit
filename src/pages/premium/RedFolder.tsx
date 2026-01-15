@@ -112,7 +112,10 @@ export default function RedFolder() {
     try {
       const data = await loadAllData();
       if (!data) {
-        toast.error('Failed to load data for PDF');
+        toast.error(locale === 'pt' 
+          ? 'Falha ao carregar dados para PDF' 
+          : 'Failed to load data for PDF'
+        );
         return;
       }
 
@@ -137,7 +140,11 @@ export default function RedFolder() {
 
       toast.success(t.redFolder.pdfReady);
     } catch (error) {
-      toast.error('Failed to generate PDF');
+      console.error('[RedFolder] Generate PDF error:', error);
+      toast.error(locale === 'pt' 
+        ? 'Falha ao gerar PDF' 
+        : 'Failed to generate PDF'
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -159,7 +166,10 @@ export default function RedFolder() {
     try {
       const data = await loadAllData();
       if (!data) {
-        toast.error('Failed to load data for preview');
+        toast.error(locale === 'pt' 
+          ? 'Falha ao carregar dados para pré-visualização' 
+          : 'Failed to load data for preview'
+        );
         return;
       }
 
@@ -172,7 +182,11 @@ export default function RedFolder() {
       // Cleanup after a delay
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (error) {
-      toast.error('Failed to generate preview');
+      console.error('[RedFolder] Preview PDF error:', error);
+      toast.error(locale === 'pt' 
+        ? 'Falha ao gerar pré-visualização' 
+        : 'Failed to generate preview'
+      );
     } finally {
       setIsGenerating(false);
     }
