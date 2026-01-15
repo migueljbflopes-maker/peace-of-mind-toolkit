@@ -85,8 +85,8 @@ export default function PurchaseSuccess() {
   };
 
   const processExpressPurchase = async (code: string, retryCount = 0) => {
-    const maxRetries = 3;
-    const retryDelay = 3000; // 3 seconds
+    const maxRetries = 5;
+    const retryDelay = 3000; // 3 seconds (total wait: up to 15 seconds)
     
     try {
       console.log(`[PurchaseSuccess] Completing express purchase via claim_code (attempt ${retryCount + 1}/${maxRetries + 1})`);
@@ -94,11 +94,29 @@ export default function PurchaseSuccess() {
         body: { claimCode: code }
       });
 
-      if (error) throw error;
+      console.log('[PurchaseSuccess] Express purchase response:', { data, error });
 
-      // Check if we should retry due to email not being available yet
+      // Check for structured retryable response (HTTP 200 with success: false, retryable: true)
+      if (data?.retryable && retryCount < maxRetries) {
+        console.log(`[PurchaseSuccess] Retryable response, attempt ${retryCount + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return processExpressPurchase(code, retryCount + 1);
+      }
+
+      // HTTP error from invoke
+      if (error) {
+        const errorMsg = typeof error === 'string' ? error : (error as any)?.message || '';
+        if (errorMsg.includes('email not available') && retryCount < maxRetries) {
+          console.log(`[PurchaseSuccess] Email not ready, retry ${retryCount + 1}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return processExpressPurchase(code, retryCount + 1);
+        }
+        throw error;
+      }
+
+      // Check if response data indicates a retryable error
       if (data?.error?.includes('email not available') && retryCount < maxRetries) {
-        console.log(`[PurchaseSuccess] Email not ready, waiting ${retryDelay}ms before retry...`);
+        console.log(`[PurchaseSuccess] Email not ready (from data), retry ${retryCount + 1}/${maxRetries}`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return processExpressPurchase(code, retryCount + 1);
       }
@@ -109,16 +127,18 @@ export default function PurchaseSuccess() {
         setStatus('success');
         // Clear the stored claim code on success
         localStorage.removeItem('resilient_claim_code_last');
+      } else if (data?.error) {
+        throw new Error(data.error);
       } else {
-        throw new Error(data?.error || 'Unexpected response');
+        throw new Error('Unexpected response from express purchase completion');
       }
     } catch (err) {
-      console.error('Error completing express purchase:', err);
+      console.error('[PurchaseSuccess] Error completing express purchase:', err);
       
       // If email not available and we have retries left, try again
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (errorMsg.includes('email not available') && retryCount < maxRetries) {
-        console.log(`[PurchaseSuccess] Email not ready (catch), waiting ${retryDelay}ms before retry...`);
+        console.log(`[PurchaseSuccess] Retrying after catch, attempt ${retryCount + 1}/${maxRetries}`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return processExpressPurchase(code, retryCount + 1);
       }

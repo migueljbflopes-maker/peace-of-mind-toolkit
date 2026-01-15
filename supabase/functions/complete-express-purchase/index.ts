@@ -239,7 +239,15 @@ serve(async (req) => {
     }
 
     if (!customerEmail) {
-      throw new Error("Customer email not available - payment may still be processing");
+      logStep("error", { message: "Customer email still not available after all retries", claimCode, emailRetryAttempts });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        retryable: true,
+        error: "email not available - payment may still be processing"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
     const normalizedEmail = customerEmail.toLowerCase().trim();
