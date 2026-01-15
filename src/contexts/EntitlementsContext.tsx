@@ -65,7 +65,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(DEV_PREMIUM_KEY, String(newValue));
   }, [devPremiumOverride]);
 
-  // Fetch entitlements from database with timeout protection
+  // Fetch entitlements from database with timeout protection and session verification
   const fetchEntitlements = useCallback(async (userId?: string) => {
     const targetUserId = userId ?? user?.id;
     dbg('fetchEntitlements called:', { targetUserId });
@@ -78,7 +78,33 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    dbg('Fetching from DB for user:', targetUserId);
+    // CRITICAL: Verify session is established in Supabase client before querying
+    // This prevents RLS failures when auth.uid() is not yet available
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      dbg('Session error, cannot query:', sessionError.message);
+      setLoading(false);
+      return;
+    }
+    
+    if (!session) {
+      dbg('No valid session for query, RLS would fail');
+      setLoading(false);
+      return;
+    }
+    
+    // Verify session matches target user to prevent cross-user queries
+    if (session.user.id !== targetUserId) {
+      dbg('Session user mismatch, skipping fetch:', {
+        sessionUser: session.user.id,
+        targetUser: targetUserId
+      });
+      setLoading(false);
+      return;
+    }
+
+    dbg('Session verified, fetching from DB for user:', targetUserId);
     
     // Timeout promise to prevent infinite loading
     const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
@@ -215,8 +241,12 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       lastUserIdRef.current = currentUserId;
       hasFetchedRef.current = true;
       
-      // Fetch fresh data in background (will update cache) - pass userId explicitly
-      fetchEntitlements(currentUserId);
+      // Small delay to ensure Supabase session is fully synchronized before querying
+      // This prevents race conditions where auth.uid() returns NULL in RLS checks
+      setTimeout(() => {
+        dbg('Delayed fetch triggered for user:', currentUserId);
+        fetchEntitlements(currentUserId);
+      }, 150);
       return;
     }
 
