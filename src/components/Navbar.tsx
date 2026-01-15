@@ -17,6 +17,7 @@ import {
   User,
   LogOut,
   Star,
+  Settings,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/collapsible";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useLocale } from "@/i18n/useLocale";
 import logoNew from "@/assets/logo-new.png";
 
@@ -40,6 +42,7 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [bePreparedOpen, setBePreparedOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const { user, isAuthenticated, signOut, loading } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const { t } = useLocale();
   const location = useLocation();
 
@@ -156,6 +159,14 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin" className="cursor-pointer">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link to="/dashboard" className="cursor-pointer">
                         {t.nav.dashboard}
@@ -285,6 +296,16 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
                 <Skeleton className="h-10 w-full" />
               ) : isAuthenticated ? (
                 <>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Admin Panel</span>
+                    </Link>
+                  )}
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     {user?.email}
                   </div>
