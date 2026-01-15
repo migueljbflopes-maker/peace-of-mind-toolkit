@@ -80,6 +80,7 @@ export interface RedFolderPdfData {
 
 export interface PdfOptions {
   includeFullVault?: boolean;
+  outputType?: 'blob' | 'dataurl';
 }
 
 // Color palette (RGB values)
@@ -240,11 +241,11 @@ function formatDate(dateStr: string, locale: Locale): string {
   });
 }
 
-// Build the PDF blob
+// Build the PDF - returns blob by default, or data URL string if specified
 export async function buildRedFolderPdf(
   data: RedFolderPdfData, 
   options: PdfOptions = {}
-): Promise<Blob> {
+): Promise<Blob | string> {
   const { locale, risk, supplies, vault, planA, planB, generatedAt } = data;
   const { includeFullVault = false } = options;
   const l = labels[locale];
@@ -891,7 +892,11 @@ export async function buildRedFolderPdf(
 
   addFooter(5, 5);
 
-  // Return as blob with explicit MIME type for iframe/embed compatibility
+  // Return as data URL for preview (avoids blob URL blocking) or blob for download
+  if (options?.outputType === 'dataurl') {
+    return doc.output('datauristring');
+  }
+  
   const pdfBlob = doc.output('blob');
   return new Blob([pdfBlob], { type: 'application/pdf' });
 }

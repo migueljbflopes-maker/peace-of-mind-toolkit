@@ -31,7 +31,7 @@ export default function OnboardingStep4Export({ onComplete, onBack }: Props) {
         return;
       }
 
-      const blob = await buildRedFolderPdf(data);
+      const blob = await buildRedFolderPdf(data) as Blob;
 
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);

@@ -142,7 +142,7 @@ export default function RedFolder() {
         return;
       }
 
-      const blob = await buildRedFolderPdf(data, { includeFullVault });
+      const blob = await buildRedFolderPdf(data, { includeFullVault }) as Blob;
       setPdfBlob(blob);
       
       // Create object URL for download
@@ -191,15 +191,13 @@ export default function RedFolder() {
         return;
       }
 
-      const blob = await buildRedFolderPdf(data, { includeFullVault });
+      // Use data URL for preview (avoids blob URL blocking in sandbox)
+      const dataUrl = await buildRedFolderPdf(data, { 
+        includeFullVault, 
+        outputType: 'dataurl' 
+      }) as string;
       
-      // Cleanup previous URL if exists
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+      setPreviewUrl(dataUrl);
       setShowPreviewModal(true);
       
     } catch (error) {
@@ -211,8 +209,7 @@ export default function RedFolder() {
   };
 
   const handleClosePreview = (open: boolean) => {
-    if (!open && previewUrl) {
-      URL.revokeObjectURL(previewUrl);
+    if (!open) {
       setPreviewUrl(null);
     }
     setShowPreviewModal(open);
@@ -471,34 +468,12 @@ export default function RedFolder() {
           </DialogHeader>
           
           {previewUrl && (
-            <div className="flex-1 w-full bg-muted overflow-hidden">
-              <object 
-                data={previewUrl}
-                type="application/pdf"
-                className="w-full h-full"
-                style={{ minHeight: 'calc(90vh - 80px)' }}
-              >
-                {/* Fallback se browser não suportar PDF inline */}
-                <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
-                  <FileText className="h-16 w-16 text-muted-foreground" />
-                  <p className="text-center text-muted-foreground">
-                    {locale === 'pt' 
-                      ? 'O teu browser não suporta preview de PDFs inline.' 
-                      : 'Your browser does not support inline PDF preview.'}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button onClick={handleDownloadFromPreview}>
-                      <Download className="h-4 w-4 mr-2" />
-                      {t.redFolder.downloadPdf}
-                    </Button>
-                    <Button variant="outline" onClick={() => window.open(previewUrl, '_blank')}>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      {t.redFolder.openFullscreen}
-                    </Button>
-                  </div>
-                </div>
-              </object>
-            </div>
+            <iframe 
+              src={previewUrl}
+              className="flex-1 w-full h-full border-0"
+              style={{ minHeight: 'calc(90vh - 80px)' }}
+              title="Red Folder PDF Preview"
+            />
           )}
         </DialogContent>
       </Dialog>
