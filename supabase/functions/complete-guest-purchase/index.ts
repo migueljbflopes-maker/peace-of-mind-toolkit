@@ -146,15 +146,20 @@ serve(async (req) => {
     // Retrieve the checkout session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id);
     logStep("Stripe session retrieved", { 
+      mode: session.mode,
       paymentStatus: session.payment_status,
+      subscription: session.subscription,
       customerEmail: session.customer_details?.email 
     });
 
-    // Verify payment was successful (paid or free coupon)
+    // Verify payment was successful:
+    // - For one-time: paid or free coupon
+    // - For subscriptions: having a subscription ID means checkout completed (even with trial)
     const isPaidOrFree = session.payment_status === "paid" || 
                          session.payment_status === "no_payment_required";
+    const isSubscriptionStarted = session.mode === "subscription" && !!session.subscription;
     
-    if (!isPaidOrFree) {
+    if (!isPaidOrFree && !isSubscriptionStarted) {
       throw new Error("Payment not completed");
     }
 
@@ -163,6 +168,8 @@ serve(async (req) => {
     if (!customerEmail) {
       throw new Error("Customer email not available");
     }
+
+    logStep("Checkout validated", { isPaidOrFree, isSubscriptionStarted });
 
     const normalizedEmail = customerEmail.toLowerCase().trim();
     logStep("Processing for email", { email: normalizedEmail });

@@ -215,14 +215,17 @@ serve(async (req) => {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         
-        // Handle both paid and 100% coupon (no payment required)
+        // Handle both paid, 100% coupon (no payment required), and subscriptions with trial
         const isPaidOrFree = session.payment_status === "paid" || 
                             session.payment_status === "no_payment_required";
+        const isSubscriptionStarted = session.mode === "subscription" && !!session.subscription;
         
-        if (!isPaidOrFree) {
-          logStep("Checkout not completed", { status: session.payment_status });
+        if (!isPaidOrFree && !isSubscriptionStarted) {
+          logStep("Checkout not completed", { status: session.payment_status, mode: session.mode });
           break;
         }
+        
+        logStep("Checkout valid", { isPaidOrFree, isSubscriptionStarted });
         
         const userId = session.metadata?.user_id || session.client_reference_id;
         const email = await extractCheckoutEmail(stripe, session);
