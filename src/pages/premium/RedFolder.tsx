@@ -177,10 +177,57 @@ export default function RedFolder() {
   };
 
   const handlePreviewPdf = async () => {
+    // Open window IMMEDIATELY to preserve user gesture (prevents popup block)
+    const previewWindow = window.open('about:blank', '_blank');
+    
+    if (!previewWindow) {
+      toast.error(t.redFolder.popupBlocked);
+      return;
+    }
+
+    // Show loading state in the new window
+    previewWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${locale === 'pt' ? 'A preparar PDF...' : 'Preparing PDF...'}</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: #f8fafc;
+            color: #334155;
+          }
+          .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #f97316;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          p { margin-top: 16px; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="spinner"></div>
+        <p>${locale === 'pt' ? 'A preparar o documento...' : 'Preparing your document...'}</p>
+      </body>
+      </html>
+    `);
+
     setIsGenerating(true);
+    
     try {
       const data = await loadAllData();
       if (!data) {
+        previewWindow.close();
         toast.error(t.redFolder.loadError);
         return;
       }
@@ -188,13 +235,14 @@ export default function RedFolder() {
       const blob = await buildRedFolderPdf(data, { includeFullVault });
       const url = URL.createObjectURL(blob);
       
-      // Open in new tab for viewing
-      window.open(url, '_blank');
+      // Redirect the window to the PDF
+      previewWindow.location.href = url;
       
       // Cleanup after a delay
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (error) {
       console.error('Preview PDF error:', error);
+      previewWindow.close();
       toast.error(t.redFolder.previewError);
     } finally {
       setIsGenerating(false);

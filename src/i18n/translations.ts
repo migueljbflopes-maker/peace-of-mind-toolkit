@@ -292,6 +292,7 @@ export const translations = {
       previewError: 'Failed to generate preview. Please try again.',
       preparingDocument: 'Preparing your document...',
       opensInNewTab: 'Opens in a new tab',
+      popupBlocked: 'Pop-up blocked. Please allow pop-ups for this site.',
     },
     // Backup page
     backup: {
@@ -771,6 +772,7 @@ export const translations = {
       previewError: 'Falha ao gerar pré-visualização. Tenta novamente.',
       preparingDocument: 'A preparar o teu documento...',
       opensInNewTab: 'Abre num novo separador',
+      popupBlocked: 'Pop-up bloqueado. Permite pop-ups para este site.',
     },
     // Backup page
     backup: {
