@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   Shield,
   AlertTriangle,
@@ -32,7 +30,7 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useLocale();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { isPremium, loading: entitlementsLoading, refetch, devPremiumOverride, toggleDevPremium, isDevMode } = useEntitlements();
+  const { isPremium, loading: entitlementsLoading, refetch } = useEntitlements();
   
   // Preparedness Journey hook
   const journey = usePreparednessJourney(user?.id, isPremium);
@@ -268,23 +266,6 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold text-foreground">{t.dashboard.title}</h1>
             <p className="text-muted-foreground">{t.dashboard.subtitle}</p>
           </div>
-
-          {/* Dev Premium Toggle */}
-          {isDevMode && (
-            <Card className="mb-6 border-dashed border-orange-300 bg-orange-50">
-              <CardContent className="py-3 flex items-center justify-between">
-                <Label htmlFor="dev-premium" className="text-sm text-orange-700">
-                  🛠️ DEV: Simulate Premium
-                </Label>
-                <Switch
-                  id="dev-premium"
-                  checked={devPremiumOverride}
-                  onCheckedChange={toggleDevPremium}
-                />
-              </CardContent>
-            </Card>
-          )}
-
 
           {/* Preparedness Journey */}
           <div className="mb-8">
