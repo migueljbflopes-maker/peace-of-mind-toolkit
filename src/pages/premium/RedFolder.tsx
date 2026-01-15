@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Download, Eye, Loader2, CheckCircle2, WifiOff, ArrowLeft, Lock, Clock, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FileText, Download, Eye, Loader2, CheckCircle2, WifiOff, ArrowLeft, Lock, Clock, ExternalLink, X } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useVaultSession } from '@/hooks/useVaultSession';
@@ -40,6 +41,10 @@ export default function RedFolder() {
   const [includeFullVault, setIncludeFullVault] = useState(false);
   const [vaultUnlockExpiry, setVaultUnlockExpiry] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+  
+  // Preview modal state
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Track online status
   useEffect(() => {
@@ -177,76 +182,51 @@ export default function RedFolder() {
   };
 
   const handlePreviewPdf = async () => {
-    // Open window IMMEDIATELY to preserve user gesture (prevents popup block)
-    const previewWindow = window.open('about:blank', '_blank');
-    
-    if (!previewWindow) {
-      toast.error(t.redFolder.popupBlocked);
-      return;
-    }
-
-    // Show loading state in the new window
-    previewWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${locale === 'pt' ? 'A preparar PDF...' : 'Preparing PDF...'}</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background: #f8fafc;
-            color: #334155;
-          }
-          .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #e2e8f0;
-            border-top-color: #f97316;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-          @keyframes spin { to { transform: rotate(360deg); } }
-          p { margin-top: 16px; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div class="spinner"></div>
-        <p>${locale === 'pt' ? 'A preparar o documento...' : 'Preparing your document...'}</p>
-      </body>
-      </html>
-    `);
-
     setIsGenerating(true);
     
     try {
       const data = await loadAllData();
       if (!data) {
-        previewWindow.close();
         toast.error(t.redFolder.loadError);
         return;
       }
 
       const blob = await buildRedFolderPdf(data, { includeFullVault });
+      
+      // Cleanup previous URL if exists
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      
       const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setShowPreviewModal(true);
       
-      // Redirect the window to the PDF
-      previewWindow.location.href = url;
-      
-      // Cleanup after a delay
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (error) {
       console.error('Preview PDF error:', error);
-      previewWindow.close();
       toast.error(t.redFolder.previewError);
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleClosePreview = (open: boolean) => {
+    if (!open && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    setShowPreviewModal(open);
+  };
+
+  const handleDownloadFromPreview = () => {
+    if (!previewUrl) return;
+    
+    const link = document.createElement('a');
+    link.href = previewUrl;
+    link.download = `resiliency-plan-${locale}-${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleRegenerate = () => {
@@ -406,12 +386,7 @@ export default function RedFolder() {
                           >
                             <Eye className="h-4 w-4" />
                             {t.redFolder.viewPdf}
-                            <ExternalLink className="h-3 w-3 ml-auto opacity-50" />
                           </Button>
-                          
-                          <p className="text-xs text-muted-foreground text-center">
-                            {t.redFolder.opensInNewTab}
-                          </p>
 
                           <Button 
                             className="w-full gap-2" 
@@ -467,6 +442,43 @@ export default function RedFolder() {
       </main>
 
       <Footer />
+
+      {/* Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={handleClosePreview}>
+        <DialogContent className="max-w-5xl h-[90vh] p-0 flex flex-col">
+          <DialogHeader className="p-4 pb-2 border-b shrink-0">
+            <DialogTitle className="flex items-center justify-between">
+              <span>{t.redFolder.title}</span>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleDownloadFromPreview}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t.redFolder.downloadPdf}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => previewUrl && window.open(previewUrl, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  {t.redFolder.openFullscreen}
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {previewUrl && (
+            <iframe 
+              src={previewUrl} 
+              className="w-full flex-1 border-0"
+              title="Red Folder PDF Preview"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -293,6 +293,7 @@ export const translations = {
       preparingDocument: 'Preparing your document...',
       opensInNewTab: 'Opens in a new tab',
       popupBlocked: 'Pop-up blocked. Please allow pop-ups for this site.',
+      openFullscreen: 'Open Fullscreen',
     },
     // Backup page
     backup: {
@@ -773,6 +774,7 @@ export const translations = {
       preparingDocument: 'A preparar o teu documento...',
       opensInNewTab: 'Abre num novo separador',
       popupBlocked: 'Pop-up bloqueado. Permite pop-ups para este site.',
+      openFullscreen: 'Abrir Ecrã Cheio',
     },
     // Backup page
     backup: {
