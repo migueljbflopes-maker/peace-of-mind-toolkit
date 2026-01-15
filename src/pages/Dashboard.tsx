@@ -18,6 +18,9 @@ import { usePreparednessJourney } from '@/hooks/usePreparednessJourney';
 import { useDraftRecovery } from '@/hooks/useDraftRecovery';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PreparednessJourney } from '@/components/dashboard/PreparednessJourney';
+import { PanicQuickAccess } from '@/components/dashboard/PanicQuickAccess';
+import { ExpertQASection } from '@/components/dashboard/ExpertQASection';
+import { PanicQuickAccessLocked, ExpertQALocked } from '@/components/dashboard/PremiumFeaturesLocked';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -298,6 +301,21 @@ export default function Dashboard() {
                 loading={journey.loading}
               />
             </div>
+          </div>
+
+          {/* Premium Features: Panic Button & Expert Q&A */}
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            {isPremium ? (
+              <PanicQuickAccess />
+            ) : (
+              <PanicQuickAccessLocked />
+            )}
+
+            {isPremium && user ? (
+              <ExpertQASection userId={user.id} />
+            ) : (
+              <ExpertQALocked />
+            )}
           </div>
         </div>
       </main>

@@ -265,6 +265,39 @@ export type Database = {
         }
         Relationships: []
       }
+      expert_questions: {
+        Row: {
+          answer: string | null
+          answered_at: string | null
+          category: string
+          created_at: string | null
+          id: string
+          question: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string | null
+          category: string
+          created_at?: string | null
+          id?: string
+          question: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          question?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       exports: {
         Row: {
           created_at: string

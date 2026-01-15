@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.generate-plan-wizard]
 verify_jwt = false
+
+[functions.expert-chat]
+verify_jwt = false
