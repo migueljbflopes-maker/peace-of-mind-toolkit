@@ -12,9 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   ChevronRight, 
   ChevronLeft, 
+  ChevronDown,
   User, 
   Users, 
   Heart, 
@@ -29,7 +31,14 @@ import {
   PawPrint,
   Home,
   ArrowLeft,
-  X
+  X,
+  FileText,
+  Phone,
+  Stethoscope,
+  Car,
+  CreditCard,
+  Key,
+  HelpCircle
 } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
 import { VaultSection, VAULT_SECTIONS } from '@/hooks/useVaultSync';
@@ -120,6 +129,28 @@ const STEP_ICONS: Record<VaultSection, React.ComponentType<{ className?: string 
   devices: Smartphone,
 };
 
+// Contextual illustrations - secondary icons for visual interest
+const STEP_ILLUSTRATIONS: Record<VaultSection, React.ComponentType<{ className?: string }>> = {
+  ids: FileText,
+  contacts: Phone,
+  medical: Stethoscope,
+  pets: PawPrint,
+  property: Car,
+  finance: CreditCard,
+  devices: Key,
+};
+
+// "Why we ask" context for each step
+const STEP_CONTEXT: Record<VaultSection, string> = {
+  ids: 'Em emergência, documentos são essenciais para identificação, viagem e acesso a serviços.',
+  contacts: 'Contactos de confiança podem coordenar ajuda e comunicar com familiares.',
+  medical: 'Informação médica permite tratamento adequado mesmo quando não consegues comunicar.',
+  pets: 'Socorristas precisam saber dos teus animais para garantir que todos ficam seguros.',
+  property: 'Detalhes da casa e veículos facilitam evacuação e comunicação com seguradoras.',
+  finance: 'Acesso rápido a info financeira permite resolver problemas urgentes.',
+  devices: 'Dispositivos contêm dados importantes - saber recuperá-los é crucial.',
+};
+
 const defaultData: Record<VaultSection, VaultSectionData> = {
   ids: { ...DEFAULT_IDS_DATA },
   contacts: { ...DEFAULT_CONTACTS_DATA },
@@ -140,7 +171,12 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
 
   const currentSection = VAULT_SECTIONS[currentStep];
   const StepIcon = STEP_ICONS[currentSection];
+  const IllustrationIcon = STEP_ILLUSTRATIONS[currentSection];
+  const stepContext = STEP_CONTEXT[currentSection];
   const progress = ((currentStep + 1) / VAULT_SECTIONS.length) * 100;
+
+  // Track which optional accordions are open
+  const [optionalOpen, setOptionalOpen] = useState<Record<string, boolean>>({});
 
   const updateField = useCallback((field: string, value: unknown) => {
     setSectionData(prev => ({
@@ -342,101 +378,115 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
           />
         </div>
 
-        {/* Household Members */}
-        <div className="space-y-3 pt-3 border-t border-white/20">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-white/90 flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Household Members
-            </h4>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={addHouseholdMember}
-              className="h-8 gap-1 text-white/70 hover:text-white hover:bg-white/10"
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </div>
-          
-          {data.householdMembers.length === 0 ? (
-            <p className="text-sm text-white/50 italic">No household members added yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {data.householdMembers.map((member) => (
-                <div key={member.id} className="p-3 bg-white/5 border border-white/20 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-white/90">{member.name || 'New Member'}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeHouseholdMember(member.id)}
-                      className="h-7 w-7 p-0 text-white/50 hover:text-white hover:bg-white/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
+        {/* Household Members - Collapsible Optional Section */}
+        <Collapsible
+          open={optionalOpen['ids-household']}
+          onOpenChange={(open) => setOptionalOpen(prev => ({ ...prev, 'ids-household': open }))}
+          className="pt-3 border-t border-white/20"
+        >
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center justify-between w-full py-2 text-left group">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-white/70" />
+                <span className="text-sm font-medium text-white/90">Household Members</span>
+                <span className="text-xs text-white/50 bg-white/10 px-2 py-0.5 rounded">Opcional</span>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-white/50 transition-transform ${
+                optionalOpen['ids-household'] ? 'rotate-180' : ''
+              }`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 pt-2">
+            <div className="flex items-center justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={addHouseholdMember}
+                className="h-8 gap-1 text-white/70 hover:text-white hover:bg-white/10"
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
+            
+            {data.householdMembers.length === 0 ? (
+              <p className="text-sm text-white/50 italic">Nenhum membro do agregado adicionado.</p>
+            ) : (
+              <div className="space-y-3">
+                {data.householdMembers.map((member) => (
+                  <div key={member.id} className="p-3 bg-white/5 border border-white/20 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-white/90">{member.name || 'Novo Membro'}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeHouseholdMember(member.id)}
+                        className="h-7 w-7 p-0 text-white/50 hover:text-white hover:bg-white/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        placeholder="Nome"
+                        value={member.name}
+                        onChange={(e) => updateHouseholdMember(member.id, 'name', e.target.value)}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
+                      />
+                      <Select
+                        value={member.relationship}
+                        onValueChange={(value) => updateHouseholdMember(member.id, 'relationship', value)}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white text-sm">
+                          <SelectValue placeholder="Relação" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="partner">Parceiro/a</SelectItem>
+                          <SelectItem value="child">Filho/a</SelectItem>
+                          <SelectItem value="parent">Pai/Mãe</SelectItem>
+                          <SelectItem value="sibling">Irmão/ã</SelectItem>
+                          <SelectItem value="other">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="date"
+                        placeholder="Data de Nascimento"
+                        value={member.dob}
+                        onChange={(e) => updateHouseholdMember(member.id, 'dob', e.target.value)}
+                        className="bg-white/10 border-white/20 text-white text-sm"
+                      />
+                      <Select
+                        value={member.bloodType}
+                        onValueChange={(value) => updateHouseholdMember(member.id, 'bloodType', value)}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white text-sm">
+                          <SelectValue placeholder="Tipo Sanguíneo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A+">A+</SelectItem>
+                          <SelectItem value="A-">A-</SelectItem>
+                          <SelectItem value="B+">B+</SelectItem>
+                          <SelectItem value="B-">B-</SelectItem>
+                          <SelectItem value="AB+">AB+</SelectItem>
+                          <SelectItem value="AB-">AB-</SelectItem>
+                          <SelectItem value="O+">O+</SelectItem>
+                          <SelectItem value="O-">O-</SelectItem>
+                          <SelectItem value="unknown">Desconhecido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Input
-                      placeholder="Name"
-                      value={member.name}
-                      onChange={(e) => updateHouseholdMember(member.id, 'name', e.target.value)}
+                      placeholder="Necessidades especiais ou notas"
+                      value={member.specialNeeds}
+                      onChange={(e) => updateHouseholdMember(member.id, 'specialNeeds', e.target.value)}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
                     />
-                    <Select
-                      value={member.relationship}
-                      onValueChange={(value) => updateHouseholdMember(member.id, 'relationship', value)}
-                    >
-                      <SelectTrigger className="bg-white/10 border-white/20 text-white text-sm">
-                        <SelectValue placeholder="Relationship" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="partner">Partner</SelectItem>
-                        <SelectItem value="child">Child</SelectItem>
-                        <SelectItem value="parent">Parent</SelectItem>
-                        <SelectItem value="sibling">Sibling</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="date"
-                      placeholder="Date of Birth"
-                      value={member.dob}
-                      onChange={(e) => updateHouseholdMember(member.id, 'dob', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white text-sm"
-                    />
-                    <Select
-                      value={member.bloodType}
-                      onValueChange={(value) => updateHouseholdMember(member.id, 'bloodType', value)}
-                    >
-                      <SelectTrigger className="bg-white/10 border-white/20 text-white text-sm">
-                        <SelectValue placeholder="Blood Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A+">A+</SelectItem>
-                        <SelectItem value="A-">A-</SelectItem>
-                        <SelectItem value="B+">B+</SelectItem>
-                        <SelectItem value="B-">B-</SelectItem>
-                        <SelectItem value="AB+">AB+</SelectItem>
-                        <SelectItem value="AB-">AB-</SelectItem>
-                        <SelectItem value="O+">O+</SelectItem>
-                        <SelectItem value="O-">O-</SelectItem>
-                        <SelectItem value="unknown">Unknown</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
-                  <Input
-                    placeholder="Special needs or notes"
-                    value={member.specialNeeds}
-                    onChange={(e) => updateHouseholdMember(member.id, 'specialNeeds', e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Checklist */}
         <div className="space-y-2 pt-3 border-t border-white/20">
@@ -1445,17 +1495,30 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
 
         {/* Card */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-2xl">
-          {/* Header */}
+          {/* Header with illustration */}
           <div className="text-center mb-6">
-            <div className="inline-flex p-3 rounded-full bg-primary/20 mb-3">
-              <StepIcon className="h-8 w-8 text-primary" />
+            {/* Dual icon illustration */}
+            <div className="relative inline-flex mb-3">
+              <div className="p-3 rounded-full bg-primary/20">
+                <StepIcon className="h-8 w-8 text-primary" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-white/20 border border-white/30">
+                <IllustrationIcon className="h-4 w-4 text-white/80" />
+              </div>
             </div>
+            
             <h2 className="text-2xl font-bold text-white mb-2">
               {t.vault.sections[currentSection]}
             </h2>
             <p className="text-white/70 text-sm">
               {t.vault.sectionDescriptions[currentSection]}
             </p>
+            
+            {/* Why we ask - contextual help */}
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full">
+              <HelpCircle className="h-3.5 w-3.5 text-primary/80" />
+              <span className="text-xs text-white/60">{stepContext}</span>
+            </div>
           </div>
 
           {/* Form */}
