@@ -84,14 +84,24 @@ export default function PurchaseSuccess() {
     }
   };
 
-  const processExpressPurchase = async (code: string) => {
+  const processExpressPurchase = async (code: string, retryCount = 0) => {
+    const maxRetries = 3;
+    const retryDelay = 3000; // 3 seconds
+    
     try {
-      console.log('[PurchaseSuccess] Completing express purchase via claim_code');
+      console.log(`[PurchaseSuccess] Completing express purchase via claim_code (attempt ${retryCount + 1}/${maxRetries + 1})`);
       const { data, error } = await supabase.functions.invoke('complete-express-purchase', {
         body: { claimCode: code }
       });
 
       if (error) throw error;
+
+      // Check if we should retry due to email not being available yet
+      if (data?.error?.includes('email not available') && retryCount < maxRetries) {
+        console.log(`[PurchaseSuccess] Email not ready, waiting ${retryDelay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return processExpressPurchase(code, retryCount + 1);
+      }
 
       if (data?.success && data?.email) {
         setEmail(data.email);
@@ -104,6 +114,15 @@ export default function PurchaseSuccess() {
       }
     } catch (err) {
       console.error('Error completing express purchase:', err);
+      
+      // If email not available and we have retries left, try again
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg.includes('email not available') && retryCount < maxRetries) {
+        console.log(`[PurchaseSuccess] Email not ready (catch), waiting ${retryDelay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return processExpressPurchase(code, retryCount + 1);
+      }
+      
       setStatus('error');
       setErrorMessage(
         err instanceof Error ? err.message : 
