@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, Loader2, Clock, CheckCircle2 } from "lucide-react";
+import { MessageSquare, ArrowRight, Loader2, Clock, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocale } from "@/i18n/useLocale";
 
@@ -49,8 +50,10 @@ export function ExpertQASection({ userId }: { userId: string }) {
     fetchQuestions();
   }, [userId]);
 
+  const navigate = useNavigate();
+
   const handleOpenExpert = () => {
-    window.open('/premium/expert', '_blank');
+    navigate('/premium/expert');
   };
 
   if (loading) {
@@ -112,7 +115,7 @@ export function ExpertQASection({ userId }: { userId: string }) {
 
         {/* Open Expert Page Button */}
         <Button onClick={handleOpenExpert} variant="outline" className="w-full">
-          <ExternalLink className="h-4 w-4 mr-2" />
+          <ArrowRight className="h-4 w-4 mr-2" />
           {questions.length > 0 
             ? (locale === "pt" ? "Ver Todas / Fazer Pergunta" : "View All / Ask Question")
             : (locale === "pt" ? "Fazer Pergunta" : "Ask a Question")
