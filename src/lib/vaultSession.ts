@@ -7,7 +7,7 @@
  * - Auto-lock after 10 minutes of inactivity
  */
 
-import { deriveKey, base64ToUint8Array } from './crypto';
+import { decryptJSON } from './crypto';
 
 const AUTO_LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -25,12 +25,17 @@ class VaultSession {
     return this.passphrase !== null;
   }
 
-  async unlock(passphrase: string, testSalt?: string): Promise<boolean> {
+  async unlock(passphrase: string, testPayload?: { saltB64: string; ivB64: string; ciphertextB64: string }): Promise<boolean> {
     try {
-      // If we have a test salt, try to derive the key to validate passphrase
-      if (testSalt) {
-        const salt = base64ToUint8Array(testSalt);
-        await deriveKey(passphrase, salt);
+      // If we have encrypted data, try to decrypt to validate passphrase
+      // AES-GCM will fail with auth tag mismatch if passphrase is wrong
+      if (testPayload) {
+        await decryptJSON({
+          saltB64: testPayload.saltB64,
+          ivB64: testPayload.ivB64,
+          ciphertextB64: testPayload.ciphertextB64,
+          version: 1
+        }, passphrase);
       }
       
       // Store passphrase in memory (never persisted)
@@ -41,6 +46,7 @@ class VaultSession {
       this.notifyListeners();
       return true;
     } catch {
+      // Decryption failed = wrong passphrase (AES-GCM auth failure)
       return false;
     }
   }
@@ -107,8 +113,11 @@ export function isVaultUnlocked(): boolean {
   return vaultSession.isUnlocked();
 }
 
-export async function unlockVault(passphrase: string, testSalt?: string): Promise<boolean> {
-  return vaultSession.unlock(passphrase, testSalt);
+export async function unlockVault(
+  passphrase: string, 
+  testPayload?: { saltB64: string; ivB64: string; ciphertextB64: string }
+): Promise<boolean> {
+  return vaultSession.unlock(passphrase, testPayload);
 }
 
 export function lockVault(): void {
