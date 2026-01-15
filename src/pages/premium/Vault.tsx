@@ -259,7 +259,7 @@ export default function Vault() {
                   <Settings className="h-4 w-4" />
                 </Button>
 
-                <Button variant="outline" onClick={lock} className="gap-2">
+                <Button variant="outline" onClick={() => { lock(); navigate('/dashboard'); }} className="gap-2">
                   <Lock className="h-4 w-4" />
                   {t.vault.lockVault}
                 </Button>
