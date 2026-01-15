@@ -1378,6 +1378,10 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
     }
   };
 
+  // Calculate estimated time remaining
+  const stepsRemaining = VAULT_SECTIONS.length - currentStep;
+  const estimatedMinutes = Math.ceil(stepsRemaining * 0.5); // ~30 seconds per step
+
   return (
     <section 
       className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center bg-cover bg-center py-8"
@@ -1394,9 +1398,14 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
             <span className="text-sm text-white/70">
               Step {currentStep + 1} of {VAULT_SECTIONS.length}
             </span>
-            <span className="text-sm text-white/70">
-              {Math.round(progress)}% complete
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-white/50">
+                ~{estimatedMinutes} min restante{estimatedMinutes > 1 ? 's' : ''}
+              </span>
+              <span className="text-sm text-white/70">
+                {Math.round(progress)}% complete
+              </span>
+            </div>
           </div>
           <Progress value={progress} className="h-2 bg-white/20" />
           
@@ -1413,6 +1422,7 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
                   className={`flex flex-col items-center gap-1 transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-50'
                   }`}
+                  title={t.vault.sections[section] || section}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                     isCompleted 
@@ -1487,8 +1497,9 @@ export function VaultWizard({ onSaveSection, onComplete, isSaving }: VaultWizard
               variant="ghost"
               onClick={handleSkip}
               className="text-white/70 hover:text-white hover:bg-white/10 ml-auto"
+              title="Podes preencher mais tarde no Cofre"
             >
-              Skip
+              Saltar por agora
             </Button>
             
             <Button
