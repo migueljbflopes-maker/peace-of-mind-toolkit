@@ -246,8 +246,8 @@ export default function AdminAffiliates() {
         toast.success('Affiliate link created');
       }
 
+      await fetchLinks();
       setDialogOpen(false);
-      fetchLinks();
     } catch (error: any) {
       console.error('Error saving affiliate link:', error);
       if (error.code === '23505') {
@@ -255,9 +255,8 @@ export default function AdminAffiliates() {
       } else {
         toast.error('Failed to save affiliate link');
       }
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const handleDelete = async (product: Product, market: Market) => {
