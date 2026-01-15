@@ -198,7 +198,6 @@ export const translations = {
       lastUpdated: 'Last updated',
       addItem: 'Add item',
       tip: 'Tip: Keep personal numbers and IDs in Vault. Plans stay high-level and actionable.',
-      premiumNote: 'Included in Premium — Personalized Resiliency Plan (49€ one-time).',
       contactsNote: 'Names only — phone numbers belong in Vault contacts.',
       sections: {
         triggers: 'Triggers',
@@ -237,6 +236,16 @@ export const translations = {
       saved: 'Plan saved',
       savedLocally: 'Saved locally',
       syncedToCloud: 'Synced to cloud (encrypted)',
+      // New keys for improved UX
+      requiresRiskAssessment: 'Complete your Risk Assessment first to generate personalized plans based on your location and situation.',
+      startRiskAssessment: 'Start Risk Assessment',
+      viewDetails: 'View Details',
+      collapse: 'Collapse',
+      createPlans: 'Create Plans',
+      planAOverviewEmpty: 'Your shelter-in-place strategy with step-by-step actions, checklists, and communication plans.',
+      planBOverviewEmpty: 'Your evacuation strategy with routes, destinations, and go-bag essentials.',
+      regeneratePlans: 'Regenerate Plans',
+      edit: 'Edit',
     },
     // Red Folder page
     redFolder: {
@@ -656,7 +665,6 @@ export const translations = {
       lastUpdated: 'Última atualização',
       addItem: 'Adicionar item',
       tip: 'Dica: Guarda números pessoais e IDs no Cofre. Os Planos são de alto nível e acionáveis.',
-      premiumNote: 'Incluído no Premium — Plano de Resiliência Personalizado (49€ único).',
       contactsNote: 'Apenas nomes — números de telefone ficam nos contactos do Cofre.',
       sections: {
         triggers: 'Gatilhos',
@@ -695,6 +703,16 @@ export const translations = {
       saved: 'Plano guardado',
       savedLocally: 'Guardado localmente',
       syncedToCloud: 'Sincronizado na cloud (encriptado)',
+      // New keys for improved UX
+      requiresRiskAssessment: 'Completa primeiro a tua Avaliação de Risco para gerar planos personalizados baseados na tua localização e situação.',
+      startRiskAssessment: 'Iniciar Avaliação de Risco',
+      viewDetails: 'Ver Detalhes',
+      collapse: 'Recolher',
+      createPlans: 'Criar Planos',
+      planAOverviewEmpty: 'A tua estratégia de abrigo no local com ações passo-a-passo, checklists e planos de comunicação.',
+      planBOverviewEmpty: 'A tua estratégia de evacuação com rotas, destinos e essenciais da mala de emergência.',
+      regeneratePlans: 'Regenerar Planos',
+      edit: 'Editar',
     },
     // Red Folder page
     redFolder: {
