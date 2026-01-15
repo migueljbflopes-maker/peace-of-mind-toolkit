@@ -16,7 +16,7 @@ import {
   VaultSectionCache 
 } from '@/lib/vaultStorage';
 import { EncryptedPayload } from '@/lib/crypto';
-import { shouldSyncToCloud, getStorageMode, VaultStorageMode } from '@/lib/vaultPreferences';
+import { getStorageMode, VaultStorageMode } from '@/lib/vaultPreferences';
 
 export type VaultSection = 'ids' | 'contacts' | 'medical' | 'finance' | 'devices';
 
