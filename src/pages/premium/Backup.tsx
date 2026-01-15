@@ -2,11 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Archive, Upload, Download, Shield, WifiOff, HelpCircle, 
-  AlertTriangle, Loader2, Info, Smartphone, Cloud, Laptop, 
-  Lock, ArrowRight, CheckCircle2 
-} from 'lucide-react';
+import { Archive, Upload, Download, Shield, Clock, WifiOff, HelpCircle, CheckCircle2, AlertTriangle, Loader2, Info } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,96 +22,6 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { toast } from 'sonner';
 
-// Onboarding card component shown before vault unlock for first-time users
-function BackupOnboardingCard({ t, onContinue }: { t: any; onContinue: () => void }) {
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <Card className="border-primary/20">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto p-3 rounded-full bg-primary/10 w-fit mb-3">
-            <Shield className="h-8 w-8 text-primary" />
-          </div>
-          <CardTitle className="text-xl">{t.backup.onboardingTitle}</CardTitle>
-          <p className="text-muted-foreground text-sm mt-1">{t.backup.onboardingSubtitle}</p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Visual Flow Diagram */}
-          <div className="flex items-center justify-center gap-2 sm:gap-4 py-6 px-4 bg-muted/30 rounded-lg">
-            <div className="text-center">
-              <div className="p-2 rounded-lg bg-background border mx-auto mb-2">
-                <Smartphone className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              </div>
-              <span className="text-xs text-muted-foreground hidden sm:block">{t.backup.yourDevice}</span>
-            </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Lock className="h-3 w-3 sm:h-4 sm:w-4" />
-              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
-            </div>
-            <div className="text-center">
-              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 mx-auto mb-2">
-                <Cloud className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              </div>
-              <span className="text-xs text-muted-foreground hidden sm:block">{t.backup.encryptedCloud}</span>
-            </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
-              <Lock className="h-3 w-3 sm:h-4 sm:w-4" />
-            </div>
-            <div className="text-center">
-              <div className="p-2 rounded-lg bg-background border mx-auto mb-2">
-                <Laptop className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              </div>
-              <span className="text-xs text-muted-foreground hidden sm:block">{t.backup.anyDevice}</span>
-            </div>
-          </div>
-
-          {/* What gets backed up */}
-          <div className="space-y-2">
-            <h3 className="font-medium text-sm flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              {t.backup.whatGetsBackedUp}
-            </h3>
-            <ul className="text-sm text-muted-foreground space-y-1 ml-6">
-              <li>• {t.backup.backupItem1}</li>
-              <li>• {t.backup.backupItem2}</li>
-            </ul>
-          </div>
-
-          {/* Security guarantees */}
-          <div className="space-y-2">
-            <h3 className="font-medium text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              {t.backup.securityGuarantees}
-            </h3>
-            <ul className="text-sm text-muted-foreground space-y-1 ml-6">
-              <li>• {t.backup.securityItem1}</li>
-              <li>• {t.backup.securityItem2}</li>
-              <li>• {t.backup.securityItem3}</li>
-            </ul>
-          </div>
-
-          {/* Important warning */}
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <h3 className="font-medium text-sm text-amber-800 flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4" />
-              {t.backup.importantNote}
-            </h3>
-            <ul className="text-sm text-amber-700 space-y-1 ml-6">
-              <li>• {t.backup.importantItem1}</li>
-              <li>• {t.backup.importantItem2}</li>
-            </ul>
-          </div>
-
-          {/* CTA */}
-          <Button onClick={onContinue} className="w-full" size="lg">
-            {t.backup.continueToBackup}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export default function Backup() {
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
@@ -128,8 +34,6 @@ export default function Backup() {
   const [localData, setLocalData] = useState<LocalDataSummary | null>(null);
   const [backupInfo, setBackupInfo] = useState<BackupInfo | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(true);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Track online status
   useEffect(() => {
@@ -153,27 +57,14 @@ export default function Backup() {
     if (user && isOnline) {
       const info = await getLatestBackupInfo(user.id);
       setBackupInfo(info);
-      
-      // If user has existing backup, skip onboarding
-      if (info) {
-        setShowOnboarding(false);
-      }
     }
-    setDataLoaded(true);
   }, [user, isOnline]);
 
   useEffect(() => {
-    if (isPremium && user) {
+    if (isUnlocked && isPremium) {
       loadData();
     }
-  }, [isPremium, user, loadData]);
-
-  // If vault is unlocked, hide onboarding
-  useEffect(() => {
-    if (isUnlocked) {
-      setShowOnboarding(false);
-    }
-  }, [isUnlocked]);
+  }, [isUnlocked, isPremium, loadData]);
 
   const handleBackup = async () => {
     if (!user || !isOnline) return;
@@ -283,11 +174,8 @@ export default function Backup() {
               </div>
             )}
 
-            {/* Show Onboarding for first-time visitors */}
-            {showOnboarding && dataLoaded && !backupInfo ? (
-              <BackupOnboardingCard t={t} onContinue={() => setShowOnboarding(false)} />
-            ) : !isUnlocked ? (
-              /* Vault Unlock Required */
+            {/* Vault Unlock Required */}
+            {!isUnlocked ? (
               <div className="max-w-md mx-auto">
                 <Card>
                   <CardHeader>
