@@ -17,7 +17,7 @@ import { GeneratedPlanA, GeneratedPlanB } from '@/lib/planWizard2Types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { PlanResultsView } from '@/components/planWizard2/PlanResultsView';
-import { getPlan } from '@/lib/planWizard2Store';
+import { getPlan, updateGeneratedPlans } from '@/lib/planWizard2Store';
 import { Loader2 } from 'lucide-react';
 
 type PageMode = 'loading' | 'view' | 'wizard';
@@ -91,6 +91,12 @@ export default function PlansWizard() {
     navigate('/premium/red-folder');
   }, [navigate]);
 
+  const handleSavePlans = useCallback(async (planA: GeneratedPlanA, planB: GeneratedPlanB) => {
+    if (!user) return;
+    await updateGeneratedPlans(user.id, planA, planB);
+    setGeneratedPlans({ planA, planB });
+  }, [user]);
+
   // Loading state
   if (authLoading || entLoading || mode === 'loading') {
     return (
@@ -144,6 +150,7 @@ export default function PlansWizard() {
             onPrint={handlePrint}
             onShare={handleShare}
             onBack={() => navigate('/premium/plans')}
+            onSave={handleSavePlans}
           />
         </main>
         <Footer />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
   ArrowLeft,
   Info,
 } from 'lucide-react';
-import { getPlan } from '@/lib/planWizard2Store';
+import { getPlan, updateGeneratedPlans } from '@/lib/planWizard2Store';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
@@ -97,36 +97,32 @@ export default function Plans() {
     );
   }
 
+  // Save handler for inline editing
+  const handleSavePlans = useCallback(async (planA: GeneratedPlanA, planB: GeneratedPlanB) => {
+    if (!user) return;
+    await updateGeneratedPlans(user.id, planA, planB);
+    setPlans({ planA, planB });
+  }, [user]);
+
   // Expanded view - show full plan details
   if (expandedPlan && plans) {
     const selectedPlan = expandedPlan === 'A' ? plans.planA : plans.planB;
     
-    if (selectedPlan) {
+    if (selectedPlan && plans.planA && plans.planB) {
       return (
         <div className="min-h-screen bg-background flex flex-col">
           <Navbar />
           <main className="flex-1 container-wide section-padding py-8">
-            {expandedPlan === 'A' && plans.planA ? (
-              <PlanResultsView
-                planA={plans.planA}
-                planB={plans.planB!}
-                onRegenerate={() => navigate('/premium/plans/wizard')}
-                onEdit={() => navigate('/premium/plans/wizard')}
-                onPrint={() => window.print()}
-                onShare={() => navigate('/premium/red-folder')}
-                onBack={() => setExpandedPlan(null)}
-              />
-            ) : expandedPlan === 'B' && plans.planB ? (
-              <PlanResultsView
-                planA={plans.planA!}
-                planB={plans.planB}
-                onRegenerate={() => navigate('/premium/plans/wizard')}
-                onEdit={() => navigate('/premium/plans/wizard')}
-                onPrint={() => window.print()}
-                onShare={() => navigate('/premium/red-folder')}
-                onBack={() => setExpandedPlan(null)}
-              />
-            ) : null}
+            <PlanResultsView
+              planA={plans.planA}
+              planB={plans.planB}
+              onRegenerate={() => navigate('/premium/plans/wizard')}
+              onEdit={() => navigate('/premium/plans/wizard')}
+              onPrint={() => window.print()}
+              onShare={() => navigate('/premium/red-folder')}
+              onBack={() => setExpandedPlan(null)}
+              onSave={handleSavePlans}
+            />
           </main>
           <Footer />
         </div>
