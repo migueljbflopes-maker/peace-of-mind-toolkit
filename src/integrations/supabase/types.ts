@@ -80,6 +80,102 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_prompts: {
+        Row: {
+          content: string
+          created_at: string | null
+          description: string | null
+          feature_name: string
+          id: string
+          is_active: boolean | null
+          locale: string | null
+          prompt_key: string
+          prompt_type: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          description?: string | null
+          feature_name: string
+          id?: string
+          is_active?: boolean | null
+          locale?: string | null
+          prompt_key: string
+          prompt_type: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          description?: string | null
+          feature_name?: string
+          id?: string
+          is_active?: boolean | null
+          locale?: string | null
+          prompt_key?: string
+          prompt_type?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      ai_rate_config: {
+        Row: {
+          feature: string
+          id: string
+          is_active: boolean | null
+          max_requests: number
+          updated_at: string | null
+          window_minutes: number
+        }
+        Insert: {
+          feature: string
+          id?: string
+          is_active?: boolean | null
+          max_requests?: number
+          updated_at?: string | null
+          window_minutes?: number
+        }
+        Update: {
+          feature?: string
+          id?: string
+          is_active?: boolean | null
+          max_requests?: number
+          updated_at?: string | null
+          window_minutes?: number
+        }
+        Relationships: []
+      }
+      ai_rate_limits: {
+        Row: {
+          created_at: string | null
+          feature: string
+          id: string
+          requests_count: number | null
+          user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          feature: string
+          id?: string
+          requests_count?: number | null
+          user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          feature?: string
+          id?: string
+          requests_count?: number | null
+          user_id?: string
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       alert_preferences: {
         Row: {
           created_at: string | null
