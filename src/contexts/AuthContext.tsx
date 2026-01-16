@@ -72,10 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Handle profile upsert and sync after sign-in (deferred to avoid deadlock)
+        // Handle profile creation and sync after sign-in (deferred to avoid deadlock)
         if (event === 'SIGNED_IN' && session?.user) {
           setTimeout(() => {
-            upsertUserProfile(session.user.id);
+            // Ensure profile exists (auto-create if missing)
+            ensureUserProfile(session.user.id);
             // Trigger background sync of cloud data
             triggerPostLoginSync(session.user.id);
           }, 0);
@@ -83,28 +84,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session and validate it
+    // THEN check for existing session and ensure profile exists
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       dbg('getSession result:', { userId: session?.user?.id ?? null, hasSession: !!session });
       
-      // Validate session by checking if user exists in user_profiles
-      // This catches orphaned sessions from deleted/recreated accounts
+      // If session exists, ensure user profile exists (auto-create if missing)
       if (session?.user?.id) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
           .select('user_id')
           .eq('user_id', session.user.id)
           .maybeSingle();
         
-        if (!profile) {
-          dbg('Session has orphaned user ID, clearing...');
-          // Clear the orphaned session
-          await supabase.auth.signOut({ scope: 'local' });
-          clearAuthCaches();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
+        // Profile missing? Auto-create instead of logout
+        if (!profile && !profileError) {
+          dbg('Profile missing, auto-creating for user:', session.user.id);
+          const created = await ensureUserProfile(session.user.id);
+          dbg('Profile auto-create result:', created);
+          // Continue authenticated regardless of result
+        }
+        
+        // Log profile check errors but DON'T sign out - keep session valid
+        if (profileError) {
+          console.warn('[Auth] Profile check error (continuing anyway):', profileError.message);
         }
       }
       
@@ -116,8 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Upsert user profile with locale from localStorage fallback
-  const upsertUserProfile = async (userId: string) => {
+  /**
+   * Ensures user profile exists - creates if missing via upsert.
+   * Returns true if profile exists/was created, false on error.
+   * NEVER signs out on failure - keeps session valid.
+   */
+  const ensureUserProfile = async (userId: string): Promise<boolean> => {
     const storedLocale = localStorage.getItem('resilient_locale') || 'en';
     
     try {
@@ -128,14 +134,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user_id: userId, 
             locale: storedLocale,
           },
-          { onConflict: 'user_id', ignoreDuplicates: true }
+          { onConflict: 'user_id', ignoreDuplicates: false } // false to ensure update
         );
       
-      if (error && !error.message.includes('duplicate')) {
-        console.error('Failed to upsert user profile:', error);
+      if (error) {
+        console.error('[Auth] Profile upsert failed:', error.message);
+        return false;
       }
+      
+      dbg('ensureUserProfile: success for', userId);
+      return true;
     } catch (e) {
-      console.error('Profile upsert error:', e);
+      console.error('[Auth] Profile upsert error:', e);
+      return false;
     }
   };
 
