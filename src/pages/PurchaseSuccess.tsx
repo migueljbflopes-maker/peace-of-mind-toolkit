@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle2, Loader2, Mail, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { clearEntitlementsCache } from '@/contexts/EntitlementsContext';
 
 type Status = 'loading' | 'success' | 'error';
 
@@ -69,6 +70,8 @@ export default function PurchaseSuccess() {
         setEmail(data.email);
         setIsNewUser(data.is_new_user ?? true);
         setStatus('success');
+        // Clear entitlements cache so next login gets fresh premium status
+        clearEntitlementsCache();
         // Clear any stored claim code
         localStorage.removeItem('resilient_claim_code_last');
       } else {
@@ -125,6 +128,8 @@ export default function PurchaseSuccess() {
         setEmail(data.email);
         setIsNewUser(data.is_new_user ?? true);
         setStatus('success');
+        // Clear entitlements cache so next login gets fresh premium status
+        clearEntitlementsCache();
         // Clear the stored claim code on success
         localStorage.removeItem('resilient_claim_code_last');
       } else if (data?.error) {

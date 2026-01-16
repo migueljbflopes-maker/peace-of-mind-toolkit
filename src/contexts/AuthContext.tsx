@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { syncPlanFromCloud } from '@/lib/planWizard2Store';
+import { clearEntitlementsCache } from '@/contexts/EntitlementsContext';
 
 // Cache keys that need to be cleared on sign out
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
@@ -74,6 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Handle profile creation and sync after sign-in (deferred to avoid deadlock)
         if (event === 'SIGNED_IN' && session?.user) {
+          // Clear entitlements cache on login to force fresh fetch
+          clearEntitlementsCache();
+          
           setTimeout(() => {
             // Ensure profile exists (auto-create if missing)
             ensureUserProfile(session.user.id);
