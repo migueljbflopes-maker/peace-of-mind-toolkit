@@ -9,7 +9,8 @@ import {
   Link as LinkIcon,
   LayoutDashboard,
   LogOut,
-  Loader2
+  Loader2,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +26,7 @@ const navItems = [
   { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/admin/features', label: 'Features', icon: Zap },
   { path: '/admin/affiliates', label: 'Affiliates', icon: LinkIcon },
+  { path: '/admin/emails', label: 'Emails', icon: Mail },
 ];
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {

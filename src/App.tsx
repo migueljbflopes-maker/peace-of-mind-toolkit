@@ -46,6 +46,7 @@ import AdminUsers from "./pages/admin/Users";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminFeatures from "./pages/admin/Features";
 import AdminAffiliates from "./pages/admin/Affiliates";
+import AdminEmails from "./pages/admin/Emails";
 
 // DEV-only: Lazy load AuthDebugPanel
 const AuthDebugPanel = import.meta.env.DEV 
@@ -111,6 +112,7 @@ const App = () => (
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
                 <Route path="/admin/features" element={<AdminFeatures />} />
                 <Route path="/admin/affiliates" element={<AdminAffiliates />} />
+                <Route path="/admin/emails" element={<AdminEmails />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
