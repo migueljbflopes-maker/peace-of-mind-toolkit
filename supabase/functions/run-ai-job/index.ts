@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getLocalePrompt } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -180,13 +182,10 @@ interface RiskInsightsInput {
   };
 }
 
-// System prompt shared across plan types
-const PLAN_SYSTEM_PROMPT = `You are Resilient.app's crisis-preparedness planner. Produce calm, practical, offline-first guidance tailored to the user's situation. Avoid fear language. Do not include instructions for wrongdoing, weapons, violence, or illegal actions. Encourage following local authorities and official guidance.`;
+// Fallback prompts (used if DB fetch fails)
+const FALLBACK_PLAN_SYSTEM_PROMPT = `You are Resilient.app's crisis-preparedness planner. Produce calm, practical, offline-first guidance tailored to the user's situation. Avoid fear language. Do not include instructions for wrongdoing, weapons, violence, or illegal actions. Encourage following local authorities and official guidance.`;
 
-// Developer prompt for Plan A (Shelter in Place)
-function getPlanADeveloperPrompt(isPortuguese: boolean): string {
-  const locale = isPortuguese ? 'Portuguese' : 'English';
-  return `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
+const FALLBACK_PLAN_A_DEVELOPER_PROMPT_EN = `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
 The plan must be tailored using city/postalCode and home signals (apartment/house, elevator, vehicle access, cooking/heating options, internet reliance, pets/kids, mobility constraints).
 Do NOT output personal identifiers (full names, exact address, IDs, bank details) or highly sensitive medical details. Keep details high-level and actionable.
 Plan A is "shelter in place": focus on staying safely at home during disruptions (power/internet outage, supply shock, local unrest, severe weather).
@@ -195,14 +194,22 @@ Include:
 - topPrioritiesThisWeek (exactly 5 bullets)
 - strong homeSetup section (power/water/cooking/comms/documents)
 - stepsFirstHour and stepsFirstDay that reflect the home reality
-Locale must be ${locale}. Output all text in ${locale}.
-End notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}".`;
-}
+Locale must be English. Output all text in English.
+End notes with: "Always follow local authorities.".`;
 
-// Developer prompt for Plan B (Leave / Relocate)
-function getPlanBDeveloperPrompt(isPortuguese: boolean): string {
-  const locale = isPortuguese ? 'Portuguese' : 'English';
-  return `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
+const FALLBACK_PLAN_A_DEVELOPER_PROMPT_PT = `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
+The plan must be tailored using city/postalCode and home signals (apartment/house, elevator, vehicle access, cooking/heating options, internet reliance, pets/kids, mobility constraints).
+Do NOT output personal identifiers (full names, exact address, IDs, bank details) or highly sensitive medical details. Keep details high-level and actionable.
+Plan A is "shelter in place": focus on staying safely at home during disruptions (power/internet outage, supply shock, local unrest, severe weather).
+Include:
+- whyThisFitsYou (2–3 sentences, calm)
+- topPrioritiesThisWeek (exactly 5 bullets)
+- strong homeSetup section (power/water/cooking/comms/documents)
+- stepsFirstHour and stepsFirstDay that reflect the home reality
+Locale must be Portuguese. Output all text in Portuguese.
+End notes with: "Siga sempre as instruções das autoridades locais.".`;
+
+const FALLBACK_PLAN_B_DEVELOPER_PROMPT_EN = `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
 
 Plan B must be clearly different from Plan A:
 - It is "Leave / Relocate" focused.
@@ -212,28 +219,35 @@ Plan B must be clearly different from Plan A:
 
 Include these Plan B-specific requirements in the JSON fields:
 - mobility.meetingPoints: primary/secondary (describe as categories, e.g., "nearby safe public landmark", not exact addresses)
-- mobility.routeNotes: 3–6 items that cover:
-  - primary route vs alternate route concept
-  - avoiding bottlenecks
-  - fuel/charging considerations if vehicle access
-  - walking-only fallback if no car
-  - accessibility considerations if limited mobility / stairs/elevator
-  - pet transport considerations if hasPets
+- mobility.routeNotes: 3–6 items that cover route concepts, alternatives, and considerations
 - stepsFirstHour and stepsFirstDay must reflect "leave" actions and coordination rules, not "stay home".
 - topPrioritiesThisWeek (exactly 5) must focus on enabling mobility and rendezvous readiness.
 - communications must include a simple check-in rule and out-of-area contact role.
 Do NOT output: exact route turn-by-turn directions, exact home address, exact safehouse address, or anything that could be used for harm.
-Locale must be ${locale}. Output all text in ${locale}.
-End notes with: "${isPortuguese ? 'Siga sempre as instruções das autoridades locais.' : 'Always follow local authorities.'}".`;
-}
+Locale must be English. Output all text in English.
+End notes with: "Always follow local authorities.".`;
 
-// Insights system prompt
-const INSIGHTS_SYSTEM_PROMPT = `You are Resilient.app's calm preparedness advisor. Explain risk results in a reassuring, practical way. Avoid fear language. Do not speculate beyond the provided drivers. Encourage following local authorities and official guidance.`;
+const FALLBACK_PLAN_B_DEVELOPER_PROMPT_PT = `Return ONLY valid JSON that matches the Plan schema provided. No markdown.
 
-// Insights developer prompt
-function getInsightsDeveloperPrompt(isPortuguese: boolean): string {
-  const locale = isPortuguese ? 'Portuguese' : 'English';
-  return `Return ONLY valid JSON. No markdown.
+Plan B must be clearly different from Plan A:
+- It is "Leave / Relocate" focused.
+- It must include decision logic: clear triggers, readiness checks, and a simple go/no-go checklist.
+- It must emphasize mobility, transport constraints, alternatives, and route planning principles WITHOUT giving operationally sensitive details.
+- Use city/postalCode and home signals to tailor: apartment/house, elevator, floor, car/no car, pets/kids, mobility constraints.
+
+Include these Plan B-specific requirements in the JSON fields:
+- mobility.meetingPoints: primary/secondary (describe as categories, e.g., "nearby safe public landmark", not exact addresses)
+- mobility.routeNotes: 3–6 items that cover route concepts, alternatives, and considerations
+- stepsFirstHour and stepsFirstDay must reflect "leave" actions and coordination rules, not "stay home".
+- topPrioritiesThisWeek (exactly 5) must focus on enabling mobility and rendezvous readiness.
+- communications must include a simple check-in rule and out-of-area contact role.
+Do NOT output: exact route turn-by-turn directions, exact home address, exact safehouse address, or anything that could be used for harm.
+Locale must be Portuguese. Output all text in Portuguese.
+End notes with: "Siga sempre as instruções das autoridades locais.".`;
+
+const FALLBACK_INSIGHTS_SYSTEM_PROMPT = `You are Resilient.app's calm preparedness advisor. Explain risk results in a reassuring, practical way. Avoid fear language. Do not speculate beyond the provided drivers. Encourage following local authorities and official guidance.`;
+
+const FALLBACK_INSIGHTS_DEVELOPER_PROMPT_EN = `Return ONLY valid JSON. No markdown.
 
 Input will include a risk score, risk level, and top drivers with weights (e.g., power_outage, flood, civil_unrest, cyber_outage, supply_disruption).
 You must output:
@@ -241,8 +255,17 @@ You must output:
 - top_priorities: exactly 3 bullets derived directly from the top drivers
 - watchlist: exactly 3 short "watch signals" items (neutral, non-alarmist) that users can monitor (e.g., official alerts, weather warnings, outage notices)
 Do NOT mention pricing or Premium. Do NOT mention "Red Folder". This is an insight block, not marketing.
-Locale must be ${locale}. Output all text in ${locale}.`;
-}
+Locale must be English. Output all text in English.`;
+
+const FALLBACK_INSIGHTS_DEVELOPER_PROMPT_PT = `Return ONLY valid JSON. No markdown.
+
+Input will include a risk score, risk level, and top drivers with weights (e.g., power_outage, flood, civil_unrest, cyber_outage, supply_disruption).
+You must output:
+- explanation: 2–3 sentences max, calm tone, tailored to location + household + mobility at a high level
+- top_priorities: exactly 3 bullets derived directly from the top drivers
+- watchlist: exactly 3 short "watch signals" items (neutral, non-alarmist) that users can monitor (e.g., official alerts, weather warnings, outage notices)
+Do NOT mention pricing or Premium. Do NOT mention "Red Folder". This is an insight block, not marketing.
+Locale must be Portuguese. Output all text in Portuguese.`;
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -262,15 +285,19 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
+    // Create admin client for DB operations (prompts, rate limits)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
     // Verify JWT and get user
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
+    if (claimsError || !claimsData?.user) {
       console.error('JWT verification failed:', claimsError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
         status: 401, 
@@ -278,7 +305,14 @@ serve(async (req) => {
       });
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = claimsData.user.id;
+
+    // Check rate limit
+    const rateLimit = await checkRateLimit(supabaseAdmin, userId, "run_ai_job");
+    if (!rateLimit.allowed) {
+      console.log(`Rate limit exceeded for user ${userId} on run_ai_job`);
+      return rateLimitResponse(rateLimit, corsHeaders);
+    }
 
     // 2. Parse request
     const { job_id } = await req.json();
@@ -336,8 +370,21 @@ serve(async (req) => {
       const input = job.input_summary as RiskInsightsInput;
       const isPortuguese = input.locale === 'pt';
 
-      systemPrompt = INSIGHTS_SYSTEM_PROMPT;
-      developerPrompt = getInsightsDeveloperPrompt(isPortuguese);
+      // Get prompts from DB (with fallbacks)
+      systemPrompt = await getLocalePrompt(
+        supabaseAdmin,
+        'run_ai_insights_system',
+        input.locale,
+        FALLBACK_INSIGHTS_SYSTEM_PROMPT
+      );
+      
+      developerPrompt = await getLocalePrompt(
+        supabaseAdmin,
+        'run_ai_insights_developer',
+        input.locale,
+        isPortuguese ? FALLBACK_INSIGHTS_DEVELOPER_PROMPT_PT : FALLBACK_INSIGHTS_DEVELOPER_PROMPT_EN
+      );
+
       userPrompt = `Create Premium Insights for this risk assessment. Use only this JSON input:\n\n${JSON.stringify(input, null, 2)}`;
       schema = INSIGHTS_SCHEMA;
 
@@ -349,10 +396,29 @@ serve(async (req) => {
       const planType = input.planType || 'A';
       const isPortuguese = locale === 'pt';
 
-      systemPrompt = PLAN_SYSTEM_PROMPT;
-      developerPrompt = planType === 'A' 
-        ? getPlanADeveloperPrompt(isPortuguese)
-        : getPlanBDeveloperPrompt(isPortuguese);
+      // Get prompts from DB (with fallbacks)
+      systemPrompt = await getLocalePrompt(
+        supabaseAdmin,
+        'run_ai_plan_system',
+        locale,
+        FALLBACK_PLAN_SYSTEM_PROMPT
+      );
+      
+      if (planType === 'A') {
+        developerPrompt = await getLocalePrompt(
+          supabaseAdmin,
+          'run_ai_plan_a_developer',
+          locale,
+          isPortuguese ? FALLBACK_PLAN_A_DEVELOPER_PROMPT_PT : FALLBACK_PLAN_A_DEVELOPER_PROMPT_EN
+        );
+      } else {
+        developerPrompt = await getLocalePrompt(
+          supabaseAdmin,
+          'run_ai_plan_b_developer',
+          locale,
+          isPortuguese ? FALLBACK_PLAN_B_DEVELOPER_PROMPT_PT : FALLBACK_PLAN_B_DEVELOPER_PROMPT_EN
+        );
+      }
       
       // Build user prompt with full input
       userPrompt = `Generate Plan ${planType} (${planType === 'A' ? 'Shelter in place' : 'Leave / Relocate'}) for this user context. Use the following JSON as the only input:\n\n${JSON.stringify(input, null, 2)}\n\nOutput must match the schema exactly and be realistic for the user's location and household.`;
@@ -497,9 +563,20 @@ serve(async (req) => {
       ok: true, 
       job_id, 
       status: 'done', 
-      output: output 
+      output: output,
+      rateLimit: {
+        remaining: rateLimit.remaining,
+        limit: rateLimit.limit,
+        resetAt: rateLimit.resetAt.toISOString()
+      }
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json',
+        'X-RateLimit-Limit': String(rateLimit.limit),
+        'X-RateLimit-Remaining': String(rateLimit.remaining),
+        'X-RateLimit-Reset': rateLimit.resetAt.toISOString()
+      },
     });
 
   } catch (error) {

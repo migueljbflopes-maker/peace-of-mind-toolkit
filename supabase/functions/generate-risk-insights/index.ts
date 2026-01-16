@@ -1,5 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getPrompt } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,12 +55,55 @@ interface RiskInsightsOutput {
   watchlist: string[];
 }
 
+// Fallback system prompt
+const FALLBACK_SYSTEM_PROMPT = `You are a calm emergency preparedness advisor analyzing someone's risk profile.
+
+IMPORTANT: Be reassuring, practical, and action-oriented. Do not use fear language. Always be encouraging.
+
+Provide a comprehensive analysis including:
+1. Infrastructure analysis (hospitals, emergency services, supply chains, utilities)
+2. Regional risk factors (natural hazards, infrastructure vulnerabilities, geopolitical risks)
+3. War & conflict scenario analysis
+4. Dimension-by-dimension insights with specific recommendations
+5. Top priorities and watchlist items
+
+Respond in JSON format ONLY.`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // Create admin client for DB operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get auth token from request (optional - for rate limiting)
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+
+    // If authenticated, check rate limit
+    if (authHeader) {
+      const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      
+      const { data: { user } } = await supabaseUser.auth.getUser();
+      if (user) {
+        userId = user.id;
+        
+        // Check rate limit
+        const rateLimit = await checkRateLimit(supabaseAdmin, userId, "risk_insights");
+        if (!rateLimit.allowed) {
+          console.log(`Rate limit exceeded for user ${userId} on risk_insights`);
+          return rateLimitResponse(rateLimit, corsHeaders);
+        }
+      }
+    }
+
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY not configured');
@@ -66,9 +112,12 @@ serve(async (req) => {
     const input: RiskInput = await req.json();
     const { score, riskLevel, city, country, breakdown, inputs } = input;
 
-    const systemPrompt = `You are a calm emergency preparedness advisor analyzing someone's risk profile for ${city}, ${country}.
+    // Get system prompt from DB (with fallback), then enhance with city-specific context
+    const baseSystemPrompt = await getPrompt(supabaseAdmin, "generate_risk_system", FALLBACK_SYSTEM_PROMPT);
+    
+    const systemPrompt = `${baseSystemPrompt}
 
-IMPORTANT: Be reassuring, practical, and action-oriented. Do not use fear language. Always be encouraging.
+Analyzing for: ${city}, ${country}
 
 Provide a comprehensive analysis including:
 

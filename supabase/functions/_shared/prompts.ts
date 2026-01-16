@@ -1,5 +1,3 @@
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 /**
  * Fetch a prompt from the database, falling back to hardcoded content if not found or inactive.
  * 
@@ -8,8 +6,9 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
  * @param fallback - The hardcoded fallback prompt to use if DB lookup fails
  * @returns The prompt content from DB if active, otherwise the fallback
  */
+// deno-lint-ignore no-explicit-any
 export async function getPrompt(
-  supabase: SupabaseClient,
+  supabase: any,
   promptKey: string,
   fallback: string
 ): Promise<string> {
@@ -46,8 +45,9 @@ export async function getPrompt(
  * @param fallback - The hardcoded fallback prompt
  * @returns The prompt content
  */
+// deno-lint-ignore no-explicit-any
 export async function getLocalePrompt(
-  supabase: SupabaseClient,
+  supabase: any,
   promptKeyBase: string,
   locale: string,
   fallback: string

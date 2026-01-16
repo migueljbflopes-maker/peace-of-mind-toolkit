@@ -1,5 +1,3 @@
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
@@ -16,8 +14,9 @@ export interface RateLimitResult {
  * @param feature - The feature key (e.g., 'expert_chat', 'plan_wizard')
  * @returns RateLimitResult with allowed status and remaining requests
  */
+// deno-lint-ignore no-explicit-any
 export async function checkRateLimit(
-  supabase: SupabaseClient,
+  supabase: any,
   userId: string,
   feature: string
 ): Promise<RateLimitResult> {
