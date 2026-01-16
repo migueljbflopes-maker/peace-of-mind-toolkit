@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
 const DEV_PREMIUM_KEY = 'resilient_dev_premium';
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache expiration
 
 // DEV-only logging helper
 const dbg = (...args: any[]) => {
@@ -16,7 +17,7 @@ interface Entitlements {
   priceEur: number;
 }
 
-// Cached entitlements with userId scoping to prevent stale data across user switches
+// Cached entitlements with userId scoping and timestamp for expiration
 interface CachedEntitlements {
   userId: string;
   cachedAt: number;
@@ -33,13 +34,54 @@ const defaultEntitlements: Entitlements = {
 
 interface EntitlementsContextType extends Entitlements {
   loading: boolean;
-  refetch: () => Promise<void>;
+  refetch: (userId?: string) => Promise<void>;
+  invalidateAndRefetch: () => Promise<void>;
   devPremiumOverride: boolean;
   toggleDevPremium: () => void;
   isDevMode: boolean;
 }
 
 const EntitlementsContext = createContext<EntitlementsContextType | undefined>(undefined);
+
+/**
+ * Check if cached entitlements are valid (correct user & not expired)
+ */
+const getValidCache = (userId: string): CachedEntitlements | null => {
+  try {
+    const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
+    if (!cached) return null;
+    
+    const parsed = JSON.parse(cached) as CachedEntitlements;
+    
+    // Check userId match
+    if (parsed.userId !== userId) {
+      dbg('Cache userId mismatch:', { cached: parsed.userId, current: userId });
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      return null;
+    }
+    
+    // Check expiration
+    const age = Date.now() - parsed.cachedAt;
+    if (age > CACHE_TTL_MS) {
+      dbg('Cache expired:', { age: Math.round(age / 1000) + 's', ttl: Math.round(CACHE_TTL_MS / 1000) + 's' });
+      localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      return null;
+    }
+    
+    return parsed;
+  } catch {
+    localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+    return null;
+  }
+};
+
+/**
+ * Clear entitlements cache
+ */
+export const clearEntitlementsCache = () => {
+  dbg('Clearing entitlements cache');
+  localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+};
 
 export function EntitlementsProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
@@ -65,10 +107,43 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(DEV_PREMIUM_KEY, String(newValue));
   }, [devPremiumOverride]);
 
-  // Fetch entitlements from database with timeout protection and session verification
-  const fetchEntitlements = useCallback(async (userId?: string) => {
+  /**
+   * Wait for session with exponential backoff retries
+   * Returns session or null if all retries exhausted
+   */
+  const waitForSession = async (targetUserId: string, maxRetries = 3): Promise<boolean> => {
+    const backoffDelays = [200, 600, 1200]; // ms
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        dbg('Session error on attempt', attempt, ':', error.message);
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, backoffDelays[attempt] || 1200));
+          continue;
+        }
+        return false;
+      }
+      
+      if (session && session.user.id === targetUserId) {
+        return true;
+      }
+      
+      if (attempt < maxRetries) {
+        dbg('Session not ready, retry', attempt + 1, 'after', backoffDelays[attempt], 'ms');
+        await new Promise(r => setTimeout(r, backoffDelays[attempt] || 1200));
+      }
+    }
+    
+    dbg('Session not available after', maxRetries, 'retries');
+    return false;
+  };
+
+  // Fetch entitlements from database with retry logic
+  const fetchEntitlements = useCallback(async (userId?: string, skipCacheWrite = false) => {
     const targetUserId = userId ?? user?.id;
-    dbg('fetchEntitlements called:', { targetUserId });
+    dbg('fetchEntitlements called:', { targetUserId, skipCacheWrite });
     
     if (!targetUserId) {
       dbg('No user, resetting to defaults');
@@ -78,28 +153,13 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // CRITICAL: Verify session is established in Supabase client before querying
-    // This prevents RLS failures when auth.uid() is not yet available
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Wait for session with retries - DON'T write false cache if session unavailable
+    const sessionReady = await waitForSession(targetUserId);
     
-    if (sessionError) {
-      dbg('Session error, cannot query:', sessionError.message);
-      setLoading(false);
-      return;
-    }
-    
-    if (!session) {
-      dbg('No valid session for query, RLS would fail');
-      setLoading(false);
-      return;
-    }
-    
-    // Verify session matches target user to prevent cross-user queries
-    if (session.user.id !== targetUserId) {
-      dbg('Session user mismatch, skipping fetch:', {
-        sessionUser: session.user.id,
-        targetUser: targetUserId
-      });
+    if (!sessionReady) {
+      dbg('Session not ready after retries - keeping current state, NOT writing false cache');
+      // Don't set entitlements to default - keep whatever we have (or cache)
+      // This prevents transient failures from marking user as non-premium
       setLoading(false);
       return;
     }
@@ -134,7 +194,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
         if (import.meta.env.DEV) {
           console.error('[Entitlements] select failed', error);
         }
-        // On error/timeout, keep existing state but stop loading
+        // On error/timeout, keep existing state but stop loading - DON'T write false cache
         setLoading(false);
         return;
       }
@@ -150,20 +210,34 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       dbg('Final state:', newEntitlements);
       setEntitlements(newEntitlements);
       
-      // Save cache with userId scoping
-      const cacheData: CachedEntitlements = {
-        userId: targetUserId,
-        cachedAt: Date.now(),
-        ...newEntitlements,
-      };
-      localStorage.setItem(ENTITLEMENTS_CACHE_KEY, JSON.stringify(cacheData));
+      // Save cache with userId scoping (unless skipCacheWrite)
+      if (!skipCacheWrite) {
+        const cacheData: CachedEntitlements = {
+          userId: targetUserId,
+          cachedAt: Date.now(),
+          ...newEntitlements,
+        };
+        localStorage.setItem(ENTITLEMENTS_CACHE_KEY, JSON.stringify(cacheData));
+      }
     } catch (err) {
       console.error('[Entitlements] fetch error:', err);
-      setEntitlements(defaultEntitlements);
+      // On catch, DON'T reset to default - keep existing state
+      dbg('Fetch error, keeping existing state');
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
+
+  /**
+   * Invalidate cache and immediately refetch from server
+   * Use after login, purchase success, claim, etc.
+   */
+  const invalidateAndRefetch = useCallback(async () => {
+    dbg('invalidateAndRefetch called');
+    clearEntitlementsCache();
+    setLoading(true);
+    await fetchEntitlements(user?.id, false);
+  }, [fetchEntitlements, user?.id]);
 
   // Track if initial fetch has been done
   const hasFetchedRef = useRef(false);
@@ -212,30 +286,21 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     if (currentUserId !== previousUserId) {
       dbg('CASE 3: User changed or first load, validating cache...');
       
-      let cacheValid = false;
+      // Check if we have valid (non-expired) cache for this user BEFORE clearing
+      const validCache = getValidCache(currentUserId);
       
-      // Validate cache userId matches current user
-      try {
-        const cached = localStorage.getItem(ENTITLEMENTS_CACHE_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached) as CachedEntitlements;
-          if (parsed.userId !== currentUserId) {
-            dbg('Cache userId mismatch, clearing:', { cached: parsed.userId, current: currentUserId });
-            localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
-          } else {
-            // Cache is valid - use cached values immediately and STOP LOADING
-            dbg('Using valid cached entitlements, stopping loading');
-            setEntitlements({
-              isPremium: parsed.isPremium,
-              planName: parsed.planName,
-              priceEur: parsed.priceEur,
-            });
-            setLoading(false); // CRITICAL: Stop loading immediately with cache
-            cacheValid = true;
-          }
-        }
-      } catch {
-        localStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
+      if (validCache) {
+        // Cache is valid - use cached values immediately and STOP LOADING
+        dbg('Using valid cached entitlements, stopping loading');
+        setEntitlements({
+          isPremium: validCache.isPremium,
+          planName: validCache.planName,
+          priceEur: validCache.priceEur,
+        });
+        setLoading(false); // CRITICAL: Stop loading immediately with cache
+      } else {
+        // No valid cache - clear any stale cache for other users
+        clearEntitlementsCache();
       }
       
       lastUserIdRef.current = currentUserId;
@@ -272,6 +337,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     isPremium,
     loading: combinedLoading,
     refetch: fetchEntitlements,
+    invalidateAndRefetch,
     devPremiumOverride,
     toggleDevPremium,
     isDevMode: import.meta.env.DEV,
