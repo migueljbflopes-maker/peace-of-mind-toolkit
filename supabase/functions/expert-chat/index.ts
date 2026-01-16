@@ -1,12 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getPrompt } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are a calm, knowledgeable Security & Preparedness Expert helping families prepare for emergencies. Your tone is reassuring and practical, never alarmist. Focus on actionable advice that can be implemented step-by-step.
+// Fallback system prompt (used if DB fetch fails)
+const FALLBACK_SYSTEM_PROMPT = `You are a calm, knowledgeable Security & Preparedness Expert helping families prepare for emergencies. Your tone is reassuring and practical, never alarmist. Focus on actionable advice that can be implemented step-by-step.
 
 Key principles:
 - Provide clear, prioritized recommendations
@@ -64,8 +67,10 @@ serve(async (req) => {
       );
     }
 
-    // Check premium status using service role
+    // Create admin client for DB operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check premium status
     const { data: entitlement } = await supabaseAdmin
       .from("premium_entitlements")
       .select("is_premium")
@@ -79,6 +84,13 @@ serve(async (req) => {
       );
     }
 
+    // Check rate limit
+    const rateLimit = await checkRateLimit(supabaseAdmin, user.id, "expert_chat");
+    if (!rateLimit.allowed) {
+      console.log(`Rate limit exceeded for user ${user.id} on expert_chat`);
+      return rateLimitResponse(rateLimit, corsHeaders);
+    }
+
     // Parse request
     const { question_id, category, question } = await req.json();
 
@@ -88,6 +100,9 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Get system prompt from DB (with fallback)
+    const systemPrompt = await getPrompt(supabaseAdmin, "expert_chat_system", FALLBACK_SYSTEM_PROMPT);
 
     // Call Lovable AI Gateway
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -99,7 +114,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: `Category: ${category || "general"}\n\nQuestion: ${question}`,
@@ -150,8 +165,25 @@ serve(async (req) => {
     console.log(`Expert question answered for user ${user.id}: ${question.substring(0, 50)}...`);
 
     return new Response(
-      JSON.stringify({ answer, status: "answered" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        answer, 
+        status: "answered",
+        rateLimit: {
+          remaining: rateLimit.remaining,
+          limit: rateLimit.limit,
+          resetAt: rateLimit.resetAt.toISOString()
+        }
+      }),
+      { 
+        status: 200, 
+        headers: { 
+          ...corsHeaders, 
+          "Content-Type": "application/json",
+          "X-RateLimit-Limit": String(rateLimit.limit),
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": rateLimit.resetAt.toISOString()
+        } 
+      }
     );
   } catch (err) {
     console.error("expert-chat error:", err);

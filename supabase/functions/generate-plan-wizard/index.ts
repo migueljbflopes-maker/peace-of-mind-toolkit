@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getPrompt } from "../_shared/prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,12 +83,54 @@ const PLAN_B_SCHEMA = {
   }
 };
 
+// Fallback system prompt
+const FALLBACK_SYSTEM_PROMPT = `You are an emergency preparedness expert specializing in personal and family safety planning. Your role is to generate calm, practical, and actionable emergency plans.
+
+Key guidelines:
+- Be objective and actionable, not alarmist
+- Never include weapons, violence, or illegal actions
+- Encourage following local authorities' guidance
+- Provide specific, contextual advice based on the user's location and circumstances
+- Consider the user's household composition, mobility, and resources
+- Generate strategic routes (directions/highways/zones to avoid) - NOT turn-by-turn navigation
+- Include specific triggers for when to switch from Plan A to Plan B
+- Provide exhaustive checklists organized by category`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // Get auth token from request (optional - for rate limiting)
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    
+    // Create admin client for DB operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // If authenticated, check rate limit
+    if (authHeader) {
+      const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      
+      const { data: { user } } = await supabaseUser.auth.getUser();
+      if (user) {
+        userId = user.id;
+        
+        // Check rate limit
+        const rateLimit = await checkRateLimit(supabaseAdmin, userId, "plan_wizard");
+        if (!rateLimit.allowed) {
+          console.log(`Rate limit exceeded for user ${userId} on plan_wizard`);
+          return rateLimitResponse(rateLimit, corsHeaders);
+        }
+      }
+    }
+
     const { wizard_inputs, locale = 'en' } = await req.json();
     
     if (!wizard_inputs) {
@@ -106,17 +151,9 @@ serve(async (req) => {
     }
 
     const isPt = locale === 'pt';
-    const systemPrompt = `You are an emergency preparedness expert specializing in personal and family safety planning. Your role is to generate calm, practical, and actionable emergency plans.
-
-Key guidelines:
-- Be objective and actionable, not alarmist
-- Never include weapons, violence, or illegal actions
-- Encourage following local authorities' guidance
-- Provide specific, contextual advice based on the user's location and circumstances
-- Consider the user's household composition, mobility, and resources
-- Generate strategic routes (directions/highways/zones to avoid) - NOT turn-by-turn navigation
-- Include specific triggers for when to switch from Plan A to Plan B
-- Provide exhaustive checklists organized by category`;
+    
+    // Get system prompt from DB (with fallback)
+    const systemPrompt = await getPrompt(supabaseAdmin, "plan_wizard_system", FALLBACK_SYSTEM_PROMPT);
 
     const contextSummary = JSON.stringify(wizard_inputs, null, 2);
 
