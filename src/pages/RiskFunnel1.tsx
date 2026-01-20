@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RiskOfferModal } from "@/components/RiskOfferModal";
 import ConsoleLogOverlay from "@/components/ConsoleLogOverlay";
+import { trackFeature, FUNNEL_STEP_NAMES } from "@/lib/trackFeature";
 import { loadStripe } from "@stripe/stripe-js";
 
 // Only initialize Stripe if the publishable key is available
@@ -797,6 +798,15 @@ export default function RiskFunnel1() {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data]);
 
+  // Track step views for funnel analytics
+  useEffect(() => {
+    trackFeature('risk_funnel', 'step_view', {
+      funnel: 'riskfunnel1',
+      step: step,
+      step_name: FUNNEL_STEP_NAMES[step] || `step_${step}`,
+    });
+  }, [step]);
+
   // Progress based on question steps only (4 questions total)
   const progressPercent = useMemo(() => {
     const questionIndex = questionSteps.indexOf(step);
@@ -846,6 +856,13 @@ export default function RiskFunnel1() {
   }, [step, data]);
 
   const handleNext = () => {
+    // Track step completion
+    trackFeature('risk_funnel', 'step_complete', {
+      funnel: 'riskfunnel1',
+      step: step,
+      step_name: FUNNEL_STEP_NAMES[step] || `step_${step}`,
+    });
+    
     if (step < totalSteps) {
       setStep(step + 1);
     }
@@ -863,6 +880,13 @@ export default function RiskFunnel1() {
   };
 
   const handleCheckout = async () => {
+    // Track checkout click for funnel analytics
+    trackFeature('risk_funnel', 'checkout_click', {
+      funnel: 'riskfunnel1',
+      risk_level: riskLevel,
+      score: score.total,
+    });
+    
     setCheckoutLoading(true);
 
     console.log("[RiskFunnel1] Starting subscription checkout...", {

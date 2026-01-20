@@ -40,6 +40,7 @@ export async function trackFeature(
 // Predefined feature names for consistency
 export const FEATURES = {
   RISK_CALCULATOR: 'risk_calculator',
+  RISK_FUNNEL: 'risk_funnel',
   SUPPLIES_PLANNER: 'supplies_planner',
   VAULT: 'vault',
   RED_FOLDER: 'red_folder',
@@ -58,4 +59,21 @@ export const ACTIONS = {
   EXPORT: 'export',
   SAVE: 'save',
   VIEW: 'view',
+  STEP_VIEW: 'step_view',
+  STEP_COMPLETE: 'step_complete',
+  CHECKOUT_CLICK: 'checkout_click',
 } as const;
+
+// Step names for funnel analytics
+export const FUNNEL_STEP_NAMES: Record<number, string> = {
+  1: 'location',
+  2: 'home_type',
+  3: 'household',
+  4: 'emergency_experience',
+  5: 'interstitial_1',
+  6: 'emergency_kit',
+  7: 'evacuation_plan',
+  8: 'interstitial_2',
+  9: 'analyzing',
+  10: 'results',
+};
