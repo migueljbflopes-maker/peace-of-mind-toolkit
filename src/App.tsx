@@ -8,6 +8,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
 import { lazy, Suspense } from "react";
 import { usePageTracking } from "@/hooks/usePageTracking";
+import ScrollToTop from "./components/ScrollToTop";
+
+// Eagerly loaded: high-traffic pages
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import Pricing from "./pages/Pricing";
@@ -19,35 +22,35 @@ import WeeklyBriefing from "./pages/WeeklyBriefing";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
-import Vault from "./pages/premium/Vault";
-import Plans from "./pages/premium/Plans";
-import PlansWizard from "./pages/premium/PlansWizard";
-import RedFolder from "./pages/premium/RedFolder";
-import Backup from "./pages/premium/Backup";
-import Onboarding from "./pages/premium/Onboarding";
-import RiskAssessment from "./pages/premium/RiskAssessment";
-import Expert from "./pages/premium/Expert";
 import Toolkit from "./pages/Toolkit";
-import Panic from "./pages/Panic";
-import PanicSetup from "./pages/panic/Setup";
-import PanicTest from "./pages/panic/Test";
-import PanicHistory from "./pages/panic/History";
 import NotFound from "./pages/NotFound";
-import RiskFunnel from "./pages/RiskFunnel";
-import RiskFunnel1 from "./pages/RiskFunnel1";
-import PurchaseSuccess from "./pages/PurchaseSuccess";
-import Claim from "./pages/Claim";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import ScrollToTop from "./components/ScrollToTop";
-// Admin pages
-import AdminIndex from "./pages/admin/Index";
-import AdminUsers from "./pages/admin/Users";
-import AdminAnalytics from "./pages/admin/Analytics";
-import AdminFeatures from "./pages/admin/Features";
-import AdminAffiliates from "./pages/admin/Affiliates";
-import AdminEmails from "./pages/admin/Emails";
-import AdminPrompts from "./pages/admin/Prompts";
+
+// Lazy loaded: less-visited routes
+const Vault = lazy(() => import("./pages/premium/Vault"));
+const Plans = lazy(() => import("./pages/premium/Plans"));
+const PlansWizard = lazy(() => import("./pages/premium/PlansWizard"));
+const RedFolder = lazy(() => import("./pages/premium/RedFolder"));
+const Backup = lazy(() => import("./pages/premium/Backup"));
+const Onboarding = lazy(() => import("./pages/premium/Onboarding"));
+const RiskAssessment = lazy(() => import("./pages/premium/RiskAssessment"));
+const Expert = lazy(() => import("./pages/premium/Expert"));
+const Panic = lazy(() => import("./pages/Panic"));
+const PanicSetup = lazy(() => import("./pages/panic/Setup"));
+const PanicTest = lazy(() => import("./pages/panic/Test"));
+const PanicHistory = lazy(() => import("./pages/panic/History"));
+const RiskFunnel = lazy(() => import("./pages/riskFunnel/RiskFunnel"));
+const RiskFunnel1 = lazy(() => import("./pages/riskFunnel/RiskFunnel1"));
+const PurchaseSuccess = lazy(() => import("./pages/PurchaseSuccess"));
+const Claim = lazy(() => import("./pages/Claim"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const AdminIndex = lazy(() => import("./pages/admin/Index"));
+const AdminUsers = lazy(() => import("./pages/admin/Users"));
+const AdminAnalytics = lazy(() => import("./pages/admin/Analytics"));
+const AdminFeatures = lazy(() => import("./pages/admin/Features"));
+const AdminAffiliates = lazy(() => import("./pages/admin/Affiliates"));
+const AdminEmails = lazy(() => import("./pages/admin/Emails"));
+const AdminPrompts = lazy(() => import("./pages/admin/Prompts"));
 
 // DEV-only: Lazy load AuthDebugPanel
 const AuthDebugPanel = import.meta.env.DEV 
@@ -60,7 +63,24 @@ function PageTracker({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// Suspense fallback for lazy routes
+function LazyFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -73,6 +93,7 @@ const App = () => (
             <BrowserRouter>
               <PageTracker>
               <ScrollToTop />
+              <Suspense fallback={<LazyFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/products" element={<Products />} />
@@ -93,21 +114,17 @@ const App = () => (
                 <Route path="/premium/onboarding" element={<Onboarding />} />
                 <Route path="/premium/risk" element={<RiskAssessment />} />
                 <Route path="/premium/expert" element={<Expert />} />
-                {/* New product pillars */}
                 <Route path="/toolkit" element={<Toolkit />} />
                 <Route path="/panic" element={<Panic />} />
                 <Route path="/panic/setup" element={<PanicSetup />} />
                 <Route path="/panic/test" element={<PanicTest />} />
                 <Route path="/panic/history" element={<PanicHistory />} />
-                {/* Standalone funnel (no navbar/footer) */}
                 <Route path="/riskfunnel" element={<RiskFunnel />} />
                 <Route path="/riskfunnel1" element={<RiskFunnel1 />} />
                 <Route path="/purchase-success" element={<PurchaseSuccess />} />
                 <Route path="/claim" element={<Claim />} />
-                {/* Legal pages */}
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
-                {/* Admin pages */}
                 <Route path="/admin" element={<AdminIndex />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
@@ -115,9 +132,9 @@ const App = () => (
                 <Route path="/admin/affiliates" element={<AdminAffiliates />} />
                 <Route path="/admin/emails" element={<AdminEmails />} />
                 <Route path="/admin/prompts" element={<AdminPrompts />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
               {/* DEV-only: Auth debug panel */}
               {import.meta.env.DEV && AuthDebugPanel && (
                 <Suspense fallback={null}>
