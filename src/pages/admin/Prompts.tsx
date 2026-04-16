@@ -61,7 +61,7 @@ export default function AdminPrompts() {
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatus>>({});
   const [rateSaveStatuses, setRateSaveStatuses] = useState<Record<string, SaveStatus>>({});
-  const [pendingUpdates, setPendingUpdates] = useState<Record<string, NodeJS.Timeout>>({});
+  const [pendingUpdates, setPendingUpdates] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Fetch prompts
   const fetchPrompts = useCallback(async () => {

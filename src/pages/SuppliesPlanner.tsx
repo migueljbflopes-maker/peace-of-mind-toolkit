@@ -495,7 +495,7 @@ const SuppliesPlanner = () => {
   }, [answers.pets]);
 
   // Auto-save reference to prevent stale closures
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   // Compute preparedness stats (moved before auto-save to avoid reference issues)
