@@ -35,21 +35,21 @@ const ProductPillars = () => {
                   <Lock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Readiness</p>
-                    <p className="text-xs text-muted-foreground">Organize contacts, instructions, and key information​</p>
+                    <p className="text-xs text-muted-foreground">Organize contacts, instructions, and key information</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Plan A & Plan B</p>
-                    <p className="text-xs text-muted-foreground">Build Plan A and Plan B for different scenarios​</p>
+                    <p className="text-xs text-muted-foreground">Build Plan A and Plan B for different scenarios</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <FolderHeart className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Checklist</p>
-                    <p className="text-xs text-muted-foreground">Create actionable steps that are simple to follow​</p>
+                    <p className="text-xs text-muted-foreground">Create actionable steps that are simple to follow</p>
                   </div>
                 </div>
               </div>
@@ -90,7 +90,7 @@ const ProductPillars = () => {
                 <div className="flex items-start gap-3">
                   <Send className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">​Panic Button  </p>
+                    <p className="text-sm font-medium text-foreground">Panic Button  </p>
                     <p className="text-xs text-muted-foreground">Panic Button to alert key people instantly and share critical information</p>
                   </div>
                 </div>
@@ -98,7 +98,7 @@ const ProductPillars = () => {
                   <Clock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Safe Triggers and Guidance</p>
-                    <p className="text-xs text-muted-foreground">Share your plan automatically or consult experts for guidance​</p>
+                    <p className="text-xs text-muted-foreground">Share your plan automatically or consult experts for guidance</p>
                   </div>
                 </div>
               </div>

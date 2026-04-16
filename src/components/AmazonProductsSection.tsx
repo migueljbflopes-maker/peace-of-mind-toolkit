@@ -350,7 +350,7 @@ const productCatalog: Product[] = [
     priority: 4,
     why: "Fixes almost anything temporarily.",
     hardware: true,
-    asinByMarket: { de: "B01LX6O00V", uk: "B07B6H8J1K", us: "B00006XXXX" },
+    asinByMarket: { de: "B01LX6O00V", uk: "B07B6H8J1K" },
     searchQuery: "heavy duty duct tape",
   },
   {

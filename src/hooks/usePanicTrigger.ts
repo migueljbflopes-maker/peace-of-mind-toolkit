@@ -6,6 +6,14 @@ import { toast } from "sonner";
 export type TriggerState = "idle" | "holding" | "pending" | "cancelling" | "confirmed" | "cancelled" | "error";
 export type ScenarioType = "medical" | "natural" | "security" | "custom";
 
+export interface LocationSnapshot {
+  lat?: number;
+  lng?: number;
+  accuracy?: number;
+  timestamp?: number;
+  address?: string;
+}
+
 const HOLD_DURATION_MS = 3000; // 3 seconds to activate
 const CANCEL_WINDOW_MS = 5000; // 5 seconds to cancel
 
@@ -46,7 +54,7 @@ export function usePanicTrigger() {
   }, [clearAllTimers]);
 
   // Start holding the button
-  const startHold = useCallback((scenarioType: ScenarioType, isTest: boolean = false, locationSnapshot?: any) => {
+  const startHold = useCallback((scenarioType: ScenarioType, isTest: boolean = false, locationSnapshot?: LocationSnapshot) => {
     if (state !== "idle") return;
     
     setState("holding");
@@ -81,7 +89,7 @@ export function usePanicTrigger() {
   const triggerPanic = useCallback(async (
     scenarioType: ScenarioType,
     isTest: boolean,
-    locationSnapshot?: any
+    locationSnapshot?: LocationSnapshot
   ) => {
     if (!session?.access_token) {
       setError("Not authenticated");
@@ -123,11 +131,12 @@ export function usePanicTrigger() {
         confirmPanic(data.activation_id, isTest);
       }, CANCEL_WINDOW_MS);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to trigger panic";
       console.error("Panic trigger error:", err);
-      setError(err.message || "Failed to trigger panic");
+      setError(message);
       setState("error");
-      toast.error(err.message || "Failed to trigger panic button");
+      toast.error(message);
     }
   }, [session]);
 
@@ -152,9 +161,10 @@ export function usePanicTrigger() {
       // Reset after showing cancelled state
       setTimeout(reset, 2000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to cancel";
       console.error("Panic cancel error:", err);
-      setError(err.message || "Failed to cancel");
+      setError(message);
       setState("error");
     }
   }, [activationId, state, clearAllTimers, reset]);
@@ -180,9 +190,10 @@ export function usePanicTrigger() {
         toast.success(`Emergency alert sent to ${count} contact(s)`);
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to confirm";
       console.error("Panic confirm error:", err);
-      setError(err.message || "Failed to confirm");
+      setError(message);
       setState("error");
     }
   }, [clearAllTimers]);
