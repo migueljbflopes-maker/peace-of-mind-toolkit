@@ -149,20 +149,24 @@ async function fetchAiInsights(payload: {
 }
 
 export default function RiskCalculator() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isPremium } = useEntitlements();
 
   // Feature flag check: use wizard if query param or default flag is set
   const useWizard =
     searchParams.get("ui") === "wizard" || (USE_WIZARD_BY_DEFAULT && searchParams.get("ui") !== "legacy");
 
-  // If using wizard, render it instead of the legacy UI
+  // If using wizard, render it instead of the legacy UI.
+  // Legacy UI is isolated in a sub-component so its hooks are never conditionally invoked.
   if (useWizard) {
     return <RiskWizardUI />;
   }
 
-  // Legacy UI below
+  return <RiskCalculatorLegacy />;
+}
+
+function RiskCalculatorLegacy() {
+  const navigate = useNavigate();
+  const { isPremium } = useEntitlements();
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<QuizAnswers>(defaultAnswers);
   const [showResults, setShowResults] = useState(false);

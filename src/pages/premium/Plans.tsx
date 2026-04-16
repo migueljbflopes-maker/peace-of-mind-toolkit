@@ -42,6 +42,13 @@ export default function Plans() {
   const [expandedPlan, setExpandedPlan] = useState<'A' | 'B' | null>(null);
   const [loadingPlans, setLoadingPlans] = useState(true);
 
+  // Save handler for inline editing (declared before any early return to keep hook order stable)
+  const handleSavePlans = useCallback(async (planA: GeneratedPlanA, planB: GeneratedPlanB) => {
+    if (!user) return;
+    await updateGeneratedPlans(user.id, planA, planB);
+    setPlans({ planA, planB });
+  }, [user]);
+
   // Check risk assessment and load plans
   useEffect(() => {
     if (user && isPremium) {
@@ -96,13 +103,6 @@ export default function Plans() {
       </div>
     );
   }
-
-  // Save handler for inline editing
-  const handleSavePlans = useCallback(async (planA: GeneratedPlanA, planB: GeneratedPlanB) => {
-    if (!user) return;
-    await updateGeneratedPlans(user.id, planA, planB);
-    setPlans({ planA, planB });
-  }, [user]);
 
   // Expanded view - show full plan details
   if (expandedPlan && plans) {
