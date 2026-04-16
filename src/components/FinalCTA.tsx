@@ -23,7 +23,7 @@ const FinalCTA = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/start">
+            <Link to="/tools/risk">
               <Button
                 size="xl"
                 className="bg-white text-primary hover:bg-white/90 font-semibold shadow-lg"

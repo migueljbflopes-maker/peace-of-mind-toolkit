@@ -84,7 +84,7 @@ const PanicHistory = () => {
 
   // Auth gate
   if (!user) {
-    return <Navigate to="/auth" state={{ returnUrl: "/panic/history" }} replace />;
+    return <Navigate to="/login" state={{ returnUrl: "/panic/history" }} replace />;
   }
 
   // Premium gate

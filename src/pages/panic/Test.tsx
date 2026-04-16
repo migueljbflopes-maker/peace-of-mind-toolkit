@@ -38,7 +38,7 @@ const PanicTest = () => {
 
   // Auth gate
   if (!user) {
-    return <Navigate to="/auth" state={{ returnUrl: "/panic/test" }} replace />;
+    return <Navigate to="/login" state={{ returnUrl: "/panic/test" }} replace />;
   }
 
   // Premium gate

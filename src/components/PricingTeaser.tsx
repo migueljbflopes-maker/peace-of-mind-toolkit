@@ -53,7 +53,7 @@ const PricingTeaser = () => {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link to="/start">
+            <Link to="/tools/risk">
               <Button variant="hero-outline" size="lg">
                 Start Free First
               </Button>

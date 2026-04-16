@@ -31,7 +31,7 @@ const FeaturesSection = () => {
         { icon: Newspaper, label: "Weekly briefing" },
       ],
       footnote: "Create a free account to save & sync progress.",
-      cta: { label: "Start Free", href: "/start", variant: "outline" as const },
+      cta: { label: "Start Free", href: "/tools/risk", variant: "outline" as const },
     },
     {
       name: "Premium",
