@@ -129,16 +129,16 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
     
     setIsGenerating(true);
     setGenerationStatus(locale === 'pt' ? 'A guardar dados...' : 'Saving data...');
-    console.log('[PlanWizard] Starting generation...');
+    if (import.meta.env.DEV) console.log('[PlanWizard] Starting generation...');
     
     try {
       // Save all inputs first
-      console.log('[PlanWizard] Saving wizard inputs...');
+      if (import.meta.env.DEV) console.log('[PlanWizard] Saving wizard inputs...');
       await saveWizardInputs(user.id, inputs);
-      console.log('[PlanWizard] Wizard inputs saved');
+      if (import.meta.env.DEV) console.log('[PlanWizard] Wizard inputs saved');
 
       setGenerationStatus(locale === 'pt' ? 'A processar os seus planos...' : 'Processing your plans...');
-      console.log('[PlanWizard] Calling edge function...');
+      if (import.meta.env.DEV) console.log('[PlanWizard] Calling edge function...');
 
       // Call edge function to generate plans
       const { data, error } = await supabase.functions.invoke('generate-plan-wizard', {
@@ -148,7 +148,7 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
         },
       });
 
-      console.log('[PlanWizard] Edge function response:', { data: !!data, error });
+      if (import.meta.env.DEV) console.log('[PlanWizard] Edge function response:', { data: !!data, error });
 
       if (error) {
         console.error('[PlanWizard] Generation error:', error);
@@ -164,11 +164,11 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
       }
 
       setGenerationStatus(locale === 'pt' ? 'A guardar planos...' : 'Saving plans...');
-      console.log('[PlanWizard] Saving generated plans...');
+      if (import.meta.env.DEV) console.log('[PlanWizard] Saving generated plans...');
 
       // Save generated plans
       await saveGeneratedPlans(user.id, data.plan_a, data.plan_b);
-      console.log('[PlanWizard] Plans saved successfully');
+      if (import.meta.env.DEV) console.log('[PlanWizard] Plans saved successfully');
 
       toast.success(locale === 'pt' ? 'Planos gerados com sucesso!' : 'Plans generated successfully!');
       onComplete(data.plan_a, data.plan_b);
