@@ -47,40 +47,27 @@ function getCacheInfo(): CacheInfo {
 }
 
 export default function AuthDebugPanel() {
+  // ALL hooks must run unconditionally and in the same order on every render.
   const [isOpen, setIsOpen] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<CacheInfo>(() => getCacheInfo());
-  const [hasContextError, setHasContextError] = useState(false);
-  
+
   const authContext = useAuth();
-  
-  // Safely try to get entitlements - may fail if context not mounted
-  let entitlementsContext: ReturnType<typeof useEntitlements> | null = null;
-  try {
-    entitlementsContext = useEntitlements();
-  } catch {
-    // Will be caught below
-  }
-  
-  // If entitlements context is not available, show minimal panel
-  if (!entitlementsContext) {
-    return (
-      <div className="fixed bottom-4 right-4 z-[9999] font-mono text-xs">
-        <Card className="bg-background/95 backdrop-blur border-2 border-orange-500/50 shadow-lg p-3">
-          <div className="flex items-center gap-2 text-orange-600">
-            <Bug className="h-4 w-4" />
-            <span>Auth Debug: Waiting for context...</span>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-  
+  const entitlementsContext = useEntitlements();
+
+  // Refresh cache info periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCacheInfo(getCacheInfo());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const { user, loading: authLoading, isAuthenticated, signOut } = authContext;
-  const { 
-    isPremium, 
-    planName, 
-    priceEur, 
-    loading: entLoading, 
+  const {
+    isPremium,
+    planName,
+    priceEur,
+    loading: entLoading,
     refetch,
     devPremiumOverride,
     toggleDevPremium,
@@ -94,14 +81,6 @@ export default function AuthDebugPanel() {
       return 'unknown';
     }
   })();
-
-  // Refresh cache info periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCacheInfo(getCacheInfo());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleRefetch = async () => {
     await refetch();
