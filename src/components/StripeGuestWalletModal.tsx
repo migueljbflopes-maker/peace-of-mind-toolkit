@@ -77,7 +77,7 @@ function PaymentForm({
       billingAddressRequired?: boolean;
     }) => void;
   }) => {
-    console.log('[Stripe] ExpressCheckout clicked, resolving options...');
+    if (import.meta.env.DEV) console.log('[Stripe] ExpressCheckout clicked, resolving options...');
     resolve({
       emailRequired: true,
       phoneNumberRequired: false,
@@ -91,12 +91,12 @@ function PaymentForm({
     if (!stripe || !elements) return;
 
     setIsProcessing(true);
-    console.log('[Stripe] ExpressCheckout confirm event:', event);
+    if (import.meta.env.DEV) console.log('[Stripe] ExpressCheckout confirm event:', event);
     
     try {
       // Get email from billing details if available
       const billingEmail = event.billingDetails?.email;
-      console.log('[Stripe] Billing email from wallet:', billingEmail);
+      if (import.meta.env.DEV) console.log('[Stripe] Billing email from wallet:', billingEmail);
       
       // If we got an email, save it immediately
       if (billingEmail) {
@@ -120,7 +120,7 @@ function PaymentForm({
         setIsProcessing(false);
       } else {
         // Payment succeeded
-        console.log('[Stripe] Payment succeeded');
+        if (import.meta.env.DEV) console.log('[Stripe] Payment succeeded');
         onSuccess(billingEmail);
       }
     } catch (err) {
@@ -132,7 +132,7 @@ function PaymentForm({
 
   // onReady handler with detailed logging
   const handleExpressReady = useCallback(({ availablePaymentMethods }: { availablePaymentMethods?: { applePay?: boolean; googlePay?: boolean } }) => {
-    console.log('[Stripe] ExpressCheckout ready, available methods:', availablePaymentMethods);
+    if (import.meta.env.DEV) console.log('[Stripe] ExpressCheckout ready, available methods:', availablePaymentMethods);
     setAvailableMethods(availablePaymentMethods || null);
     
     // Only set ready if at least one method is available
@@ -140,7 +140,7 @@ function PaymentForm({
     setExpressReady(!!hasMethod);
     
     if (!hasMethod) {
-      console.log('[Stripe] No express payment methods available on this device/browser');
+      if (import.meta.env.DEV) console.log('[Stripe] No express payment methods available on this device/browser');
     }
   }, []);
 

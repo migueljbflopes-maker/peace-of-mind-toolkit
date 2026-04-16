@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LocaleProvider } from "@/i18n";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
@@ -22,7 +22,7 @@ import WeeklyBriefing from "./pages/WeeklyBriefing";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
-import Toolkit from "./pages/Toolkit";
+
 import NotFound from "./pages/NotFound";
 
 // Lazy loaded: less-visited routes
@@ -114,7 +114,7 @@ const App = () => (
                 <Route path="/premium/onboarding" element={<Onboarding />} />
                 <Route path="/premium/risk" element={<RiskAssessment />} />
                 <Route path="/premium/expert" element={<Expert />} />
-                <Route path="/toolkit" element={<Toolkit />} />
+                <Route path="/toolkit" element={<Navigate to="/pricing" replace />} />
                 <Route path="/panic" element={<Panic />} />
                 <Route path="/panic/setup" element={<PanicSetup />} />
                 <Route path="/panic/test" element={<PanicTest />} />

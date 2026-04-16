@@ -845,7 +845,7 @@ export async function generatePlanDraft(
       return { plan: getFallbackPlan(planType, input), usedAI: false };
     }
 
-    console.log('Created AI job:', job.id);
+    if (import.meta.env.DEV) console.log('Created AI job:', job.id);
 
     // 2. Call Edge Function to run the job
     const { data, error } = await supabase.functions.invoke('run-ai-job', {
