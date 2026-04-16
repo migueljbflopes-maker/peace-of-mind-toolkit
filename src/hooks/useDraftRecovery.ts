@@ -61,7 +61,7 @@ export function useDraftRecovery(userId: string | undefined) {
         const cloudTime = new Date(existing.updated_at).getTime();
         const localTime = new Date(result.updatedAt || 0).getTime();
         if (cloudTime >= localTime) {
-          console.log('[DraftRecovery] Cloud risk assessment is newer, skipping sync');
+          if (import.meta.env.DEV) console.log('[DraftRecovery] Cloud risk assessment is newer, skipping sync');
           return false;
         }
       }
@@ -82,7 +82,7 @@ export function useDraftRecovery(userId: string | undefined) {
         return false;
       }
 
-      console.log('[DraftRecovery] Risk assessment synced successfully');
+      if (import.meta.env.DEV) console.log('[DraftRecovery] Risk assessment synced successfully');
       // Clear local draft after successful sync
       localStorage.removeItem(DRAFT_KEYS.riskResult);
       return true;
@@ -119,7 +119,7 @@ export function useDraftRecovery(userId: string | undefined) {
         const cloudTime = new Date(existing.updated_at).getTime();
         const localTime = new Date(state.updatedAt).getTime();
         if (cloudTime >= localTime) {
-          console.log('[DraftRecovery] Cloud supplies plan is newer, skipping sync');
+          if (import.meta.env.DEV) console.log('[DraftRecovery] Cloud supplies plan is newer, skipping sync');
           return false;
         }
       }
@@ -146,7 +146,7 @@ export function useDraftRecovery(userId: string | undefined) {
         return false;
       }
 
-      console.log('[DraftRecovery] Supplies plan synced successfully');
+      if (import.meta.env.DEV) console.log('[DraftRecovery] Supplies plan synced successfully');
       return true;
     } catch (e) {
       console.error('[DraftRecovery] Supplies recovery error:', e);
@@ -180,7 +180,7 @@ export function useDraftRecovery(userId: string | undefined) {
       });
 
       if (riskRecovered || suppliesRecovered) {
-        console.log('[DraftRecovery] Recovery complete:', { riskRecovered, suppliesRecovered });
+        if (import.meta.env.DEV) console.log('[DraftRecovery] Recovery complete:', { riskRecovered, suppliesRecovered });
       }
     } catch (e) {
       console.error('[DraftRecovery] Recovery failed:', e);
