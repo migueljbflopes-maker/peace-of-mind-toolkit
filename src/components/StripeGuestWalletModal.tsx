@@ -70,7 +70,13 @@ function PaymentForm({
   const [availableMethods, setAvailableMethods] = useState<{ applePay?: boolean; googlePay?: boolean } | null>(null);
 
   // onClick handler - REQUIRED for ExpressCheckoutElement to work
-  const handleExpressClick = useCallback(({ resolve }: { resolve: (options: any) => void }) => {
+  const handleExpressClick = useCallback(({ resolve }: {
+    resolve: (options: {
+      emailRequired?: boolean;
+      phoneNumberRequired?: boolean;
+      billingAddressRequired?: boolean;
+    }) => void;
+  }) => {
     console.log('[Stripe] ExpressCheckout clicked, resolving options...');
     resolve({
       emailRequired: true,
@@ -79,7 +85,9 @@ function PaymentForm({
     });
   }, []);
 
-  const handleExpressCheckoutConfirm = useCallback(async (event: any) => {
+  const handleExpressCheckoutConfirm = useCallback(async (event: {
+    billingDetails?: { email?: string };
+  }) => {
     if (!stripe || !elements) return;
 
     setIsProcessing(true);
