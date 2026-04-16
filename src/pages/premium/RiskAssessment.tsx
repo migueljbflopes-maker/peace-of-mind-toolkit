@@ -136,7 +136,7 @@ export default function RiskAssessment() {
               <CardDescription>{t.loginDesc}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={() => navigate('/auth')}>{t.login}</Button>
+              <Button onClick={() => navigate('/login')}>{t.login}</Button>
             </CardContent>
           </Card>
         </main>
