@@ -17,9 +17,9 @@ export function usePanicTrigger() {
   const [activationId, setActivationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const cancelIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const cancelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const holdIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearAllTimers = useCallback(() => {
     if (holdIntervalRef.current) {

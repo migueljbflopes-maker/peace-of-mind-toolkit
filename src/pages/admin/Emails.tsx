@@ -105,7 +105,7 @@ export default function AdminEmails() {
 
   const debouncedUpdate = useCallback(
     (() => {
-      const timers: Record<string, NodeJS.Timeout> = {};
+      const timers: Record<string, ReturnType<typeof setTimeout>> = {};
       return (id: string, field: "subject" | "html_content", value: string) => {
         if (timers[`${id}-${field}`]) clearTimeout(timers[`${id}-${field}`]);
         timers[`${id}-${field}`] = setTimeout(() => {
