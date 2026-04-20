@@ -12,11 +12,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import {
-  encryptData,
-  decryptData,
-  type EncryptedBlob,
-} from '@/utils/crypto';
+import { type EncryptedBlob } from '@/utils/crypto';
 import {
   getAllCachedSections,
   saveSectionToCache,
@@ -28,6 +24,12 @@ import {
 } from './plansStore';
 
 const BACKUP_VERSION = 2; // bumped: blobs no longer carry per-section salt
+
+/** Cipher functions provided by the caller (typically VaultKeyContext). */
+export interface MasterCipher {
+  encrypt: (data: unknown) => Promise<EncryptedBlob>;
+  decrypt: <T = unknown>(blob: EncryptedBlob) => Promise<T>;
+}
 
 // Types for backup bundle
 export interface VaultSectionPayload {
