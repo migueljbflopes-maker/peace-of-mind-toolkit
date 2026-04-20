@@ -89,13 +89,14 @@ const App = () => (
     <LocaleProvider>
       <AuthProvider>
         <EntitlementsProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <PageTracker>
-              <ScrollToTop />
-              <Suspense fallback={<LazyFallback />}>
+          <VaultKeyProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <PageTracker>
+                <ScrollToTop />
+                <Suspense fallback={<LazyFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/products" element={<Products />} />
@@ -143,9 +144,10 @@ const App = () => (
                   <AuthDebugPanel />
                 </Suspense>
               )}
-              </PageTracker>
-            </BrowserRouter>
-          </TooltipProvider>
+                </PageTracker>
+              </BrowserRouter>
+            </TooltipProvider>
+          </VaultKeyProvider>
         </EntitlementsProvider>
       </AuthProvider>
     </LocaleProvider>

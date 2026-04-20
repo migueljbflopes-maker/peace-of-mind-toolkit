@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { LoginGateCard } from '@/components/LoginGateCard';
 import { PlanWizard2 } from '@/components/planWizard2';
@@ -27,6 +28,7 @@ export default function PlansWizard() {
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
+  const { encrypt, decrypt, isUnlocked } = useVaultKey();
   
   const [mode, setMode] = useState<PageMode>('loading');
   const [generatedPlans, setGeneratedPlans] = useState<{
@@ -43,7 +45,7 @@ export default function PlansWizard() {
       }
       
       try {
-        const existingPlan = await getPlan(user.id);
+        const existingPlan = await getPlan(user.id, false, isUnlocked ? decrypt : undefined);
         if (existingPlan?.plan_a_json && existingPlan?.plan_b_json) {
           setGeneratedPlans({
             planA: existingPlan.plan_a_json as GeneratedPlanA,
@@ -64,7 +66,7 @@ export default function PlansWizard() {
     } else if (!authLoading && !entLoading) {
       setMode('wizard');
     }
-  }, [user, isPremium, authLoading, entLoading]);
+  }, [user, isPremium, authLoading, entLoading, isUnlocked, decrypt]);
 
   const handleComplete = useCallback((planA: GeneratedPlanA, planB: GeneratedPlanB) => {
     setGeneratedPlans({ planA, planB });
@@ -93,9 +95,14 @@ export default function PlansWizard() {
 
   const handleSavePlans = useCallback(async (planA: GeneratedPlanA, planB: GeneratedPlanB) => {
     if (!user) return;
-    await updateGeneratedPlans(user.id, planA, planB);
+    await updateGeneratedPlans(
+      user.id,
+      planA,
+      planB,
+      isUnlocked ? { encrypt, decrypt } : undefined
+    );
     setGeneratedPlans({ planA, planB });
-  }, [user]);
+  }, [user, isUnlocked, encrypt, decrypt]);
 
   // Loading state
   if (authLoading || entLoading || mode === 'loading') {
