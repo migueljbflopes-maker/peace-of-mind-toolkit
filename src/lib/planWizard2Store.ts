@@ -403,11 +403,12 @@ export async function saveWizardInputs(
   savePlanToCloud(userId, updatedPlan).catch(console.error);
 }
 
-// Save generated plans
+// Save generated plans (encrypts plan_*_json before upload if `crypto.encrypt` provided)
 export async function saveGeneratedPlans(
   userId: string,
   planA: GeneratedPlanA,
-  planB: GeneratedPlanB
+  planB: GeneratedPlanB,
+  crypto?: { encrypt?: EncryptFn; decrypt?: DecryptFn }
 ): Promise<PremiumPlan | null> {
   const existing = await getCachedPremiumPlan(userId);
   
@@ -426,9 +427,9 @@ export async function saveGeneratedPlans(
     status: 'generated' as const,
   };
 
-  // Save to cache
+  // Save to cache (plaintext, local-only)
   const fullPlan: PremiumPlan = {
-    id: existing?.id || crypto.randomUUID(),
+    id: existing?.id || globalThis.crypto.randomUUID(),
     user_id: userId,
     created_at: existing?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -448,8 +449,8 @@ export async function saveGeneratedPlans(
   
   await savePlanToCache(fullPlan);
 
-  // Sync to cloud
-  const cloudPlan = await savePlanToCloud(userId, updatedData);
+  // Sync to cloud (encrypted if key provided)
+  const cloudPlan = await savePlanToCloud(userId, updatedData, crypto);
   return cloudPlan || fullPlan;
 }
 
@@ -462,11 +463,12 @@ export async function hasGeneratedPlans(userId: string): Promise<{ hasPlanA: boo
   };
 }
 
-// Update existing generated plans (for inline editing)
+// Update existing generated plans (for inline editing) — also encrypts.
 export async function updateGeneratedPlans(
   userId: string,
   planA: GeneratedPlanA,
-  planB: GeneratedPlanB
+  planB: GeneratedPlanB,
+  crypto?: { encrypt?: EncryptFn; decrypt?: DecryptFn }
 ): Promise<PremiumPlan | null> {
   const existing = await getCachedPremiumPlan(userId);
   
@@ -482,14 +484,13 @@ export async function updateGeneratedPlans(
     updated_at: new Date().toISOString(),
   };
 
-  // Save to cache immediately
   await savePlanToCache(updatedPlan);
 
-  // Sync to cloud
-  const cloudPlan = await savePlanToCloud(userId, {
-    plan_a_json: planA,
-    plan_b_json: planB,
-  });
+  const cloudPlan = await savePlanToCloud(
+    userId,
+    { plan_a_json: planA, plan_b_json: planB },
+    crypto
+  );
 
   return cloudPlan || updatedPlan;
 }
