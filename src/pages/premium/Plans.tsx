@@ -22,6 +22,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { LoginGateCard } from '@/components/LoginGateCard';
 import { useAuth } from '@/hooks/useAuth';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -33,6 +34,7 @@ export default function Plans() {
   const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
   const navigate = useNavigate();
+  const { encrypt, decrypt, isUnlocked } = useVaultKey();
   
   const [hasRiskAssessment, setHasRiskAssessment] = useState<boolean | null>(null);
   const [plans, setPlans] = useState<{
@@ -45,9 +47,14 @@ export default function Plans() {
   // Save handler for inline editing (declared before any early return to keep hook order stable)
   const handleSavePlans = useCallback(async (planA: GeneratedPlanA, planB: GeneratedPlanB) => {
     if (!user) return;
-    await updateGeneratedPlans(user.id, planA, planB);
+    await updateGeneratedPlans(
+      user.id,
+      planA,
+      planB,
+      isUnlocked ? { encrypt, decrypt } : undefined
+    );
     setPlans({ planA, planB });
-  }, [user]);
+  }, [user, isUnlocked, encrypt, decrypt]);
 
   // Check risk assessment and load plans
   useEffect(() => {
@@ -62,8 +69,8 @@ export default function Plans() {
           setHasRiskAssessment((data?.length ?? 0) > 0);
         });
 
-      // Load plans
-      getPlan(user.id).then((existingPlan) => {
+      // Load plans (decrypt if vault is unlocked so encrypted envelopes resolve)
+      getPlan(user.id, false, isUnlocked ? decrypt : undefined).then((existingPlan) => {
         if (existingPlan?.plan_a_json && existingPlan?.plan_b_json) {
           setPlans({
             planA: existingPlan.plan_a_json,
@@ -77,7 +84,7 @@ export default function Plans() {
     } else if (!authLoading && !entLoading) {
       setLoadingPlans(false);
     }
-  }, [user, isPremium, authLoading, entLoading]);
+  }, [user, isPremium, authLoading, entLoading, isUnlocked, decrypt]);
 
   if (authLoading || entLoading) {
     return (

@@ -26,6 +26,7 @@ import {
   saveGeneratedPlans,
 } from '@/lib/planWizard2Store';
 import { supabase } from '@/integrations/supabase/client';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
 
 import { WizardStep1Location } from './steps/WizardStep1Location';
 import { WizardStep2SafeLocations } from './steps/WizardStep2SafeLocations';
@@ -45,6 +46,7 @@ interface PlanWizard2Props {
 export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
   const { t, locale } = useLocale();
   const { user } = useAuth();
+  const { encrypt, decrypt, isUnlocked } = useVaultKey();
   const [currentStep, setCurrentStep] = useState(1);
   const [inputs, setInputs] = useState<PlanWizardInputs>(createEmptyWizardInputs);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -166,8 +168,13 @@ export function PlanWizard2({ onComplete, onCancel }: PlanWizard2Props) {
       setGenerationStatus(locale === 'pt' ? 'A guardar planos...' : 'Saving plans...');
       if (import.meta.env.DEV) console.log('[PlanWizard] Saving generated plans...');
 
-      // Save generated plans
-      await saveGeneratedPlans(user.id, data.plan_a, data.plan_b);
+      // Save generated plans (encrypted with Master Key when vault is unlocked)
+      await saveGeneratedPlans(
+        user.id,
+        data.plan_a,
+        data.plan_b,
+        isUnlocked ? { encrypt, decrypt } : undefined
+      );
       if (import.meta.env.DEV) console.log('[PlanWizard] Plans saved successfully');
 
       toast.success(locale === 'pt' ? 'Planos gerados com sucesso!' : 'Plans generated successfully!');
