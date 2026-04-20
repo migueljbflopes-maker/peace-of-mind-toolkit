@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { FileText, Home, Car, ChevronRight, ChevronLeft, Loader2, Check, Sparkles } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
-import { useVaultSession } from '@/hooks/useVaultSession';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
 import { useAuth } from '@/hooks/useAuth';
 import { generatePlanDraft, AIPlanInput } from '@/lib/aiPlanDraft';
-import { encryptJSON } from '@/lib/crypto';
 import { savePlanToCache, PlanData, PlanType } from '@/lib/plansStore';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,7 +18,7 @@ interface Props {
 
 export default function OnboardingStep3Plans({ onNext, onBack }: Props) {
   const { t, locale } = useLocale();
-  const { getPassphrase } = useVaultSession();
+  const { encrypt, isUnlocked } = useVaultKey();
   const { user } = useAuth();
   
   const [planA, setPlanA] = useState<PlanData | null>(null);
@@ -77,8 +76,7 @@ export default function OnboardingStep3Plans({ onNext, onBack }: Props) {
   };
 
   const handleSaveAndContinue = async () => {
-    const passphrase = getPassphrase();
-    if (!passphrase || !user) {
+    if (!isUnlocked || !user) {
       toast.error('Vault not unlocked');
       return;
     }
@@ -92,17 +90,26 @@ export default function OnboardingStep3Plans({ onNext, onBack }: Props) {
     setSaving(true);
     try {
       const savePlan = async (plan: PlanData, planType: PlanType) => {
-        const payload = await encryptJSON(plan, passphrase);
-        await savePlanToCache(planType, payload);
+        // Encrypt with the in-memory Master Key
+        const blob = await encrypt(plan);
+        // savePlanToCache still expects the legacy EncryptedPayload shape;
+        // we adapt EncryptedBlob → EncryptedPayload (no per-row salt under
+        // the Master Key flow, so saltB64 is empty).
+        await savePlanToCache(planType, {
+          ciphertextB64: blob.ciphertext,
+          ivB64: blob.iv,
+          saltB64: '',
+          version: blob.version,
+        });
 
         if (navigator.onLine) {
           await supabase.from('plan_items').upsert({
             user_id: user.id,
             plan_type: planType,
-            ciphertext: payload.ciphertextB64,
-            iv: payload.ivB64,
-            salt: payload.saltB64,
-            version: payload.version,
+            ciphertext: blob.ciphertext,
+            iv: blob.iv,
+            salt: '',
+            version: blob.version,
             updated_at: new Date().toISOString(),
           }, { onConflict: 'user_id,plan_type' });
         }
