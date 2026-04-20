@@ -70,22 +70,14 @@ export function clearSensitiveLocalStorage(): void {
   }
 }
 
-/** Lock the vault session (zeroes in-memory key & passphrase). */
-async function lockVaultSession(): Promise<void> {
-  try {
-    const { lockVault } = await import('./vaultSession');
-    lockVault();
-  } catch {
-    /* noop */
-  }
-}
-
 /**
  * Full secure cleanup. Call from signOut BEFORE redirecting.
- * Order: in-memory first, then disk-based stores.
+ * Order: localStorage first, then disk-based stores.
+ *
+ * The Master Key (in-memory CryptoKey) lives in VaultKeyContext, which
+ * resets on user change — no explicit lock call is needed here.
  */
 export async function performSecureCleanup(): Promise<void> {
-  await lockVaultSession();
   clearSensitiveLocalStorage();
   await clearAllIndexedDB();
 }
