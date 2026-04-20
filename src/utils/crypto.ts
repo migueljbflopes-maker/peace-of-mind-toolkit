@@ -388,7 +388,10 @@ export async function unwrapMasterKeyWithRecovery(
   const wrappedBytes = base64ToBytes(recovery.encrypted);
 
   const kek = await deriveKEK(recoveryPhrase, salt);
-  return unwrapKey(wrappedBytes, iv, kek);
+  // Extractable: the recovery path always re-wraps the master key with a new
+  // password immediately after, which requires `subtle.wrapKey` to read the
+  // raw key bytes. Without `extractable: true` the rewrap fails.
+  return unwrapKey(wrappedBytes, iv, kek, true);
 }
 
 /**
