@@ -190,14 +190,14 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
     try {
       if (isSetup) {
         const result = await setup(password);
-        if (result.ok) {
+        if (result.ok === true) {
           setRecoveryPhrase(result.recoveryPhrase);
         } else {
           setError(result.error);
         }
       } else {
         const result = await unlock(password);
-        if (!result.ok) {
+        if (result.ok !== true) {
           setError(result.error);
         }
       }
