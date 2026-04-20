@@ -6,9 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Users, Heart, Plus, X, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
-import { useVaultSession } from '@/hooks/useVaultSession';
-import { encryptJSON } from '@/lib/crypto';
-import { saveSectionToCache } from '@/lib/vaultStorage';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
+import { saveSectionBlob } from '@/lib/vaultStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -27,7 +26,7 @@ interface Props {
 
 export default function OnboardingStep2Essentials({ onNext, onBack }: Props) {
   const { t } = useLocale();
-  const { getPassphrase } = useVaultSession();
+  const { encrypt, isUnlocked } = useVaultKey();
   const { user } = useAuth();
   
   const [contacts, setContacts] = useState<Contact[]>([
@@ -54,8 +53,7 @@ export default function OnboardingStep2Essentials({ onNext, onBack }: Props) {
   };
 
   const handleSave = async () => {
-    const passphrase = getPassphrase();
-    if (!passphrase || !user) {
+    if (!isUnlocked || !user) {
       toast.error('Vault not unlocked');
       return;
     }
@@ -64,36 +62,38 @@ export default function OnboardingStep2Essentials({ onNext, onBack }: Props) {
     try {
       // Filter out empty contacts
       const validContacts = contacts.filter(c => c.name.trim());
-      
-      // Encrypt contacts
-      const contactsData = { contacts: validContacts };
-      const contactsPayload = await encryptJSON(contactsData, passphrase);
-      await saveSectionToCache('contacts', contactsPayload);
 
-      // Encrypt medical
-      const medicalData = { allergies, medications, conditions: '', emergencyNotes: '' };
-      const medicalPayload = await encryptJSON(medicalData, passphrase);
-      await saveSectionToCache('medical', medicalPayload);
+      // Encrypt with the in-memory Master Key
+      const contactsBlob = await encrypt({ contacts: validContacts });
+      await saveSectionBlob('contacts', contactsBlob);
 
-      // Sync to Supabase if online
+      const medicalBlob = await encrypt({
+        allergies,
+        medications,
+        conditions: '',
+        emergencyNotes: '',
+      });
+      await saveSectionBlob('medical', medicalBlob);
+
+      // Sync to Supabase if online (salt is empty in the Master Key flow)
       if (navigator.onLine) {
         await Promise.all([
           supabase.from('vault_items').upsert({
             user_id: user.id,
             section: 'contacts',
-            ciphertext: contactsPayload.ciphertextB64,
-            iv: contactsPayload.ivB64,
-            salt: contactsPayload.saltB64,
-            version: contactsPayload.version,
+            ciphertext: contactsBlob.ciphertext,
+            iv: contactsBlob.iv,
+            salt: '',
+            version: contactsBlob.version,
             updated_at: new Date().toISOString(),
           }, { onConflict: 'user_id,section' }),
           supabase.from('vault_items').upsert({
             user_id: user.id,
             section: 'medical',
-            ciphertext: medicalPayload.ciphertextB64,
-            iv: medicalPayload.ivB64,
-            salt: medicalPayload.saltB64,
-            version: medicalPayload.version,
+            ciphertext: medicalBlob.ciphertext,
+            iv: medicalBlob.iv,
+            salt: '',
+            version: medicalBlob.version,
             updated_at: new Date().toISOString(),
           }, { onConflict: 'user_id,section' }),
         ]);
