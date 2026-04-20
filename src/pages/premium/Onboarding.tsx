@@ -8,7 +8,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
-import { useVaultSession } from '@/hooks/useVaultSession';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -28,7 +27,6 @@ export default function Onboarding() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const { isPremium, loading: entitlementsLoading } = useEntitlements();
   const { step, loading: onboardingLoading, setStep, markCompleted, needsOnboarding } = useOnboardingState(user?.id);
-  const { isUnlocked } = useVaultSession();
   
   const [currentStep, setCurrentStep] = useState(1);
 

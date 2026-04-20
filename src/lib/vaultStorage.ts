@@ -1,13 +1,26 @@
 /**
  * Local encrypted cache for vault data using IndexedDB
- * 
+ *
  * SECURITY:
  * - Only encrypted payloads are stored
  * - Enables offline-first access
  * - Syncs with Supabase when online
+ *
+ * STORAGE SHAPE
+ * The on-disk shape keeps `saltB64` for back-compat with the legacy
+ * passphrase-derived ciphers. With the Master Key (zero-knowledge) flow
+ * the salt is unused per-section (the Master Key carries no per-row salt),
+ * so callers using `saveSectionBlob` write `saltB64: ''`.
+ *
+ * Two parallel APIs are exported:
+ * - `saveSectionToCache` / `getCachedSection` → legacy `EncryptedPayload`
+ * - `saveSectionBlob`   / `getSectionBlob`     → new `EncryptedBlob`
+ *
+ * Both read/write the same IndexedDB rows.
  */
 
 import { EncryptedPayload } from './crypto';
+import type { EncryptedBlob } from '@/utils/crypto';
 
 const DB_NAME = 'resilient_vault';
 const DB_VERSION = 1;
@@ -70,7 +83,7 @@ export async function getAllCachedSections(): Promise<VaultSectionCache[]> {
   });
 }
 
-// Save section to local cache
+// Save section to local cache (legacy EncryptedPayload shape)
 export async function saveSectionToCache(
   section: string,
   payload: EncryptedPayload,
@@ -96,6 +109,54 @@ export async function saveSectionToCache(
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EncryptedBlob-native API (Master Key / Zero-Knowledge flow)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Save a section encrypted with the Master Key.
+ * Writes the same IndexedDB row shape with `saltB64: ''` (no per-row salt).
+ */
+export async function saveSectionBlob(
+  section: string,
+  blob: EncryptedBlob,
+  syncedAt: string | null = null
+): Promise<void> {
+  const db = await openDatabase();
+
+  const cache: VaultSectionCache = {
+    section,
+    ciphertextB64: blob.ciphertext,
+    ivB64: blob.iv,
+    saltB64: '',
+    version: blob.version,
+    updatedAt: new Date().toISOString(),
+    syncedAt,
+  };
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(cache);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+/**
+ * Read a section as an EncryptedBlob (Master Key flow).
+ * Returns null if the section is missing.
+ */
+export async function getSectionBlob(section: string): Promise<EncryptedBlob | null> {
+  const cached = await getCachedSection(section);
+  if (!cached) return null;
+  return {
+    ciphertext: cached.ciphertextB64,
+    iv: cached.ivB64,
+    version: cached.version,
+  };
 }
 
 // Mark section as synced

@@ -7,11 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { FileText, Download, Eye, Loader2, CheckCircle2, WifiOff, ArrowLeft, Lock, Clock, ExternalLink, X } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
-import { useVaultSession } from '@/hooks/useVaultSession';
 import { useRedFolderData, DataReadiness } from '@/hooks/useRedFolderData';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { LoginGateCard } from '@/components/LoginGateCard';
-import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { DataReadinessPanel } from '@/components/redFolder/DataReadinessPanel';
 import { buildRedFolderPdf } from '@/lib/pdf/redFolderPdf';
 import Navbar from '@/components/Navbar';
@@ -28,7 +26,8 @@ export default function RedFolder() {
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
   const { t, locale } = useLocale();
-  const { isUnlocked } = useVaultSession();
+  // Route is wrapped by MasterKeyGate, so the vault is guaranteed unlocked here.
+  const isUnlocked = true;
   const { isLoading: isLoadingData, readiness, checkReadiness, loadAllData } = useRedFolderData();
   const navigate = useNavigate();
   
@@ -301,22 +300,8 @@ export default function RedFolder() {
               </div>
             )}
 
-            {/* Vault Unlock Required */}
-            {!isUnlocked ? (
-              <div className="max-w-md mx-auto">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">{t.vault.unlockVault}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t.vault.lockedExplainer}
-                    </p>
-                    <VaultUnlockForm onUnlock={() => checkReadiness()} />
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
+            {/* Vault is unlocked via MasterKeyGate at the route level */}
+            {!isUnlocked ? null : (
               <div className="space-y-6 max-w-4xl">
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Data Readiness Panel */}
