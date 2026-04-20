@@ -7,7 +7,10 @@
  * Wrap any page that needs encrypt/decrypt access (Vault, Plans, etc.).
  *
  * NOTE: This guard assumes the caller has already enforced auth + premium
- * gating above it. It only handles the encryption gate.
+ * gating above it. It only handles the encryption gate. If somehow the user
+ * is not authenticated when this mounts, we render the fallback (or nothing)
+ * so the parent route can handle the login redirect — we never show the
+ * Master Password screen to an anonymous user.
  */
 
 import { ReactNode } from 'react';
@@ -21,7 +24,10 @@ interface MasterKeyGateProps {
 }
 
 export function MasterKeyGate({ children, fallback }: MasterKeyGateProps) {
-  const { isUnlocked } = useVaultKey();
+  const { isUnlocked, status } = useVaultKey();
   if (isUnlocked) return <>{children}</>;
+  // Don't show the password screen to an anonymous user — let the parent
+  // route's auth gate take over (it will redirect to /login).
+  if (status === 'no-user') return <>{fallback ?? null}</>;
   return <>{fallback ?? <MasterPasswordScreen />}</>;
 }
