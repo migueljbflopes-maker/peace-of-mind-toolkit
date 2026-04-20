@@ -112,8 +112,8 @@ const App = () => (
                 <Route path="/premium/vault" element={<MasterKeyGate><Vault /></MasterKeyGate>} />
                 <Route path="/premium/plans" element={<MasterKeyGate><Plans /></MasterKeyGate>} />
                 <Route path="/premium/plans/wizard" element={<MasterKeyGate><PlansWizard /></MasterKeyGate>} />
-                <Route path="/premium/red-folder" element={<RedFolder />} />
-                <Route path="/premium/backup" element={<Backup />} />
+                <Route path="/premium/red-folder" element={<MasterKeyGate><RedFolder /></MasterKeyGate>} />
+                <Route path="/premium/backup" element={<MasterKeyGate><Backup /></MasterKeyGate>} />
                 <Route path="/premium/onboarding" element={<Onboarding />} />
                 <Route path="/premium/risk" element={<RiskAssessment />} />
                 <Route path="/premium/expert" element={<Expert />} />
