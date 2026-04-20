@@ -107,63 +107,13 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(DEV_PREMIUM_KEY, String(newValue));
   }, [devPremiumOverride]);
 
-  /**
-   * Wait for session with exponential backoff retries
-   * Returns session or null if all retries exhausted
-   */
-  const waitForSession = async (targetUserId: string, maxRetries = 3): Promise<boolean> => {
-    const backoffDelays = [200, 600, 1200]; // ms
-    dbg('waitForSession START', { targetUserId, maxRetries });
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      let session: any = null;
-      let error: any = null;
-      try {
-        const result = await supabase.auth.getSession();
-        session = result.data?.session ?? null;
-        error = result.error ?? null;
-      } catch (e) {
-        dbg('waitForSession getSession THREW on attempt', attempt, e);
-        error = e;
-      }
-
-      dbg('waitForSession attempt', attempt, {
-        hasSession: !!session,
-        sessionUserId: session?.user?.id ?? null,
-        targetUserId,
-        match: session?.user?.id === targetUserId,
-        errorMsg: error?.message ?? null,
-      });
-
-      if (error) {
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, backoffDelays[attempt] || 1200));
-          continue;
-        }
-        dbg('waitForSession FAIL: error after all retries');
-        return false;
-      }
-
-      if (session && session.user.id === targetUserId) {
-        dbg('waitForSession OK on attempt', attempt);
-        return true;
-      }
-
-      if (attempt < maxRetries) {
-        dbg('waitForSession not ready, retry', attempt + 1, 'after', backoffDelays[attempt], 'ms');
-        await new Promise(r => setTimeout(r, backoffDelays[attempt] || 1200));
-      }
-    }
-
-    dbg('waitForSession FAIL: never matched after', maxRetries, 'retries');
-    return false;
-  };
-
-  // Fetch entitlements from database with retry logic
+  // Fetch entitlements from database
+  // Trust the session already managed by AuthContext - don't call getSession() internally
+  // (avoids GoTrueClient deadlock when called during auth state transitions)
   const fetchEntitlements = useCallback(async (userId?: string, skipCacheWrite = false) => {
     const targetUserId = userId ?? user?.id;
     dbg('fetchEntitlements called:', { targetUserId, skipCacheWrite });
-    
+
     if (!targetUserId) {
       dbg('No user, resetting to defaults');
       setEntitlements(defaultEntitlements);
@@ -172,18 +122,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Wait for session with retries - DON'T write false cache if session unavailable
-    const sessionReady = await waitForSession(targetUserId);
-    
-    if (!sessionReady) {
-      dbg('Session not ready after retries - keeping current state, NOT writing false cache');
-      // Don't set entitlements to default - keep whatever we have (or cache)
-      // This prevents transient failures from marking user as non-premium
-      setLoading(false);
-      return;
-    }
-
-    dbg('Session verified, fetching from DB for user:', targetUserId);
+    dbg('Fetching from DB for user:', targetUserId);
     
     // Timeout promise to prevent infinite loading
     const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
