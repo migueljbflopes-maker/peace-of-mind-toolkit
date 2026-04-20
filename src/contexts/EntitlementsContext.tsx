@@ -113,30 +113,49 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
    */
   const waitForSession = async (targetUserId: string, maxRetries = 3): Promise<boolean> => {
     const backoffDelays = [200, 600, 1200]; // ms
-    
+    dbg('waitForSession START', { targetUserId, maxRetries });
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
+      let session: any = null;
+      let error: any = null;
+      try {
+        const result = await supabase.auth.getSession();
+        session = result.data?.session ?? null;
+        error = result.error ?? null;
+      } catch (e) {
+        dbg('waitForSession getSession THREW on attempt', attempt, e);
+        error = e;
+      }
+
+      dbg('waitForSession attempt', attempt, {
+        hasSession: !!session,
+        sessionUserId: session?.user?.id ?? null,
+        targetUserId,
+        match: session?.user?.id === targetUserId,
+        errorMsg: error?.message ?? null,
+      });
+
       if (error) {
-        dbg('Session error on attempt', attempt, ':', error.message);
         if (attempt < maxRetries) {
           await new Promise(r => setTimeout(r, backoffDelays[attempt] || 1200));
           continue;
         }
+        dbg('waitForSession FAIL: error after all retries');
         return false;
       }
-      
+
       if (session && session.user.id === targetUserId) {
+        dbg('waitForSession OK on attempt', attempt);
         return true;
       }
-      
+
       if (attempt < maxRetries) {
-        dbg('Session not ready, retry', attempt + 1, 'after', backoffDelays[attempt], 'ms');
+        dbg('waitForSession not ready, retry', attempt + 1, 'after', backoffDelays[attempt], 'ms');
         await new Promise(r => setTimeout(r, backoffDelays[attempt] || 1200));
       }
     }
-    
-    dbg('Session not available after', maxRetries, 'retries');
+
+    dbg('waitForSession FAIL: never matched after', maxRetries, 'retries');
     return false;
   };
 
