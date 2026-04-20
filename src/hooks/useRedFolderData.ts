@@ -255,7 +255,7 @@ export function useRedFolderData() {
 
       for (const section of vaultSections) {
         try {
-          const decrypted = await decryptVaultSection(section, passphrase);
+          const decrypted = await decryptVaultSection(section);
           // Map all 7 V2 sections
           if (section.section === 'ids') vault.ids = decrypted as VaultSectionData['ids'];
           if (section.section === 'contacts') vault.contacts = decrypted as VaultSectionData['contacts'];
@@ -285,7 +285,7 @@ export function useRedFolderData() {
     } finally {
       setIsLoading(false);
     }
-  }, [isUnlocked, getPassphrase, locale, user]);
+  }, [isUnlocked, decryptVaultSection, locale, user]);
 
   return {
     isLoading,
