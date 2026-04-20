@@ -89,35 +89,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session and ensure profile exists
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // THEN check for existing session — but with a timeout safety net.
+    // GoTrueClient occasionally deadlocks getSession() during _recoverAndRefresh
+    // (especially in dev/HMR). The onAuthStateChange listener above is the
+    // primary source of truth — getSession is only an optimization to detect
+    // an already-present session faster on first paint.
+    const sessionTimeout = new Promise<{ data: { session: null } }>((resolve) =>
+      setTimeout(() => resolve({ data: { session: null } }), 3000)
+    );
+
+    Promise.race([supabase.auth.getSession(), sessionTimeout]).then(({ data: { session } }) => {
       dbg('getSession result:', { userId: session?.user?.id ?? null, hasSession: !!session });
-      
-      // If session exists, ensure user profile exists (auto-create if missing)
-      if (session?.user?.id) {
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('user_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        
-        // Profile missing? Auto-create instead of logout
-        if (!profile && !profileError) {
-          dbg('Profile missing, auto-creating for user:', session.user.id);
-          const created = await ensureUserProfile(session.user.id);
-          dbg('Profile auto-create result:', created);
-          // Continue authenticated regardless of result
-        }
-        
-        // Log profile check errors but DON'T sign out - keep session valid
-        if (profileError) {
-          console.warn('[Auth] Profile check error (continuing anyway):', profileError.message);
-        }
-      }
-      
-      setSession(session);
-      setUser(session?.user ?? null);
+
+      // Only set state if onAuthStateChange hasn't already fired with a session.
+      // (If it has, we'd be overwriting fresh state with potentially-stale state.)
+      setSession((prev) => prev ?? session);
+      setUser((prev) => prev ?? session?.user ?? null);
       setLoading(false);
+
+      // Defer profile check OUTSIDE the auth callback to release GoTrue lock
+      if (session?.user?.id) {
+        const userId = session.user.id;
+        setTimeout(async () => {
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from('user_profiles')
+              .select('user_id')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (!profile && !profileError) {
+              dbg('Profile missing, auto-creating for user:', userId);
+              const created = await ensureUserProfile(userId);
+              dbg('Profile auto-create result:', created);
+            }
+
+            if (profileError) {
+              console.warn('[Auth] Profile check error (continuing anyway):', profileError.message);
+            }
+          } catch (e) {
+            console.warn('[Auth] Deferred profile check failed:', e);
+          }
+        }, 0);
+      }
     });
 
     return () => subscription.unsubscribe();
