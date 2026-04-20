@@ -10,6 +10,10 @@ import {
   decryptData,
   rewrapMasterKey,
   generateRecoveryPassphrase,
+  generateRecoveryPhrase,
+  normaliseRecoveryPhrase,
+  wrapMasterKeyForRecovery,
+  unwrapMasterKeyWithRecovery,
   CRYPTO_VERSION,
 } from "./crypto";
 
