@@ -10,21 +10,20 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Lock, WifiOff, Clock, ArrowLeft, Settings } from 'lucide-react';
+import { Lock, WifiOff, ArrowLeft, Settings } from 'lucide-react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { LoginGateCard } from '@/components/LoginGateCard';
-import { VaultUnlockForm } from '@/components/vault/VaultUnlockForm';
 import { VaultSectionCard } from '@/components/vault/VaultSectionCard';
 import { VaultSyncStatus } from '@/components/vault/VaultSyncStatus';
 import { VaultSectionEditor, VaultSectionData } from '@/components/vault/VaultSectionEditor';
 import { VaultWizard } from '@/components/vault/VaultWizard';
 import { StorageModeSelector } from '@/components/vault/StorageModeSelector';
-import { useVaultSession } from '@/hooks/useVaultSession';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
 import { useVaultSync, VaultSection, VAULT_SECTIONS } from '@/hooks/useVaultSync';
-import { encryptJSON, decryptJSON, EncryptedPayload } from '@/lib/crypto';
+import { EncryptedPayload } from '@/lib/crypto';
 import { getStorageMode, setStorageMode, VaultStorageMode } from '@/lib/vaultPreferences';
 import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
@@ -35,7 +34,9 @@ export default function Vault() {
   const { user, loading: authLoading } = useAuth();
   const { isPremium, loading: entLoading } = useEntitlements();
   const { t } = useLocale();
-  const { isUnlocked, lock, getPassphrase, recordActivity, timeUntilLock } = useVaultSession();
+  // Master Key is unlocked at the route guard level (MasterKeyGate). Here we
+  // just need encrypt/decrypt and a way to lock back.
+  const { encrypt, decrypt, lock } = useVaultKey();
   const { 
     isOnline, 
     isSyncing, 
@@ -58,52 +59,25 @@ export default function Vault() {
 
   // Check if user has any vault data (first-time detection)
   useEffect(() => {
-    if (isUnlocked && sectionStatuses.length > 0) {
+    if (sectionStatuses.length > 0) {
       const hasAnyData = sectionStatuses.some(s => s.hasData);
       setIsFirstTimeUser(!hasAnyData);
       setShowWizard(!hasAnyData);
     }
-  }, [isUnlocked, sectionStatuses]);
+  }, [sectionStatuses]);
 
-  // Format time until lock
-  const formatTimeUntilLock = (ms: number) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  // Record activity on user interaction
-  useEffect(() => {
-    if (!isUnlocked) return;
-    
-    const handleActivity = () => recordActivity();
-    
-    document.addEventListener('click', handleActivity);
-    document.addEventListener('keydown', handleActivity);
-    
-    return () => {
-      document.removeEventListener('click', handleActivity);
-      document.removeEventListener('keydown', handleActivity);
-    };
-  }, [isUnlocked, recordActivity]);
-
-  // Load section data when editing
+  // Load section data when editing — decrypt with Master Key
   const handleEditSection = useCallback(async (section: VaultSection) => {
-    const passphrase = getPassphrase();
-    if (!passphrase) return;
-
     setIsLoadingSection(true);
     try {
       const cached = await getSection(section);
       
       if (cached) {
-        const payload: EncryptedPayload = {
-          ciphertextB64: cached.ciphertextB64,
-          ivB64: cached.ivB64,
-          saltB64: cached.saltB64,
+        const decrypted = await decrypt<VaultSectionData>({
+          ciphertext: cached.ciphertextB64,
+          iv: cached.ivB64,
           version: cached.version,
-        };
-        const decrypted = await decryptJSON<VaultSectionData>(payload, passphrase);
+        });
         setSectionData(decrypted);
       } else {
         setSectionData(null);
@@ -115,17 +89,22 @@ export default function Vault() {
     } finally {
       setIsLoadingSection(false);
     }
-  }, [getSection, getPassphrase, lock, t]);
+  }, [getSection, decrypt, lock, t]);
 
-  // Save section data
+  // Save section data — encrypt with Master Key
   const handleSaveSection = useCallback(async (section: VaultSection, data: VaultSectionData) => {
-    const passphrase = getPassphrase();
-    if (!passphrase) return;
-
     setIsSaving(true);
     try {
-      const encrypted = await encryptJSON(data, passphrase);
-      const result = await saveSection(section, encrypted);
+      const blob = await encrypt(data);
+      // Adapt EncryptedBlob → EncryptedPayload (Master Key has no per-section salt;
+      // the PBKDF2 salt for the KEK lives in user_vault_keys).
+      const payload: EncryptedPayload = {
+        ciphertextB64: blob.ciphertext,
+        ivB64: blob.iv,
+        saltB64: '',
+        version: blob.version,
+      };
+      const result = await saveSection(section, payload);
       
       if (result.synced) {
         toast.success(t.vault.sync.syncedToCloud);
@@ -137,14 +116,14 @@ export default function Vault() {
     } finally {
       setIsSaving(false);
     }
-  }, [getPassphrase, saveSection, refresh, t]);
+  }, [encrypt, saveSection, refresh, t]);
 
   // Sync when coming online
   useEffect(() => {
-    if (isOnline && isUnlocked && hasUnsyncedChanges) {
+    if (isOnline && hasUnsyncedChanges) {
       sync();
     }
-  }, [isOnline, isUnlocked, hasUnsyncedChanges, sync]);
+  }, [isOnline, hasUnsyncedChanges, sync]);
 
   // Handle storage mode change
   const handleStorageModeChange = (mode: VaultStorageMode) => {
@@ -157,12 +136,12 @@ export default function Vault() {
     setShowSettings(false);
   };
 
-  // Sync on mount if premium and unlocked
+  // Sync on mount if premium and online
   useEffect(() => {
-    if (isPremium && isUnlocked && isOnline) {
+    if (isPremium && isOnline) {
       sync();
     }
-  }, [isPremium, isUnlocked, isOnline, sync]);
+  }, [isPremium, isOnline, sync]);
 
   if (authLoading || entLoading) {
     return (
@@ -196,10 +175,6 @@ export default function Vault() {
       <main className="flex-1">
         {!isPremium ? (
           <PremiumLockedState title={t.vault.title} />
-        ) : !isUnlocked ? (
-          <div className="container-wide section-padding py-8">
-            <VaultUnlockForm onUnlock={() => refresh()} />
-          </div>
         ) : showWizard ? (
           <VaultWizard
             onSaveSection={handleSaveSection}
@@ -236,12 +211,6 @@ export default function Vault() {
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                {/* Auto-lock timer */}
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{t.vault.autoLock} {formatTimeUntilLock(timeUntilLock)}</span>
-                </div>
-
                 <VaultSyncStatus
                   isOnline={isOnline}
                   isSyncing={isSyncing}

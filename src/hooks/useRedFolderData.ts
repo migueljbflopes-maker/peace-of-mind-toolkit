@@ -9,10 +9,9 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useVaultSession } from '@/hooks/useVaultSession';
+import { useVaultKey } from '@/contexts/VaultKeyContext';
 import { useLocale } from '@/i18n/useLocale';
 import { getAllCachedSections, VaultSectionCache } from '@/lib/vaultStorage';
-import { decryptJSON, EncryptedPayload } from '@/lib/crypto';
 import { getCachedPremiumPlan } from '@/lib/planWizard2Store';
 import { 
   RedFolderPdfData, 
@@ -38,7 +37,8 @@ export interface DataReadiness {
 
 export function useRedFolderData() {
   const { user } = useAuth();
-  const { getPassphrase, isUnlocked } = useVaultSession();
+  // The Master Key is in memory because the route is wrapped by MasterKeyGate.
+  const { decrypt, isUnlocked } = useVaultKey();
   const { locale } = useLocale();
   const [isLoading, setIsLoading] = useState(false);
   const [readiness, setReadiness] = useState<DataReadiness>({
@@ -139,26 +139,21 @@ export function useRedFolderData() {
     }
   }, [user]);
 
-  // Decrypt a cached vault section
-  const decryptVaultSection = async (
-    cache: VaultSectionCache,
-    passphrase: string
-  ): Promise<unknown> => {
-    const payload: EncryptedPayload = {
-      ciphertextB64: cache.ciphertextB64,
-      ivB64: cache.ivB64,
-      saltB64: cache.saltB64,
-      version: cache.version,
-    };
-    return decryptJSON(payload, passphrase);
-  };
+  // Decrypt a cached vault section using the in-memory Master Key
+  const decryptVaultSection = useCallback(
+    async (cache: VaultSectionCache): Promise<unknown> => {
+      return decrypt({
+        ciphertext: cache.ciphertextB64,
+        iv: cache.ivB64,
+        version: cache.version,
+      });
+    },
+    [decrypt]
+  );
 
   // Load and decrypt all data for PDF
   const loadAllData = useCallback(async (): Promise<RedFolderPdfData | null> => {
     if (!isUnlocked) return null;
-    
-    const passphrase = getPassphrase();
-    if (!passphrase) return null;
 
     setIsLoading(true);
     
@@ -260,7 +255,7 @@ export function useRedFolderData() {
 
       for (const section of vaultSections) {
         try {
-          const decrypted = await decryptVaultSection(section, passphrase);
+          const decrypted = await decryptVaultSection(section);
           // Map all 7 V2 sections
           if (section.section === 'ids') vault.ids = decrypted as VaultSectionData['ids'];
           if (section.section === 'contacts') vault.contacts = decrypted as VaultSectionData['contacts'];
@@ -290,7 +285,7 @@ export function useRedFolderData() {
     } finally {
       setIsLoading(false);
     }
-  }, [isUnlocked, getPassphrase, locale, user]);
+  }, [isUnlocked, decryptVaultSection, locale, user]);
 
   return {
     isLoading,
