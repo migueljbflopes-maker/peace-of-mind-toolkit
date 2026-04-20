@@ -89,35 +89,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session and ensure profile exists
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // THEN check for existing session
+    // CRITICAL: Do NOT await any supabase.from() queries inside this .then() callback.
+    // Doing so holds the GoTrueClient internal lock and deadlocks every subsequent
+    // query (including premium_entitlements). Defer profile work via setTimeout(0).
+    supabase.auth.getSession().then(({ data: { session } }) => {
       dbg('getSession result:', { userId: session?.user?.id ?? null, hasSession: !!session });
-      
-      // If session exists, ensure user profile exists (auto-create if missing)
-      if (session?.user?.id) {
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('user_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        
-        // Profile missing? Auto-create instead of logout
-        if (!profile && !profileError) {
-          dbg('Profile missing, auto-creating for user:', session.user.id);
-          const created = await ensureUserProfile(session.user.id);
-          dbg('Profile auto-create result:', created);
-          // Continue authenticated regardless of result
-        }
-        
-        // Log profile check errors but DON'T sign out - keep session valid
-        if (profileError) {
-          console.warn('[Auth] Profile check error (continuing anyway):', profileError.message);
-        }
-      }
-      
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Defer profile check OUTSIDE the auth callback to release GoTrue lock
+      if (session?.user?.id) {
+        const userId = session.user.id;
+        setTimeout(async () => {
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from('user_profiles')
+              .select('user_id')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (!profile && !profileError) {
+              dbg('Profile missing, auto-creating for user:', userId);
+              const created = await ensureUserProfile(userId);
+              dbg('Profile auto-create result:', created);
+            }
+
+            if (profileError) {
+              console.warn('[Auth] Profile check error (continuing anyway):', profileError.message);
+            }
+          } catch (e) {
+            console.warn('[Auth] Deferred profile check failed:', e);
+          }
+        }, 0);
+      }
     });
 
     return () => subscription.unsubscribe();
