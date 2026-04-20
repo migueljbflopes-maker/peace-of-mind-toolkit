@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LocaleProvider } from "@/i18n";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { EntitlementsProvider } from "@/contexts/EntitlementsContext";
+import { VaultKeyProvider } from "@/contexts/VaultKeyContext";
+import { MasterKeyGate } from "@/components/security/MasterKeyGate";
 import { lazy, Suspense } from "react";
 import { usePageTracking } from "@/hooks/usePageTracking";
 import ScrollToTop from "./components/ScrollToTop";
@@ -106,9 +108,9 @@ const App = () => (
                 <Route path="/login" element={<Auth />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/premium/vault" element={<Vault />} />
-                <Route path="/premium/plans" element={<Plans />} />
-                <Route path="/premium/plans/wizard" element={<PlansWizard />} />
+                <Route path="/premium/vault" element={<MasterKeyGate><Vault /></MasterKeyGate>} />
+                <Route path="/premium/plans" element={<MasterKeyGate><Plans /></MasterKeyGate>} />
+                <Route path="/premium/plans/wizard" element={<MasterKeyGate><PlansWizard /></MasterKeyGate>} />
                 <Route path="/premium/red-folder" element={<RedFolder />} />
                 <Route path="/premium/backup" element={<Backup />} />
                 <Route path="/premium/onboarding" element={<Onboarding />} />
