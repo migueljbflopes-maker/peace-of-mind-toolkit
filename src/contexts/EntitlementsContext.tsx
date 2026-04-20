@@ -7,9 +7,8 @@ const DEV_PREMIUM_KEY = 'resilient_dev_premium';
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache expiration
 
 // DEV-only logging helper
-// TEMP: forced ON for diagnostic — remove the `|| true` once the loading bug is fixed
 const dbg = (...args: any[]) => {
-  if (import.meta.env.DEV || true) console.log('[Entitlements]', ...args);
+  if (import.meta.env.DEV) console.log('[Entitlements]', ...args);
 };
 
 interface Entitlements {
