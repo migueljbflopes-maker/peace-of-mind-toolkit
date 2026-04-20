@@ -3,10 +3,18 @@
  * 
  * Handles local caching and Supabase sync for premium plans.
  * Offline-first: stores locally, syncs when online.
+ *
+ * ZERO-KNOWLEDGE:
+ *  - When `encrypt`/`decrypt` are passed, `plan_a_json` and `plan_b_json` are
+ *    encrypted client-side with the user's Master Key before being uploaded.
+ *    The server only sees an EncryptedBlob envelope `{ ciphertext, iv, version }`.
+ *  - The IndexedDB cache keeps plaintext for fast UX; it lives only on this
+ *    device and is wiped by performSecureCleanup() on signOut.
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import type { EncryptedBlob } from '@/utils/crypto';
 import { 
   PremiumPlan, 
   PlanWizardInputs, 
@@ -17,6 +25,23 @@ import {
   Priority,
   CommChannel,
 } from './planWizard2Types';
+
+// Crypto helpers signature — matches what VaultKeyContext exposes.
+export type EncryptFn = (data: unknown) => Promise<EncryptedBlob>;
+export type DecryptFn = <T = unknown>(blob: EncryptedBlob) => Promise<T>;
+
+/** Heuristic: a row's plan_*_json field is an encrypted envelope iff it
+ *  carries the three fields we wrote. Everything else is treated as legacy
+ *  plaintext for backward compatibility. */
+function isEncryptedBlob(value: unknown): value is EncryptedBlob {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as EncryptedBlob).ciphertext === 'string' &&
+    typeof (value as EncryptedBlob).iv === 'string' &&
+    typeof (value as EncryptedBlob).version === 'number'
+  );
+}
 
 const DB_NAME = 'resilient_plans_v2';
 const DB_VERSION = 1;
