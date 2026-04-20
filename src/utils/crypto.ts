@@ -298,32 +298,73 @@ export async function decryptData<T = unknown>(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Recovery Kit (BIP-39 style — 24 words = 256 bits of entropy)
+// Recovery Kit (BIP-39: 24 words = 256 bits of entropy)
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { BIP39_WORDLIST, BIP39_WORDLIST_SIZE } from './bip39Wordlist';
+
+export const RECOVERY_WORD_COUNT = 24;
+
 /**
- * Generate a high-entropy recovery passphrase (24 words from a wordlist).
- * NOTE: Uses a small built-in word set for now. Swap for full BIP-39 wordlist
- * in a follow-up task — the API is stable.
+ * Generate a 24-word recovery phrase from the BIP-39 English wordlist.
+ * Uses crypto.getRandomValues for high entropy. NOT a true BIP-39 mnemonic
+ * (no checksum) — just a memorable, high-entropy passphrase used to wrap the
+ * Master Key. This is intentional: we use it as input to PBKDF2, not to derive
+ * a deterministic seed.
+ *
+ * Entropy: 24 words × log2(2048) = 24 × 11 = 264 bits.
  */
-export function generateRecoveryPassphrase(_wordCount = 24): string {
-  // 32 bytes = 256 bits of entropy
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  // Encode as a long base32-ish string for now; UI layer can format as words
-  // when a full wordlist is wired in.
-  return bytesToBase64(bytes).replace(/[+/=]/g, '').slice(0, 64);
+export function generateRecoveryPhrase(wordCount: number = RECOVERY_WORD_COUNT): string {
+  if (wordCount < 12 || wordCount > 48) {
+    throw new Error(`wordCount must be between 12 and 48, got ${wordCount}`);
+  }
+  // Use a Uint16Array for unbiased index sampling — we mask to 11 bits (0-2047)
+  // which exactly fits the wordlist size, so no rejection-sampling needed.
+  const buf = new Uint16Array(wordCount);
+  crypto.getRandomValues(buf);
+  const words: string[] = new Array(wordCount);
+  for (let i = 0; i < wordCount; i++) {
+    const idx = buf[i] & 0x07ff; // 11 bits = 0..2047
+    words[i] = BIP39_WORDLIST[idx];
+  }
+  return words.join(' ');
 }
 
 /**
- * Wrap the Master Key with a recovery passphrase, for the optional
- * recovery_encrypted_master_key column. Same algorithm as the password wrap.
+ * Normalise a user-typed recovery phrase before using it as a passphrase:
+ *  - lowercase
+ *  - collapse all whitespace runs to a single space
+ *  - trim
+ * Validates that every token is in the BIP-39 wordlist; throws otherwise.
+ */
+export function normaliseRecoveryPhrase(input: string): string {
+  const tokens = input.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length < 12) {
+    throw new Error(`Recovery phrase too short: expected ≥12 words, got ${tokens.length}`);
+  }
+  const set = new Set(BIP39_WORDLIST);
+  for (const w of tokens) {
+    if (!set.has(w)) {
+      throw new Error(`Word not in BIP-39 wordlist: "${w}"`);
+    }
+  }
+  return tokens.join(' ');
+}
+
+/** Total number of words in the underlying wordlist (2048). */
+export const RECOVERY_WORDLIST_SIZE = BIP39_WORDLIST_SIZE;
+
+/**
+ * Wrap the Master Key with a recovery phrase. Stored alongside the
+ * password-wrapped key so a user who has only their Recovery Kit can still
+ * unlock the same Master Key (and therefore decrypt all existing data).
  */
 export async function wrapMasterKeyForRecovery(
   masterKey: CryptoKey,
-  recoveryPassphrase: string
+  recoveryPhrase: string
 ): Promise<{ encrypted: string; iv: string; salt: string }> {
   const salt = generateSalt();
-  const kek = await deriveKEK(recoveryPassphrase, salt);
+  const kek = await deriveKEK(recoveryPhrase, salt);
   const { wrapped, iv } = await wrapKey(masterKey, kek);
 
   return {
@@ -332,3 +373,28 @@ export async function wrapMasterKeyForRecovery(
     salt: bytesToBase64(salt),
   };
 }
+
+/**
+ * Recover the Master Key from the recovery-wrapped payload + the user's
+ * Recovery Phrase. Throws on wrong phrase (AES-GCM auth tag mismatch).
+ */
+export async function unwrapMasterKeyWithRecovery(
+  recovery: { encrypted: string; iv: string; salt: string },
+  recoveryPhrase: string
+): Promise<CryptoKey> {
+  const salt = base64ToBytes(recovery.salt);
+  const iv = base64ToBytes(recovery.iv);
+  const wrappedBytes = base64ToBytes(recovery.encrypted);
+
+  const kek = await deriveKEK(recoveryPhrase, salt);
+  return unwrapKey(wrappedBytes, iv, kek);
+}
+
+/**
+ * @deprecated kept for backwards-compatibility with earlier callers.
+ * Prefer `generateRecoveryPhrase()` which returns a real 24-word BIP-39 phrase.
+ */
+export function generateRecoveryPassphrase(wordCount: number = RECOVERY_WORD_COUNT): string {
+  return generateRecoveryPhrase(wordCount);
+}
+

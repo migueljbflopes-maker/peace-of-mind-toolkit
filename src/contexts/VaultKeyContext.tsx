@@ -3,12 +3,12 @@
  *
  * Holds the unlocked Master Key (CryptoKey) in memory for the duration of the
  * authenticated session. Coordinates first-time setup (creating + wrapping a
- * fresh Master Key) and unlock (deriving the KEK from the Master Password and
- * unwrapping the stored key).
+ * fresh Master Key), unlock (deriving the KEK from the Master Password and
+ * unwrapping the stored key), and recovery (using a 24-word BIP-39 phrase).
  *
  * SECURITY:
  *  - Master Key is a non-extractable CryptoKey, only present in memory.
- *  - Master Password never persists anywhere (state, storage, network).
+ *  - Master Password & Recovery Phrase never persist anywhere.
  *  - On signOut() the secureCleanup wipes IndexedDB; this context resets on
  *    user change so the in-memory key dies with the React tree as well.
  */
@@ -30,6 +30,11 @@ import {
   openWrappedMasterKey,
   encryptData,
   decryptData,
+  generateRecoveryPhrase,
+  wrapMasterKeyForRecovery,
+  unwrapMasterKeyWithRecovery,
+  rewrapMasterKey,
+  normaliseRecoveryPhrase,
   type EncryptedBlob,
   type WrappedMasterKey,
 } from '@/utils/crypto';
@@ -45,15 +50,39 @@ export type VaultKeyStatus =
   | 'unlocked'        // master key in memory, ready to encrypt/decrypt
   | 'error';
 
+export interface SetupResult {
+  ok: true;
+  /** 24-word BIP-39 recovery phrase. ONLY returned here, never stored. */
+  recoveryPhrase: string;
+}
+
+export interface SetupError {
+  ok: false;
+  error: string;
+}
+
 interface VaultKeyContextValue {
   status: VaultKeyStatus;
   errorMessage: string | null;
   /** True once the Master Key is in memory and ready. */
   isUnlocked: boolean;
-  /** First-time setup: create + wrap a new Master Key with this password. */
-  setup: (masterPassword: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * First-time setup. Generates a fresh Master Key, wraps it with both the
+   * password (KEK) AND a freshly-generated recovery phrase, then persists both.
+   * Returns the recovery phrase so the UI can force a backup step.
+   */
+  setup: (masterPassword: string) => Promise<SetupResult | SetupError>;
   /** Returning user: decrypt the wrapped Master Key with this password. */
   unlock: (masterPassword: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * Forgot-password flow: unwrap the Master Key with the recovery phrase,
+   * then re-wrap with the new password and update the row. The recovery
+   * wrap is left in place (still works with the same phrase).
+   */
+  recoverWithPhrase: (
+    recoveryPhrase: string,
+    newMasterPassword: string
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   /** Wipe the in-memory Master Key (does not delete server-side key). */
   lock: () => void;
   /** Encrypt arbitrary JSON-serialisable data with the unlocked Master Key. */
@@ -63,6 +92,13 @@ interface VaultKeyContextValue {
 }
 
 const VaultKeyContext = createContext<VaultKeyContextValue | undefined>(undefined);
+
+// Internal shape of the row in user_vault_keys (with recovery columns).
+interface FullWrappedRow extends WrappedMasterKey {
+  recovery_encrypted_master_key: string | null;
+  recovery_iv: string | null;
+  recovery_salt: string | null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider
@@ -80,11 +116,13 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  const fetchWrappedKey = useCallback(
-    async (userId: string): Promise<WrappedMasterKey | null> => {
+  const fetchWrappedRow = useCallback(
+    async (userId: string): Promise<FullWrappedRow | null> => {
       const { data, error } = await supabase
         .from('user_vault_keys')
-        .select('encrypted_master_key, iv, salt, kdf_iterations, version')
+        .select(
+          'encrypted_master_key, iv, salt, kdf_iterations, version, recovery_encrypted_master_key, recovery_iv, recovery_salt'
+        )
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -99,6 +137,9 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         salt: data.salt,
         kdf_iterations: data.kdf_iterations ?? 250_000,
         version: data.version ?? 1,
+        recovery_encrypted_master_key: data.recovery_encrypted_master_key,
+        recovery_iv: data.recovery_iv,
+        recovery_salt: data.recovery_salt,
       };
     },
     []
@@ -112,7 +153,6 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!user) {
-      // Logged out: drop any in-memory key + reset status.
       masterKeyRef.current = null;
       setStatus('loading');
       setErrorMessage(null);
@@ -124,10 +164,10 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
     setErrorMessage(null);
     masterKeyRef.current = null;
 
-    fetchWrappedKey(user.id)
-      .then((wrapped) => {
+    fetchWrappedRow(user.id)
+      .then((row) => {
         if (cancelled) return;
-        setStatus(wrapped ? 'needs-unlock' : 'needs-setup');
+        setStatus(row ? 'needs-unlock' : 'needs-setup');
       })
       .catch((e) => {
         if (cancelled) return;
@@ -138,17 +178,23 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, fetchWrappedKey]);
+  }, [user, authLoading, fetchWrappedRow]);
 
   // ── Setup (first time) ─────────────────────────────────────────────────────
 
   const setup = useCallback(
-    async (
-      masterPassword: string
-    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    async (masterPassword: string): Promise<SetupResult | SetupError> => {
       if (!user) return { ok: false, error: 'Not authenticated' };
       try {
+        // 1. Create + wrap with password
         const { wrapped, masterKey } = await createWrappedMasterKey(masterPassword);
+
+        // 2. Generate a fresh recovery phrase and wrap the SAME master key with it.
+        //    This way the user can recover using either the password OR the phrase,
+        //    and any data encrypted with the master key remains decryptable in both
+        //    paths.
+        const recoveryPhrase = generateRecoveryPhrase();
+        const recovery = await wrapMasterKeyForRecovery(masterKey, recoveryPhrase);
 
         const { error } = await supabase.from('user_vault_keys').insert({
           user_id: user.id,
@@ -157,6 +203,9 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
           salt: wrapped.salt,
           kdf_iterations: wrapped.kdf_iterations,
           version: wrapped.version,
+          recovery_encrypted_master_key: recovery.encrypted,
+          recovery_iv: recovery.iv,
+          recovery_salt: recovery.salt,
         });
 
         if (error) {
@@ -165,7 +214,7 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
 
         masterKeyRef.current = masterKey;
         setStatus('unlocked');
-        return { ok: true };
+        return { ok: true, recoveryPhrase };
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Setup failed';
         return { ok: false, error: msg };
@@ -182,24 +231,94 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
     ): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (!user) return { ok: false, error: 'Not authenticated' };
       try {
-        const wrapped = await fetchWrappedKey(user.id);
+        const wrapped = await fetchWrappedRow(user.id);
         if (!wrapped) {
-          // Race: server says no key. Bounce to setup.
           setStatus('needs-setup');
           return { ok: false, error: 'No key on server' };
         }
 
-        // openWrappedMasterKey throws on wrong password (AES-GCM auth tag).
         const masterKey = await openWrappedMasterKey(wrapped, masterPassword);
         masterKeyRef.current = masterKey;
         setStatus('unlocked');
         return { ok: true };
       } catch {
-        // Don't echo crypto error details; treat as wrong password.
         return { ok: false, error: 'Incorrect master password' };
       }
     },
-    [user, fetchWrappedKey]
+    [user, fetchWrappedRow]
+  );
+
+  // ── Recovery (forgot password) ─────────────────────────────────────────────
+
+  const recoverWithPhrase = useCallback(
+    async (
+      recoveryPhrase: string,
+      newMasterPassword: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!user) return { ok: false, error: 'Not authenticated' };
+
+      // Validate phrase locally before any network call.
+      let normalised: string;
+      try {
+        normalised = normaliseRecoveryPhrase(recoveryPhrase);
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : 'Invalid recovery phrase',
+        };
+      }
+
+      try {
+        const row = await fetchWrappedRow(user.id);
+        if (
+          !row ||
+          !row.recovery_encrypted_master_key ||
+          !row.recovery_iv ||
+          !row.recovery_salt
+        ) {
+          return {
+            ok: false,
+            error: 'No recovery key on file. Recovery is unavailable for this account.',
+          };
+        }
+
+        // Unwrap with the recovery phrase
+        const masterKey = await unwrapMasterKeyWithRecovery(
+          {
+            encrypted: row.recovery_encrypted_master_key,
+            iv: row.recovery_iv,
+            salt: row.recovery_salt,
+          },
+          normalised
+        );
+
+        // Re-wrap with the brand new password (same Master Key — data stays
+        // decryptable). Recovery wrap is intentionally left untouched.
+        const newWrapped = await rewrapMasterKey(masterKey, newMasterPassword);
+
+        const { error } = await supabase
+          .from('user_vault_keys')
+          .update({
+            encrypted_master_key: newWrapped.encrypted_master_key,
+            iv: newWrapped.iv,
+            salt: newWrapped.salt,
+            kdf_iterations: newWrapped.kdf_iterations,
+            version: newWrapped.version,
+          })
+          .eq('user_id', user.id);
+
+        if (error) {
+          return { ok: false, error: error.message };
+        }
+
+        masterKeyRef.current = masterKey;
+        setStatus('unlocked');
+        return { ok: true };
+      } catch {
+        return { ok: false, error: 'Incorrect recovery phrase' };
+      }
+    },
+    [user, fetchWrappedRow]
   );
 
   // ── Lock (wipe in-memory key) ──────────────────────────────────────────────
@@ -232,11 +351,12 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
       isUnlocked: status === 'unlocked',
       setup,
       unlock,
+      recoverWithPhrase,
       lock,
       encrypt,
       decrypt,
     }),
-    [status, errorMessage, setup, unlock, lock, encrypt, decrypt]
+    [status, errorMessage, setup, unlock, recoverWithPhrase, lock, encrypt, decrypt]
   );
 
   return <VaultKeyContext.Provider value={value}>{children}</VaultKeyContext.Provider>;
