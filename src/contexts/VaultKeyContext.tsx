@@ -45,6 +45,7 @@ import {
 
 export type VaultKeyStatus =
   | 'loading'         // checking server for existing wrapped key
+  | 'no-user'         // auth resolved but no user → caller should redirect to login
   | 'needs-setup'     // no key on server → first-time user
   | 'needs-unlock'    // key exists on server → ask password
   | 'unlocked'        // master key in memory, ready to encrypt/decrypt
@@ -154,7 +155,7 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
     }
     if (!user) {
       masterKeyRef.current = null;
-      setStatus('loading');
+      setStatus('no-user');
       setErrorMessage(null);
       return;
     }
