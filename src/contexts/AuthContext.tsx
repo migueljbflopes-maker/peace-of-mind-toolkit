@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { syncPlanFromCloud } from '@/lib/planWizard2Store';
 import { clearEntitlementsCache } from '@/contexts/EntitlementsContext';
+import { performSecureCleanup } from '@/lib/secureCleanup';
 
 // Cache keys that need to be cleared on sign out
 const ENTITLEMENTS_CACHE_KEY = 'resilient_entitlements';
@@ -247,21 +248,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const signOut = useCallback(async () => {
     dbg('signOut: initiated');
-    
-    // Clear user/session immediately (don't set loading=true to avoid stuck state)
+
+    // 1. Clear React state immediately
     setUser(null);
     setSession(null);
     dbg('signOut: state cleared');
-    
-    // Clear caches BEFORE supabase call
+
+    // 2. Auth-related localStorage caches
     clearAuthCaches();
-    dbg('signOut: caches cleared (pre-supabase)');
-    
-    // Wrap in try-catch to ensure redirect happens even if supabase fails
+    dbg('signOut: auth caches cleared (pre-supabase)');
+
+    // 3. SECURE CLEANUP — wipes IndexedDB (vault, plans), in-memory vault key,
+    //    and all sensitive localStorage entries. Zero-Knowledge invariant.
+    try {
+      await performSecureCleanup();
+      dbg('signOut: secure cleanup complete (IndexedDB + memory wiped)');
+    } catch (e) {
+      console.warn('[Auth] secure cleanup failed (continuing logout):', e);
+    }
+
+    // 4. Tell Supabase to drop local session
     try {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       dbg('signOut: supabase result', { error: error?.message ?? null });
-      
+
       if (error) {
         toast({
           variant: 'destructive',
@@ -272,19 +282,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       dbg('signOut: supabase call failed', e);
     }
-    
-    // Clear caches AFTER as safety net
+
+    // 5. Final safety-net cache clear (auth tokens that supabase may have rewritten)
     clearAuthCaches();
     dbg('signOut: caches cleared (post-supabase)');
-    
-    // Set loading FALSE before redirect to ensure UI shows login button
+
     setLoading(false);
-    dbg('signOut: loading set to false');
-    
-    // ALWAYS redirect - use replace to prevent back-button issues
     dbg('signOut: redirecting to /');
     window.location.replace('/');
-    
+
     return { error: null };
   }, [toast, clearAuthCaches]);
 

@@ -1287,6 +1287,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_vault_keys: {
+        Row: {
+          created_at: string
+          encrypted_master_key: string
+          iv: string
+          kdf_iterations: number
+          recovery_encrypted_master_key: string | null
+          recovery_iv: string | null
+          recovery_salt: string | null
+          salt: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          encrypted_master_key: string
+          iv: string
+          kdf_iterations?: number
+          recovery_encrypted_master_key?: string | null
+          recovery_iv?: string | null
+          recovery_salt?: string | null
+          salt: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          encrypted_master_key?: string
+          iv?: string
+          kdf_iterations?: number
+          recovery_encrypted_master_key?: string | null
+          recovery_iv?: string | null
+          recovery_salt?: string | null
+          salt?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       vault_items: {
         Row: {
           ciphertext: string
