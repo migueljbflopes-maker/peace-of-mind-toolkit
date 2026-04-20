@@ -181,8 +181,11 @@ export async function clearCachedPlan(userId: string): Promise<void> {
   }
 }
 
-// Fetch plan from Supabase
-export async function fetchPlanFromCloud(userId: string): Promise<PremiumPlan | null> {
+// Fetch plan from Supabase (decrypts plan_*_json if `decrypt` provided)
+export async function fetchPlanFromCloud(
+  userId: string,
+  decrypt?: DecryptFn
+): Promise<PremiumPlan | null> {
   const { data, error } = await supabase
     .from('premium_plans')
     .select('*')
@@ -197,10 +200,11 @@ export async function fetchPlanFromCloud(userId: string): Promise<PremiumPlan | 
   }
 
   if (!data) return null;
-  return rowToPlan(data as Record<string, unknown>);
+  return rowToPlan(data as Record<string, unknown>, decrypt);
 }
 
-// Save/update plan in Supabase
+// Save/update plan in Supabase. If `encrypt` is supplied, plan_a_json and
+// plan_b_json are encrypted client-side before upload (Zero-Knowledge).
 export async function savePlanToCloud(
   userId: string,
   planData: {
@@ -216,7 +220,8 @@ export async function savePlanToCloud(
     last_generated_at?: string | null;
     generation_version?: number;
     status?: PremiumPlan['status'];
-  }
+  },
+  crypto?: { encrypt?: EncryptFn; decrypt?: DecryptFn }
 ): Promise<PremiumPlan | null> {
   const { data: existing } = await supabase
     .from('premium_plans')
@@ -224,7 +229,32 @@ export async function savePlanToCloud(
     .eq('user_id', userId)
     .maybeSingle();
 
-  const dbPayload = {
+  // Encrypt plan_*_json if a key is available; otherwise upload plaintext
+  // (legacy path — kept so callers without a key can still persist drafts).
+  let planAForDb: Json | null | undefined = undefined;
+  let planBForDb: Json | null | undefined = undefined;
+
+  if (planData.plan_a_json !== undefined) {
+    if (planData.plan_a_json === null) {
+      planAForDb = null;
+    } else if (crypto?.encrypt) {
+      planAForDb = (await crypto.encrypt(planData.plan_a_json)) as unknown as Json;
+    } else {
+      planAForDb = planData.plan_a_json as unknown as Json;
+    }
+  }
+
+  if (planData.plan_b_json !== undefined) {
+    if (planData.plan_b_json === null) {
+      planBForDb = null;
+    } else if (crypto?.encrypt) {
+      planBForDb = (await crypto.encrypt(planData.plan_b_json)) as unknown as Json;
+    } else {
+      planBForDb = planData.plan_b_json as unknown as Json;
+    }
+  }
+
+  const dbPayload: Record<string, unknown> = {
     wizard_inputs: planData.wizard_inputs as unknown as Json,
     home_location: planData.home_location as unknown as Json,
     safe_locations: planData.safe_locations as unknown as Json,
@@ -232,13 +262,13 @@ export async function savePlanToCloud(
     scenario_set: planData.scenario_set,
     priorities: planData.priorities,
     comms_config: planData.comms_config as unknown as Json,
-    plan_a_json: planData.plan_a_json as unknown as Json,
-    plan_b_json: planData.plan_b_json as unknown as Json,
     last_generated_at: planData.last_generated_at,
     generation_version: planData.generation_version,
     status: planData.status,
     updated_at: new Date().toISOString(),
   };
+  if (planAForDb !== undefined) dbPayload.plan_a_json = planAForDb;
+  if (planBForDb !== undefined) dbPayload.plan_b_json = planBForDb;
 
   if (existing) {
     // Update existing
@@ -253,7 +283,7 @@ export async function savePlanToCloud(
       console.error('Error updating plan in cloud:', error);
       return null;
     }
-    return rowToPlan(data as Record<string, unknown>);
+    return rowToPlan(data as Record<string, unknown>, crypto?.decrypt);
   } else {
     // Insert new
     const { data, error } = await supabase
@@ -269,13 +299,16 @@ export async function savePlanToCloud(
       console.error('Error inserting plan to cloud:', error);
       return null;
     }
-    return rowToPlan(data as Record<string, unknown>);
+    return rowToPlan(data as Record<string, unknown>, crypto?.decrypt);
   }
 }
 
 // Sync: fetch from cloud, update cache
-export async function syncPlanFromCloud(userId: string): Promise<PremiumPlan | null> {
-  const cloudPlan = await fetchPlanFromCloud(userId);
+export async function syncPlanFromCloud(
+  userId: string,
+  decrypt?: DecryptFn
+): Promise<PremiumPlan | null> {
+  const cloudPlan = await fetchPlanFromCloud(userId, decrypt);
   
   if (cloudPlan) {
     await savePlanToCache(cloudPlan);
@@ -286,14 +319,18 @@ export async function syncPlanFromCloud(userId: string): Promise<PremiumPlan | n
 }
 
 // Get plan (cache first, then cloud)
-export async function getPlan(userId: string, forceCloud = false): Promise<PremiumPlan | null> {
+export async function getPlan(
+  userId: string,
+  forceCloud = false,
+  decrypt?: DecryptFn
+): Promise<PremiumPlan | null> {
   if (!forceCloud) {
     const cached = await getCachedPremiumPlan(userId);
     if (cached) return cached;
   }
   
   // Try cloud
-  const cloudPlan = await syncPlanFromCloud(userId);
+  const cloudPlan = await syncPlanFromCloud(userId, decrypt);
   return cloudPlan;
 }
 
