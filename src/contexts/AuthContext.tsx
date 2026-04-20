@@ -89,15 +89,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    // CRITICAL: Do NOT await any supabase.from() queries inside this .then() callback.
-    // Doing so holds the GoTrueClient internal lock and deadlocks every subsequent
-    // query (including premium_entitlements). Defer profile work via setTimeout(0).
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // THEN check for existing session — but with a timeout safety net.
+    // GoTrueClient occasionally deadlocks getSession() during _recoverAndRefresh
+    // (especially in dev/HMR). The onAuthStateChange listener above is the
+    // primary source of truth — getSession is only an optimization to detect
+    // an already-present session faster on first paint.
+    const sessionTimeout = new Promise<{ data: { session: null } }>((resolve) =>
+      setTimeout(() => resolve({ data: { session: null } }), 3000)
+    );
+
+    Promise.race([supabase.auth.getSession(), sessionTimeout]).then(({ data: { session } }) => {
       dbg('getSession result:', { userId: session?.user?.id ?? null, hasSession: !!session });
 
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Only set state if onAuthStateChange hasn't already fired with a session.
+      // (If it has, we'd be overwriting fresh state with potentially-stale state.)
+      setSession((prev) => prev ?? session);
+      setUser((prev) => prev ?? session?.user ?? null);
       setLoading(false);
 
       // Defer profile check OUTSIDE the auth callback to release GoTrue lock
