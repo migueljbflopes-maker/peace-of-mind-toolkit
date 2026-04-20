@@ -413,7 +413,7 @@ function RecoveryForm({
     const res = await onRecover(phrase, pw);
     setBusy(false);
     if (!res.ok) {
-      toast.error(res.error);
+      toast.error((res as { ok: false; error: string }).error);
     } else {
       toast.success(
         isPt
