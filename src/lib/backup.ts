@@ -146,7 +146,7 @@ async function buildBackupBundle(): Promise<BackupBundle> {
  */
 export async function createBackup(
   userId: string,
-  masterKey: CryptoKey
+  cipher: MasterCipher
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const bundle = await buildBackupBundle();
@@ -159,7 +159,7 @@ export async function createBackup(
     }
 
     // Outer envelope: encrypt the entire bundle with the Master Key.
-    const outer = await encryptData(bundle, masterKey);
+    const outer = await cipher.encrypt(bundle);
 
     const { error } = await supabase.from('backups').insert([
       {
@@ -217,7 +217,7 @@ export async function getLatestBackupInfo(
  */
 export async function restoreFromBackup(
   userId: string,
-  masterKey: CryptoKey
+  cipher: MasterCipher
 ): Promise<{
   success: boolean;
   error?: string;
@@ -252,7 +252,7 @@ export async function restoreFromBackup(
 
     let bundle: BackupBundle;
     try {
-      bundle = await decryptData<BackupBundle>(blob, masterKey);
+      bundle = await cipher.decrypt<BackupBundle>(blob);
     } catch {
       return {
         success: false,
