@@ -22,7 +22,7 @@ interface Props {
  *  - 'unlocked'       → success card, click to continue
  */
 export default function OnboardingStep1Vault({ onNext }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { status, isUnlocked, setup, unlock } = useVaultKey();
 
   const [password, setPassword] = useState('');
@@ -34,6 +34,29 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
   // Recovery phrase shown right after first-time setup
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [phraseAcknowledged, setPhraseAcknowledged] = useState(false);
+
+  const isPt = locale === 'pt';
+  const L = {
+    recoveryTitle: isPt ? 'Guarde a sua Frase de Recuperação' : 'Save your Recovery Phrase',
+    recoveryDesc: isPt
+      ? 'Estas 24 palavras são a ÚNICA forma de recuperar o seu cofre se esquecer a Master Password. Guarde-as offline em local seguro.'
+      : 'These 24 words are the ONLY way to recover your vault if you forget your Master Password. Store them somewhere safe and offline.',
+    recoveryWarning: isPt
+      ? 'Não conseguimos recuperar isto por si. Sem esta frase, uma password esquecida significa dados perdidos para sempre.'
+      : 'We cannot recover this for you. Without it, forgotten passwords mean lost data forever.',
+    recoveryAck: isPt
+      ? 'Já guardei a Frase de Recuperação em local seguro.'
+      : 'I have saved my Recovery Phrase in a safe place.',
+    copied: isPt ? 'Frase de recuperação copiada' : 'Recovery phrase copied',
+    copy: isPt ? 'Copiar' : 'Copy',
+    download: isPt ? 'Descarregar' : 'Download',
+    masterPassword: isPt ? 'Master Password' : 'Master Password',
+    unlockTitle: isPt ? 'Desbloquear o Cofre' : 'Unlock your Vault',
+    unlockDesc: isPt
+      ? 'Insira a sua Master Password para aceder ao cofre encriptado.'
+      : 'Enter your Master Password to access your encrypted vault.',
+    unlockBtn: isPt ? 'Desbloquear' : 'Unlock',
+  };
 
   // ── Loading from server ────────────────────────────────────────────────────
   if (status === 'loading') {
@@ -69,12 +92,13 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
 
   // ── Recovery phrase reveal (post-setup) ────────────────────────────────────
   if (recoveryPhrase) {
+    const phrase = recoveryPhrase;
     const handleCopy = async () => {
-      await navigator.clipboard.writeText(recoveryPhrase);
-      toast.success(t.vault?.recovery?.copied || 'Recovery phrase copied');
+      await navigator.clipboard.writeText(phrase);
+      toast.success(L.copied);
     };
     const handleDownload = () => {
-      const blob = new Blob([recoveryPhrase], { type: 'text/plain' });
+      const blob = new Blob([phrase], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -89,15 +113,12 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
             <Shield className="h-8 w-8 text-amber-600" />
           </div>
-          <CardTitle>{t.vault?.recovery?.title || 'Save your Recovery Phrase'}</CardTitle>
-          <CardDescription>
-            {t.vault?.recovery?.description ||
-              'These 24 words are the ONLY way to recover your vault if you forget your Master Password. Store them somewhere safe and offline.'}
-          </CardDescription>
+          <CardTitle>{L.recoveryTitle}</CardTitle>
+          <CardDescription>{L.recoveryDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-2 p-4 bg-muted rounded-lg font-mono text-sm">
-            {recoveryPhrase.split(' ').map((word, i) => (
+            {phrase.split(' ').map((word, i) => (
               <div key={i} className="flex items-baseline gap-1">
                 <span className="text-xs text-muted-foreground w-5 text-right">{i + 1}.</span>
                 <span>{word}</span>
@@ -108,20 +129,17 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={handleCopy}>
               <Copy className="mr-2 h-4 w-4" />
-              {t.common.copy || 'Copy'}
+              {L.copy}
             </Button>
             <Button variant="outline" className="flex-1" onClick={handleDownload}>
               <Download className="mr-2 h-4 w-4" />
-              {t.common.download || 'Download'}
+              {L.download}
             </Button>
           </div>
 
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {t.vault?.recovery?.warning ||
-                'We cannot recover this for you. Without it, forgotten passwords mean lost data forever.'}
-            </AlertDescription>
+            <AlertDescription>{L.recoveryWarning}</AlertDescription>
           </Alert>
 
           <label className="flex items-start gap-2 cursor-pointer text-sm">
@@ -131,10 +149,7 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
               onChange={(e) => setPhraseAcknowledged(e.target.checked)}
               className="mt-1"
             />
-            <span>
-              {t.vault?.recovery?.acknowledge ||
-                'I have saved my Recovery Phrase in a safe place.'}
-            </span>
+            <span>{L.recoveryAck}</span>
           </label>
 
           <Button
@@ -202,12 +217,12 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
         <CardTitle>
           {isSetup
             ? (t.onboarding?.step1Title || 'Secure your Vault')
-            : (t.vault?.unlockVault || 'Unlock your Vault')}
+            : L.unlockTitle}
         </CardTitle>
         <CardDescription>
           {isSetup
             ? (t.onboarding?.step1Desc || 'Your Vault is encrypted on this device. Choose a Master Password to unlock it.')
-            : (t.vault?.lockedExplainer || 'Enter your Master Password to access your encrypted vault.')}
+            : L.unlockDesc}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -223,7 +238,7 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="password">
-              {isSetup ? t.vault.setup.createPassphrase : (t.vault?.passphrase || 'Master Password')}
+              {isSetup ? t.vault.setup.createPassphrase : L.masterPassword}
             </Label>
             <div className="relative">
               <Input
@@ -275,7 +290,7 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
               ? t.common.loading
               : isSetup
                 ? (t.onboarding?.setPassphraseContinue || 'Set Master Password & continue')
-                : (t.vault?.unlock || 'Unlock')}
+                : L.unlockBtn}
             {!loading && <ChevronRight className="ml-2 h-4 w-4" />}
           </Button>
         </form>
