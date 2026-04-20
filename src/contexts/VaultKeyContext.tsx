@@ -155,7 +155,7 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
     }
     if (!user) {
       masterKeyRef.current = null;
-      setStatus('loading');
+      setStatus('no-user');
       setErrorMessage(null);
       return;
     }
