@@ -10,6 +10,10 @@ import {
   decryptData,
   rewrapMasterKey,
   generateRecoveryPassphrase,
+  generateRecoveryPhrase,
+  normaliseRecoveryPhrase,
+  wrapMasterKeyForRecovery,
+  unwrapMasterKeyWithRecovery,
   CRYPTO_VERSION,
 } from "./crypto";
 
@@ -102,11 +106,39 @@ describe("crypto: encrypt/decrypt round-trip", () => {
 });
 
 describe("crypto: recovery", () => {
-  it("generates a high-entropy recovery passphrase", () => {
-    const pw = generateRecoveryPassphrase();
-    expect(pw.length).toBeGreaterThanOrEqual(40);
-    const a = generateRecoveryPassphrase();
-    const b = generateRecoveryPassphrase();
-    expect(a).not.toBe(b);
+  it("generates a 24-word BIP-39 phrase by default", () => {
+    const p = generateRecoveryPhrase();
+    expect(p.split(/\s+/).length).toBe(24);
+    expect(generateRecoveryPhrase()).not.toBe(generateRecoveryPhrase());
+  });
+
+  it("normalises and validates phrases against the BIP-39 wordlist", () => {
+    const p = generateRecoveryPhrase();
+    expect(normaliseRecoveryPhrase("  " + p.toUpperCase() + "  ")).toBe(p);
+    expect(() => normaliseRecoveryPhrase("not a real bip39 word here zzzzz")).toThrow();
+  });
+
+  it("recovery wrap → unwrap round-trip preserves Master Key", async () => {
+    const { masterKey } = await createWrappedMasterKey("master-pw-12-chars-min");
+    const blob = await encryptData({ secret: "treasure" }, masterKey);
+
+    const phrase = generateRecoveryPhrase();
+    const recovery = await wrapMasterKeyForRecovery(masterKey, phrase);
+    const recovered = await unwrapMasterKeyWithRecovery(recovery, phrase);
+
+    const out = await decryptData<{ secret: string }>(blob, recovered);
+    expect(out.secret).toBe("treasure");
+  });
+
+  it("recovery unwrap FAILS with wrong phrase", async () => {
+    const { masterKey } = await createWrappedMasterKey("master-pw-12-chars-min");
+    const recovery = await wrapMasterKeyForRecovery(masterKey, generateRecoveryPhrase());
+    await expect(
+      unwrapMasterKeyWithRecovery(recovery, generateRecoveryPhrase())
+    ).rejects.toBeDefined();
+  });
+
+  it("legacy generateRecoveryPassphrase still returns a phrase", () => {
+    expect(generateRecoveryPassphrase().split(/\s+/).length).toBe(24);
   });
 });
