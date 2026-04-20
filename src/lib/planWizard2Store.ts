@@ -65,8 +65,49 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-// Convert DB row to PremiumPlan
-function rowToPlan(row: Record<string, unknown>): PremiumPlan {
+// Convert DB row to PremiumPlan, decrypting plan_*_json if encrypted.
+async function rowToPlan(
+  row: Record<string, unknown>,
+  decrypt?: DecryptFn
+): Promise<PremiumPlan> {
+  let planA: GeneratedPlanA | null = null;
+  let planB: GeneratedPlanB | null = null;
+
+  const rawA = row.plan_a_json;
+  const rawB = row.plan_b_json;
+
+  if (isEncryptedBlob(rawA)) {
+    if (decrypt) {
+      try {
+        planA = await decrypt<GeneratedPlanA>(rawA);
+      } catch (e) {
+        console.warn('[plansStore] failed to decrypt plan A', e);
+        planA = null;
+      }
+    } else {
+      // Encrypted on server but no key available — can't render.
+      planA = null;
+    }
+  } else if (rawA) {
+    // Legacy plaintext row.
+    planA = rawA as GeneratedPlanA;
+  }
+
+  if (isEncryptedBlob(rawB)) {
+    if (decrypt) {
+      try {
+        planB = await decrypt<GeneratedPlanB>(rawB);
+      } catch (e) {
+        console.warn('[plansStore] failed to decrypt plan B', e);
+        planB = null;
+      }
+    } else {
+      planB = null;
+    }
+  } else if (rawB) {
+    planB = rawB as GeneratedPlanB;
+  }
+
   return {
     id: row.id as string,
     user_id: row.user_id as string,
@@ -79,8 +120,8 @@ function rowToPlan(row: Record<string, unknown>): PremiumPlan {
     scenario_set: (row.scenario_set || []) as EmergencyScenario[],
     priorities: (row.priorities || []) as Priority[],
     comms_config: row.comms_config as PremiumPlan['comms_config'],
-    plan_a_json: row.plan_a_json as GeneratedPlanA | null,
-    plan_b_json: row.plan_b_json as GeneratedPlanB | null,
+    plan_a_json: planA,
+    plan_b_json: planB,
     last_generated_at: row.last_generated_at as string | null,
     generation_version: row.generation_version as number,
     status: row.status as PremiumPlan['status'],
