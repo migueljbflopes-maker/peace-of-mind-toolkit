@@ -168,7 +168,8 @@ export async function wrapKey(
 export async function unwrapKey(
   wrapped: Uint8Array,
   iv: Uint8Array,
-  kek: CryptoKey
+  kek: CryptoKey,
+  extractable = false
 ): Promise<CryptoKey> {
   return crypto.subtle.unwrapKey(
     'raw',
@@ -176,7 +177,7 @@ export async function unwrapKey(
     kek,
     { name: 'AES-GCM', iv: iv as BufferSource },
     { name: 'AES-GCM', length: KEY_LENGTH },
-    false, // unwrapped Master Key is non-extractable in memory
+    extractable, // default: non-extractable in memory; recovery path opts in.
     ['encrypt', 'decrypt']
   );
 }
@@ -387,7 +388,10 @@ export async function unwrapMasterKeyWithRecovery(
   const wrappedBytes = base64ToBytes(recovery.encrypted);
 
   const kek = await deriveKEK(recoveryPhrase, salt);
-  return unwrapKey(wrappedBytes, iv, kek);
+  // Extractable: the recovery path always re-wraps the master key with a new
+  // password immediately after, which requires `subtle.wrapKey` to read the
+  // raw key bytes. Without `extractable: true` the rewrap fails.
+  return unwrapKey(wrappedBytes, iv, kek, true);
 }
 
 /**
