@@ -90,12 +90,12 @@ function SetupForm({
     setBusy(true);
     const res = await onSetup(pw);
     setBusy(false);
-    if (res.ok) {
+    if ('error' in res) {
+      toast.error(res.error);
+    } else {
       toast.success(isPt ? 'Master Password criada.' : 'Master Password created.');
       setPw('');
       setPw2('');
-    } else {
-      toast.error(res.error);
     }
   };
 
