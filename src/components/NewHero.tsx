@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, AlertCircle, CheckCircle, LayoutDashboard } from "lucide-react";
-import heroSplitBg from "@/assets/hero-split-bg.png";
+import heroSplitBg from "@/assets/hero-split-bg.jpg";
 import { useAuth } from "@/hooks/useAuth";
 
 const NewHero = () => {

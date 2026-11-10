@@ -63,7 +63,7 @@ import {
   generateId,
 } from './types';
 import { DataLossWarning } from './DataLossWarning';
-import heroSplitBg from '@/assets/hero-split-bg.png';
+import heroSplitBg from '@/assets/hero-split-bg.jpg';
 
 // Helper functions to create empty items
 const createEmptyHouseholdMember = (): HouseholdMember => ({

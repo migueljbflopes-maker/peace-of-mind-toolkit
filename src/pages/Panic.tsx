@@ -4,8 +4,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useLocale } from "@/i18n";
 
 const Panic = () => {
+  const { t } = useLocale();
   const features = [
     {
       icon: AlertCircle,
@@ -28,7 +30,7 @@ const Panic = () => {
     "Hold-to-activate prevents accidental triggers",
     "5-second cancel window after activation",
     "Test mode to verify setup without alerting contacts",
-    "Works offline — queues messages until connection",
+    t.panic.requiresConnection,
   ];
 
   return (
