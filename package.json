@@ -12,6 +12,10 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:backend": "node scripts/with-local-supabase.mjs playwright test",
+    "supabase:start": "supabase start -x studio,imgproxy,logflare,vector,supavisor,realtime,storage-api,postgres-meta,edge-runtime",
+    "supabase:functions": "node scripts/serve-functions.mjs",
+    "seed:local": "node scripts/with-local-supabase.mjs node scripts/seed-local.mjs",
     "verify": "npm run typecheck && npm run test && npm run build && npm run test:e2e"
   },
   "dependencies": {

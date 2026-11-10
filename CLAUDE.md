@@ -23,9 +23,12 @@ The work is driven by `docs/backlog.md`. Read it before starting anything.
 | `npm run test` | Unit tests (Vitest) |
 | `npm run build` | Production build |
 | `npm run test:e2e` | Browser tests (Playwright) against the production build |
+| `npm run test:e2e:backend` | Browser tests including the backend project, against a local Supabase stack (needs Docker; CI always runs it) |
 | `npm run verify` | All of the above, in order. This is the definition of "passing" |
 
 Without the bundled Chromium, run browser tests with `PW_CHANNEL=chrome`.
+Backend-dependent tests live in `e2e/backend/` and are verified by CI; see the
+README for the fixtures.
 
 ## Architecture decisions
 

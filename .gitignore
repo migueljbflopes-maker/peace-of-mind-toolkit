@@ -26,3 +26,9 @@ dist-ssr
 # Playwright
 test-results
 playwright-report
+
+# Playwright signed-in state of the local test user (backlog A-06)
+e2e/.auth
+
+# Edge function log of a local run
+supabase-functions.log

@@ -8,7 +8,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,8 +19,35 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+      # Backlog A-06: a local Supabase stack for the "backend" browser tests.
+      # Nothing here has credentials for, or talks to, the hosted project.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.1.0
+      - name: Start the local Supabase stack
+        run: |
+          supabase --version
+          npm run supabase:start
+      - name: Every migration is applied to the local stack
+        run: node scripts/with-local-supabase.mjs node scripts/check-migrations.mjs
+      - name: Serve the edge functions locally
+        run: |
+          nohup npm run supabase:functions > supabase-functions.log 2>&1 &
+          for i in $(seq 1 45); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:54321/functions/v1/checkin-start || true)
+            if [ "$code" = "405" ]; then echo "edge functions answer after ${i} tries"; exit 0; fi
+            sleep 2
+          done
+          echo "edge functions did not come up (last status $code)"; head -n 80 supabase-functions.log; exit 1
+
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      # Builds the app against the local stack and runs both Playwright
+      # projects: mobile-chrome (no backend) and backend.
+      - run: npm run test:e2e:backend
+      - name: Edge function logs
+        if: failure()
+        run: tail -n 200 supabase-functions.log || true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
