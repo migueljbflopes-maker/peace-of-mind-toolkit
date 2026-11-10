@@ -14,12 +14,13 @@ export default defineConfig({
     // Backlog B-01: service worker and web app manifest.
     VitePWA({
       // "prompt" means a new service worker waits instead of taking over a
-      // running app. src/pwa/registerServiceWorker.ts activates it at a safe
-      // moment (app in the background, not on a panic screen); otherwise the
-      // browser activates it on the next launch.
+      // running app. src/pwa/serviceWorker.ts activates it at app start when
+      // this is the only open tab; otherwise the browser activates it once
+      // every tab of the app is closed. A running app is never reloaded.
       registerType: "prompt",
-      // The manifest link is injected into index.html by the plugin;
-      // registration is done from src/main.tsx.
+      // The manifest link is injected into index.html by the plugin.
+      // Registration is done by src/pwa/serviceWorker.ts, not by the plugin's
+      // helper, which reloads every tab when a new worker takes control.
       injectRegister: false,
       includeAssets: ["favicon.ico", "favicon.png", "apple-touch-icon.png"],
       manifest: {
@@ -41,18 +42,21 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the whole app shell: every route is a lazily loaded chunk,
-        // and any of them must open offline after a single first visit.
+        // Precache the whole build, not only what the first visit loads:
+        // most routes are separate, lazily loaded chunks, and any of them
+        // must open offline after a single first visit.
         globPatterns: ["**/*.{js,css,html,ico,png,jpg,svg,woff2}"],
         // Only useful to link previews, never to the app.
         globIgnores: ["og-image.png"],
-        // Client-side routing: any navigation inside the app gets the shell.
+        // Client-side routing: a navigation to an app route gets the shell.
         navigateFallback: "index.html",
+        // Real files are not app routes and must come from the server, not be
+        // answered with the shell: anything under /.well-known/, and any path
+        // whose last segment has an extension (robots.txt, og-image.png,
+        // sw.js). The pattern is tested against path + query string; a dot in
+        // the query (/auth/callback?code=a.b) does not count.
+        navigateFallbackDenylist: [/^\/\.well-known\//, /^[^?]*\/[^/?]+\.[^/?]+(\?.*)?$/],
         cleanupOutdatedCaches: true,
-        // The landing page and vault wizard background is a 2.6 MB PNG, over
-        // the 2 MiB default, and the build fails rather than silently leaving
-        // it out. Shrinking the image is tracked in docs/backlog.md (Phase U).
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // No runtimeCaching on purpose. Supabase (API, auth, edge functions)
         // and Stripe responses are never stored by the service worker; data
         // offline is backlog B-03.

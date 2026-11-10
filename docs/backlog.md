@@ -31,6 +31,11 @@ Project created on 2026-11-10 (ref in `supabase/config.toml`, EU region).
 Migrations and functions are deployed by the `Supabase deploy` workflow.
 The hourly email job reads `app.settings.supabase_url` and
 `app.settings.service_role_key`, which must be set on the new database.
+Hosting requirements that come from the service worker (B-01): serve `sw.js`
+and `index.html` with `Cache-Control: no-cache`, or users stay on an old
+version; answer app routes (for example `/panic`) with `index.html`, or a first
+visit to a deep link fails; keep serving real files such as `robots.txt` and
+`/.well-known/*` as themselves.
 Accepted when: `supabase db push` succeeds on the empty project; a new user can
 sign up and sign in on the deployed app.
 
@@ -120,20 +125,32 @@ to the user's own address or number and to no contact.
 | B-04 | Red Folder PDF generates offline | B-03 | todo |
 | B-05 | `[HUMAN]` Offline panic: SMS composer and queued alert | B-01, P-02, P-03 | todo |
 | B-06 | Self-host the Inter font | B-01 | todo |
+| B-07 | A screen whose code fails to load says so | B-01 | todo |
 
 **B-01.** There is no service worker or manifest. Add them (for example with
 `vite-plugin-pwa`), precache the app shell, and handle updates without
 stranding users on an old version.
 Accepted when: `e2e/offline.spec.ts` passes with its `test.fail()` removed.
-Done with `vite-plugin-pwa` 1.3.0 (`vite.config.ts`, `src/pwa/`). The service
-worker precaches the built files of this origin only; it has no runtime
-caching, so nothing from Supabase or Stripe is stored. A new version downloads
-in the background and takes over when the app goes to the background (never
-on a `/panic` screen) or on the next launch. Hosting (A-02) must serve
-`sw.js` and `index.html` with `Cache-Control: no-cache` and fall back to
-`index.html` for app routes, or updates and first visits to deep links break.
-Not verified: install prompt and offline launch on a real iPhone and Android
-phone.
+Done with `vite-plugin-pwa` 1.3.0 (`vite.config.ts`, `src/pwa/serviceWorker.ts`).
+The service worker precaches the built files of this origin only; it has no
+runtime caching, so nothing from Supabase or Stripe is stored.
+Updates: a new version downloads in the background (checked on each launch
+and each return to the foreground) and waits. A running app is never
+reloaded. The waiting version takes over at app start, before anything is
+rendered, and only when no other tab of the app is open (Web Locks); without
+that it waits until every tab is closed, which is the browser's own rule.
+First visit: the service worker does not control the page that installed it.
+A user who goes offline during that very first visit keeps the screens already
+opened, but a screen not opened yet can fail to load until the app is reopened
+or reloaded (which then works offline, once the download of about 3 MB has
+finished).
+Known limits: if activation at start takes longer than 4 seconds the current
+version starts and the browser may activate the new one later under the
+running app; the same can happen when two tabs start in the same instant. In
+both cases nothing is reloaded, but a screen not opened yet can fail to load
+(B-07). Not seen in 30 consecutive test runs.
+Not verified: install prompt, offline launch and update on a real iPhone and
+Android phone.
 
 **B-02.** `navigator.onLine` is read 14 times across 11 files. Replace them with one hook
 that also detects "connected but the server is unreachable".
@@ -159,9 +176,20 @@ recipients and body and, after reconnecting, exactly one server activation.
 the request fails and the app falls back to the system font; online, every
 visit makes a request to Google, which the privacy page should account for.
 Ship the font files with the app so the service worker precaches them.
+The `@import` also blocks rendering: on a network that is connected but cannot
+reach Google, the shell is served from the cache at once and then waits for
+the font request to fail before showing anything.
 Accepted when: the build makes no request to `fonts.googleapis.com` or
 `fonts.gstatic.com`; an offline browser test finds Inter loaded
 (`document.fonts.check`).
+
+**B-07.** Most routes are lazily loaded chunks. When a chunk cannot be loaded
+(offline during the very first visit, or an old page running under a newer
+service worker, see B-01) the route throws and the user gets a blank screen.
+Catch the failed import, say that this screen could not be loaded, and offer a
+reload, which is safe at that point because the user chooses it.
+Accepted when: a browser test that blocks one route chunk sees the message and
+the reload action instead of an empty `#root`.
 
 ## Phase S: privacy that matches the claims
 
@@ -213,16 +241,16 @@ user in any table and no local data on the device.
 Planned after B and S, on a base that works. To be detailed then, starting from
 a walkthrough of the app as a new user on a phone. Known items: the initial
 bundle is 1 MB in a single chunk; all routes load eagerly;
-`src/assets/hero-split-bg.png` is 2.6 MB and is downloaded by every first
-visit (the precache size limit in `vite.config.ts` was raised to 3 MiB for it,
-lower it again once the image is compressed); `public/favicon.png` and several
-`src/assets/*.png` files contain JPEG data under a `.png` name.
+`public/favicon.png` and several `src/assets/*.png` files contain JPEG data
+under a `.png` name.
 
 ## Owner checklist
 
 Things only the owner can do. Each unblocks the task named.
 
 - [ ] Create the Supabase project and choose hosting (A-02)
+- [ ] On the chosen host: `Cache-Control: no-cache` for `sw.js` and
+      `index.html`, and app routes fall back to `index.html` (A-02)
 - [x] Mark each feature keep or freeze (A-03)
 - [ ] SMS provider account and key; verified email sending domain (P-02)
 - [ ] Real-phone airplane mode test, iPhone and Android (B-05)

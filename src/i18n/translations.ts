@@ -367,6 +367,10 @@ export const translations = {
         note: 'You can still use Weekly Briefing for free.',
       },
     },
+    // Panic button landing page
+    panic: {
+      requiresConnection: 'Needs an internet connection: without one, the alert is not sent',
+    },
     // Paywall modal
     paywall: {
       title: 'Unlock Premium',
@@ -847,6 +851,10 @@ export const translations = {
       notPremium: {
         note: 'Podes continuar a usar o Weekly Briefing gratuitamente.',
       },
+    },
+    // Panic button landing page
+    panic: {
+      requiresConnection: 'Precisa de ligação à internet: sem ela, o alerta não é enviado',
     },
     // Paywall modal
     paywall: {

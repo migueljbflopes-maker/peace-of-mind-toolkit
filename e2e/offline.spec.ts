@@ -3,8 +3,9 @@ import { test, expect, type Page } from "@playwright/test";
 // Backlog B-01. The service worker precaches the app shell on the first
 // visit, so the app opens with no network afterwards.
 
-// First visit: load the app online and wait until the service worker has
-// installed (precache complete) and controls the page.
+// First visit: load the app online and wait until the service worker is
+// active, which means the precache is complete. It does not control this
+// first page yet; it controls pages opened from then on.
 async function firstVisit(page: Page) {
   await page.goto("/");
   await expect(page.locator("h1").first()).toBeVisible();
@@ -43,6 +44,51 @@ test("a route other than / opens with no network after a first visit to /", asyn
   await expect(offlinePage.locator("#root")).not.toBeEmpty();
   await expect(offlinePage.locator("h1").first()).toBeVisible({ timeout: 5000 });
   expect(errors).toEqual([]);
+
+  // What the page says about offline must be what the code does: until
+  // backlog B-05 nothing is queued, an alert needs a connection.
+  await expect(offlinePage.getByText(/queues messages/i)).toHaveCount(0);
+  await expect(offlinePage.getByText(/Needs an internet connection|Precisa de ligação à internet/)).toBeVisible();
+});
+
+test("the sign-in callback route gets the shell offline, query string included", async ({
+  page,
+  context,
+}) => {
+  await firstVisit(page);
+  await context.setOffline(true);
+  const offlinePage = await context.newPage();
+  await offlinePage.goto("/auth/callback?code=abc.def&next=/x.y");
+  await expect(offlinePage.locator("#root")).not.toBeEmpty();
+});
+
+test("real files are served by the server, not answered with the app shell", async ({
+  page,
+  context,
+}) => {
+  await firstVisit(page);
+  // A second tab is controlled by the service worker.
+  const controlled = await context.newPage();
+  await controlled.goto("/");
+  expect(await controlled.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+
+  for (const path of [
+    "/robots.txt",
+    "/og-image.png",
+    "/.well-known/apple-developer-merchantid-domain-association",
+  ]) {
+    // The file without an extension starts a download instead of a page, so
+    // look at the response to the navigation, not at the page.
+    const [response] = await Promise.all([
+      controlled.waitForResponse((r) => new URL(r.url()).pathname === path),
+      controlled.goto(path).catch(() => null),
+    ]);
+    expect(response.fromServiceWorker(), path).toBe(false);
+    expect(response.headers()["content-type"] ?? "", path).not.toContain("text/html");
+  }
+
+  const robots = await controlled.goto("/robots.txt");
+  expect(await robots!.text()).toContain("User-agent");
 });
 
 test("the service worker caches only this origin's static files", async ({ page }) => {
