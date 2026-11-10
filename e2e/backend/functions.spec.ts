@@ -12,7 +12,7 @@ test("an edge function runs locally and authenticates its caller against the loc
   request,
   stack,
   admin,
-  premiumUser,
+  createUser,
   clientFor,
 }) => {
   const url = `${stack.url}/functions/v1/checkin-start`;
@@ -25,10 +25,13 @@ test("an edge function runs locally and authenticates its caller against the loc
   const forged = await request.post(url, { data: {}, headers: { Authorization: "Bearer not-a-token" } });
   expect(forged.status()).toBe(401);
 
-  // The seeded premium user: the function accepts the caller, reads the
+  // A premium user of this test's own, so that check-in tests on the shared
+  // seeded user cannot affect the "nothing was written" assertion below.
+  // The function accepts the caller, reads the
   // entitlement with its service-role key, and gets as far as validating the
   // body. A user without premium would get 403 here.
-  const client = await clientFor(premiumUser);
+  const user = await createUser({ premium: true });
+  const client = await clientFor(user);
   const { data } = await client.auth.getSession();
   const accepted = await request.post(url, {
     data: {},
@@ -38,7 +41,7 @@ test("an edge function runs locally and authenticates its caller against the loc
   expect(accepted.status()).toBe(400);
 
   // Nothing was written.
-  const sessions = await admin.from("checkin_sessions").select("id").eq("user_id", premiumUser.id);
+  const sessions = await admin.from("checkin_sessions").select("id").eq("user_id", user.id);
   expect(sessions.error).toBeNull();
   expect(sessions.data).toEqual([]);
 });

@@ -158,12 +158,21 @@ around it by serving a copy with `?no-dts` imports
 (`scripts/local-functions.mjs`). The deploy of 2026-11-10 succeeded, so the
 hosted bundler did not trip on it then; whether the deployed functions boot,
 and whether the next deploy will bundle, is not verified. A floating
-dependency also means the deployed code can change without a commit. Pin the
+dependency also means the deployed code can change on a redeploy of the
+same commit. Pin the
 dependencies (per-function `deno.json` with `npm:` specifiers, or one import
 map) so that what is tested is what is deployed.
+This must land before any other merge that touches `supabase/**`: such a
+merge redeploys every function, and a redeploy re-resolves the floating
+dependency. The functions deployed on 2026-11-10 were bundled about two and a
+half hours before the local failure appeared, so they are probably working
+frozen bundles.
 Accepted when: `supabase functions serve` serves `supabase/functions` itself
 in CI, `scripts/local-functions.mjs` and its copy step are deleted, and the
-backend tests pass.
+backend tests pass; and, after the deploy that follows the merge, a call to at
+least one deployed function returns its expected answer rather than a 5xx.
+`[HUMAN]` for that last check: nobody but the owner can reach the hosted
+project. Give the owner the exact request to run and the answer to expect.
 
 **F-09.** Found by A-06. The functions call `api.stripe.com`,
 `api.resend.com` and `api.openai.com` at fixed addresses, so a test that needs
