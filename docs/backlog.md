@@ -18,7 +18,7 @@ Phases run in order A, P, B, S, U, but a task only waits for the tasks it names.
 |---|---|---|---|
 | A-01 | Clean install, CI, browser test harness | none | done |
 | A-02 | `[HUMAN]` Own Supabase project and hosting | none | todo |
-| A-03 | `[DECISION]` Confirm scope: freeze non-core features | none | todo |
+| A-03 | `[DECISION]` Confirm scope: freeze non-core features | none | done |
 | A-04 | Lint to zero errors, then gate CI on lint | A-01 | todo |
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | todo |
@@ -30,11 +30,11 @@ Choose hosting for the web app.
 Accepted when: `supabase db push` succeeds on the empty project; a new user can
 sign up and sign in on the deployed app.
 
-**A-03.** Proposed core: vault, plans A and B, Red Folder PDF, panic button,
-check-in. Proposed freeze: news ingestion (six sources), weekly briefing,
-expert chat (depends on the Lovable AI gateway), Amazon products, the duplicate
+**A-03.** Decided by the owner on 2026-11-10.
+Keep: vault, plans A and B, Red Folder PDF, panic button, check-in.
+Freeze for now: news ingestion (six sources), weekly briefing, expert chat
+(depends on the Lovable AI gateway), Amazon products, the duplicate
 subscription funnel `RiskFunnel1`.
-Accepted when: the owner has marked each feature keep or freeze in this file.
 
 **A-04.** `npx eslint .` reports 36 errors today.
 Accepted when: it reports zero errors and CI runs it as a required step.
@@ -195,7 +195,7 @@ bundle is 1 MB in a single chunk; all routes load eagerly.
 Things only the owner can do. Each unblocks the task named.
 
 - [ ] Create the Supabase project and choose hosting (A-02)
-- [ ] Mark each feature keep or freeze (A-03)
+- [x] Mark each feature keep or freeze (A-03)
 - [ ] SMS provider account and key; verified email sending domain (P-02)
 - [ ] Real-phone airplane mode test, iPhone and Android (B-05)
 - [ ] Legal review of the privacy policy and of the panic button terms, which
