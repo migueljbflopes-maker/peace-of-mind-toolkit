@@ -301,7 +301,7 @@ test("a new user signs up, sets a master password, signs out, signs in again and
   await test.step("sets the master password and enters the vault", async () => {
     await fillNewMasterPassword(page, masterPassword);
     await createButton(page).click();
-    await expect(page.getByText("Master Password created.")).toBeVisible();
+    await expect(page.getByText("Master Password created.", { exact: true })).toBeVisible();
 
     // The Recovery Kit screen is promised next. Today it never appears
     // (backlog F-10); the test after this one asserts it and is marked as a
@@ -387,7 +387,7 @@ test("a new user signs up, sets a master password, signs out, signs in again and
 
   await test.step("signs in again and unlocks the vault with the same master password", async () => {
     await signInThroughUi(page, { email, password: accountPassword });
-    await expect(page.getByText("Welcome back!")).toBeVisible();
+    await expect(page.getByText("Welcome back!", { exact: true })).toBeVisible();
     await expect(page.getByText("Hold 3s to activate")).toBeVisible();
 
     await tapVaultSetupOnDashboard(page);
@@ -475,7 +475,7 @@ test("a wrong master password is refused with a clear message and the right one 
   // Wrong, three times: each is refused in words, and nothing opens.
   for (const wrong of [`${masterPassword}x`, masterPassword.toUpperCase(), user.password]) {
     await unlockWith(page, wrong);
-    await expect(page.getByText("Incorrect master password.").last()).toBeVisible();
+    await expect(page.getByText("Incorrect master password.", { exact: true }).last()).toBeVisible();
     await expect(unlockTitle(page)).toBeVisible();
     await expect(openVault(page)).toHaveCount(0);
     await expect(page.getByText("Encrypted Vault")).toHaveCount(0);
