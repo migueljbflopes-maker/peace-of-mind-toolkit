@@ -226,6 +226,7 @@ function SetupForm({
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               autoComplete="new-password"
+              aria-label={isPt ? 'Confirmar Master Password' : 'Confirm Master Password'}
               disabled={busy}
               onKeyDown={(e) => e.key === 'Enter' && handle()}
             />

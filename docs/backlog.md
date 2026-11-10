@@ -104,7 +104,7 @@ fix it in its own change, and never bend the test around it.
 
 | ID | Task | Needs | Status |
 |---|---|---|---|
-| F-01 | Sign up, sign in, set the master password | A-06 | todo |
+| F-01 | Sign up, sign in, set the master password | A-06 | done |
 | F-02 | Vault: save, lock, unlock, read | F-01 | todo |
 | F-03 | Plans A and B through the wizard | F-01 | todo |
 | F-04 | Red Folder PDF from the user's real data | F-02, F-03 | todo |
@@ -113,10 +113,23 @@ fix it in its own change, and never bend the test around it.
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
 | F-08 | Edge functions boot on the local runtime as written | A-06 | todo |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
+| F-10 | The Recovery Kit is shown after the master password is created | F-01 | todo |
+| F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
 password; a wrong master password is refused with a clear message.
+
+Tested by `e2e/backend/signup-master-password.spec.ts`: sign-up with email and
+password and with a magic link read from Mailpit, the master password set at
+the vault, sign-out, sign-in, unlock, a wrong master password, a reload. The
+stored `user_vault_keys` row is checked column by column and opened outside
+the app with the right password only. A purchase is stood in for by setting
+`premium_entitlements` (buying is F-07). Two tests in that file are marked
+`test.fail` for the bugs it found: F-10 and F-11. Green in CI run 42827717384
+(24 passed, the two known failures among them).
+Not covered: sign-up on a project with email confirmation switched on (the
+local stack confirms at once); OAuth, which the app does not offer.
 
 **F-02.** Accepted when: a browser test saves data in at least two vault
 sections, locks the vault, unlocks it, reads the same data back, reloads the
@@ -184,6 +197,44 @@ harness that records what it was sent.
 Accepted when: a backend test drives one function per provider against the
 stub and asserts on the request the stub received; with the variable unset
 the function uses the real address.
+
+**F-10.** Found by F-01. The screen for creating a master password says "Step
+1 of 2 — Next you will save the Recovery Kit", and the user ticks "if I lose
+both the password and the Recovery Kit I permanently lose access". The
+Recovery Kit screen never appears: the vault opens straight away. The 24-word
+phrase is generated, used to wrap the key and stored
+(`recovery_encrypted_master_key`), then thrown away unseen. So no user has a
+Recovery Kit, the "Forgot?" link on the unlock screen asks for words nobody
+was given, and a forgotten master password loses the vault for good while the
+app has said otherwise.
+Cause: `MasterKeyGate` renders its children as soon as the key is unlocked
+(`src/components/security/MasterKeyGate.tsx:28`), and `setup()` unlocks the
+moment the row is inserted (`src/contexts/VaultKeyContext.tsx:217`). That
+unmounts `MasterPasswordScreen`, whose `generatedPhrase` state was to show
+`RecoveryKitPanel` (`src/components/security/MasterPasswordScreen.tsx:70`).
+Accounts that already have a master password have no kit either: the fix
+needs a way for an unlocked user to create a new kit (new phrase, recovery
+columns rewrapped), and should say so to those users.
+Accepted when: "after creating a master password the Recovery Kit must be
+saved before the vault opens" in `e2e/backend/signup-master-password.spec.ts`
+passes with its `test.fail` removed; and a browser test for an account that
+set its master password before the fix creates a kit from inside the app,
+forgets the password, and gets back in with the "Forgot?" flow and that kit.
+
+**F-11.** Found by F-01. A signed-out visitor who opens `/premium/vault`,
+`/premium/plans`, `/premium/plans/wizard`, `/premium/red-folder` or
+`/premium/backup` (an old bookmark, a link from the Pricing page, a session
+that expired) gets a completely empty white page: no navigation, no message,
+no way to sign in. Nothing protected is shown; it is a dead end.
+Cause: for a signed-out user `MasterKeyGate` renders nothing
+(`src/components/security/MasterKeyGate.tsx:31`) and its comment leaves the
+redirect to "the parent route's auth gate". No route in `src/App.tsx` has
+one. Each page has its own sign-in card (`LoginGateCard` in `Vault.tsx`), but
+the gate is outside the page, so the card is never reached.
+Accepted when: "signed out, the vault address offers a way to sign in instead
+of an empty page" in `e2e/backend/signup-master-password.spec.ts` passes with
+its `test.fail` removed, extended to the other four routes; after signing in
+from there the user is returned to the route they asked for.
 
 ## Phase P: a panic button that tells the truth
 
@@ -370,6 +421,44 @@ a walkthrough of the app as a new user on a phone. Known items: the initial
 bundle is 1 MB in a single chunk; all routes load eagerly;
 `public/favicon.png` and several `src/assets/*.png` files contain JPEG data
 under a `.png` name.
+
+Noted by F-01 while walking sign-up and the master password on a phone
+(not fixed there):
+
+- Creating an account is hard to find. `/login` is titled "Sign in", opens on
+  the Magic Link tab, and the only way to sign up with a password is the
+  Password tab and then a small "Sign up" link under the form. Nothing says
+  that a magic link also creates an account.
+- After a password sign-up the toast says "Account created! Check your email
+  to confirm." while the user is already signed in and on the dashboard
+  (confirmation off). With confirmation on, that toast is all there is: the
+  form stays as it was, with no lasting "check your inbox" state like the
+  magic link has, and the confirmation link returns to `/`, not the dashboard.
+- Two passwords within minutes, with different rules and three names: the
+  account password (6 characters or more), the "Master Password" (12 or
+  more), and "passphrase" in the vault texts (`vault.subtitle`,
+  `vault.wrongPassphrase`). Nothing explains that they are different things.
+- The master password screens have no navigation bar and no way back: on a
+  phone the only exit is the browser's back button. The user also cannot see
+  which account they are signed in as, or sign out, from there.
+- The master password is asked for before the paywall. A user without a
+  purchase who opens `/premium/vault` directly (the Pricing page links to it)
+  is made to create a master password and only then told the vault is a paid
+  feature. (Read from `src/App.tsx` and `Vault.tsx`; not walked in a test.)
+- A wrong master password is reported only by a toast that disappears after a
+  few seconds; nothing stays next to the field.
+- Reloading the page, or opening a second tab, locks the vault again. The
+  unlock screen says "for this session" and nothing more; a user who reloads
+  mid-edit is not warned.
+- The labels on the master password screens are not tied to their fields, the
+  show/hide password buttons have no name, and the steps on the dashboard
+  ("Vault Setup" and the others) are clickable `div`s: none of it works with
+  a screen reader or a keyboard.
+- The vault a new user lands in mixes languages with the app set to English:
+  "Saltar por agora", "min restantes", the "why we ask" lines and the vault
+  settings dialog are Portuguese.
+- Signing out drops the user on the marketing home page with no word that
+  they were signed out.
 
 ## Owner checklist
 
