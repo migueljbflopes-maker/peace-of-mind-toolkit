@@ -104,7 +104,7 @@ fix it in its own change, and never bend the test around it.
 
 | ID | Task | Needs | Status |
 |---|---|---|---|
-| F-01 | Sign up, sign in, set the master password | A-06 | doing |
+| F-01 | Sign up, sign in, set the master password | A-06 | done |
 | F-02 | Vault: save, lock, unlock, read | F-01 | todo |
 | F-03 | Plans A and B through the wizard | F-01 | todo |
 | F-04 | Red Folder PDF from the user's real data | F-02, F-03 | todo |
@@ -126,7 +126,8 @@ the vault, sign-out, sign-in, unlock, a wrong master password, a reload. The
 stored `user_vault_keys` row is checked column by column and opened outside
 the app with the right password only. A purchase is stood in for by setting
 `premium_entitlements` (buying is F-07). Two tests in that file are marked
-`test.fail` for the bugs it found: F-10 and F-11.
+`test.fail` for the bugs it found: F-10 and F-11. Green in CI run 42827717384
+(24 passed, the two known failures among them).
 Not covered: sign-up on a project with email confirmation switched on (the
 local stack confirms at once); OAuth, which the app does not offer.
 
