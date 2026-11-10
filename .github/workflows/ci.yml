@@ -20,6 +20,21 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+      # Backlog F-08: every edge function resolves its imports from its own
+      # deno.lock, and no lockfile is incomplete. Deno 2.1 is what the edge
+      # runtime of the pinned Supabase CLI embeds.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.1.4
+      - name: TEMPORARY regenerate lockfiles and print the difference
+        run: |
+          npm run functions:lock || true
+          git status --short
+          git diff
+          git checkout -- supabase/functions
+      - name: Every edge function resolves from its lockfile
+        run: npm run functions:check-locks
+
       # Backlog A-06: a local Supabase stack for the "backend" browser tests.
       # Nothing here has credentials for, or talks to, the hosted project.
       - uses: supabase/setup-cli@v1
@@ -31,6 +46,7 @@ jobs:
           npm run supabase:start
       - name: Every migration is applied to the local stack
         run: node scripts/with-local-supabase.mjs node scripts/check-migrations.mjs
+      # supabase/functions itself, as it is deployed (backlog F-08).
       - name: Serve the edge functions locally
         run: |
           nohup npm run supabase:functions > supabase-functions.log 2>&1 &

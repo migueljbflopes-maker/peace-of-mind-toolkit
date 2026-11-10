@@ -15,6 +15,8 @@
     "test:e2e:backend": "node scripts/with-local-supabase.mjs playwright test",
     "supabase:start": "supabase start -x studio,imgproxy,logflare,vector,supavisor,realtime,storage-api,postgres-meta,edge-runtime",
     "supabase:functions": "supabase functions serve --env-file e2e/backend/functions.env",
+    "functions:check-locks": "node scripts/lock-functions.mjs",
+    "functions:lock": "node scripts/lock-functions.mjs --write",
     "seed:local": "node scripts/with-local-supabase.mjs node scripts/seed-local.mjs",
     "verify": "npm run typecheck && npm run test && npm run build && npm run test:e2e"
   },
