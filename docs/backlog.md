@@ -27,6 +27,10 @@ Phases run in order A, P, B, S, U, but a task only waits for the tasks it names.
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
 Choose hosting for the web app.
+Project created on 2026-11-10 (ref in `supabase/config.toml`, EU region).
+Migrations and functions are deployed by the `Supabase deploy` workflow.
+The hourly email job reads `app.settings.supabase_url` and
+`app.settings.service_role_key`, which must be set on the new database.
 Accepted when: `supabase db push` succeeds on the empty project; a new user can
 sign up and sign in on the deployed app.
 
@@ -97,6 +101,8 @@ Accepted when: a browser test with one provider failure shows that contact as
 not reached; no path shows "sent" before a provider accepted the message.
 
 **P-05.** `checkin-cron` exists and emails through Resend from a test sender.
+No migration schedules it: the only `cron.schedule` call is for
+`send-scheduled-emails`, so today nothing ever runs the check-in job.
 Accepted when: tests with controlled time show a missed check-in alerts the
 contacts once, a response in time alerts nobody, and stopping a session cancels
 it.

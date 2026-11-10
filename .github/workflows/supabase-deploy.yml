@@ -1,0 +1,45 @@
+name: Supabase deploy
+
+# Applies database migrations and deploys edge functions to the project in
+# supabase/config.toml. Needs two repository secrets:
+#   SUPABASE_ACCESS_TOKEN  personal access token (supabase.com/dashboard/account/tokens)
+#   SUPABASE_DB_PASSWORD   the database password chosen when the project was created
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: Deploy edge functions too
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+    paths:
+      - supabase/**
+
+concurrency:
+  group: supabase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Read project ref
+        id: ref
+        run: echo "ref=$(grep -m1 '^project_id' supabase/config.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Link project
+        run: supabase link --project-ref "${{ steps.ref.outputs.ref }}"
+      - name: Apply migrations
+        run: supabase db push
+      - name: Deploy edge functions
+        if: github.event_name == 'push' || inputs.functions
+        run: supabase functions deploy --project-ref "${{ steps.ref.outputs.ref }}"
