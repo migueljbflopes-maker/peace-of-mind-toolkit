@@ -24,7 +24,7 @@ jobs:
       # Nothing here has credentials for, or talks to, the hosted project.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Start the local Supabase stack
         run: |
           supabase --version
