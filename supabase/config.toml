@@ -1,4 +1,4 @@
-project_id = "ynqxkcdrfgnhmoqczkcd"
+project_id = "fnzbetsgumaamshcopbd"
 
 [functions.ingest-news]
 verify_jwt = false
