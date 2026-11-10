@@ -114,16 +114,26 @@ to the user's own address or number and to no contact.
 
 | ID | Task | Needs | Status |
 |---|---|---|---|
-| B-01 | Service worker and manifest: the app opens offline | A-01 | todo |
+| B-01 | Service worker and manifest: the app opens offline | A-01 | done |
 | B-02 | One source of truth for connectivity | A-01 | todo |
 | B-03 | Vault unlocks and reads offline | B-01, A-06 | todo |
 | B-04 | Red Folder PDF generates offline | B-03 | todo |
 | B-05 | `[HUMAN]` Offline panic: SMS composer and queued alert | B-01, P-02, P-03 | todo |
+| B-06 | Self-host the Inter font | B-01 | todo |
 
 **B-01.** There is no service worker or manifest. Add them (for example with
 `vite-plugin-pwa`), precache the app shell, and handle updates without
 stranding users on an old version.
 Accepted when: `e2e/offline.spec.ts` passes with its `test.fail()` removed.
+Done with `vite-plugin-pwa` 1.3.0 (`vite.config.ts`, `src/pwa/`). The service
+worker precaches the built files of this origin only; it has no runtime
+caching, so nothing from Supabase or Stripe is stored. A new version downloads
+in the background and takes over when the app goes to the background (never
+on a `/panic` screen) or on the next launch. Hosting (A-02) must serve
+`sw.js` and `index.html` with `Cache-Control: no-cache` and fall back to
+`index.html` for app routes, or updates and first visits to deep links break.
+Not verified: install prompt and offline launch on a real iPhone and Android
+phone.
 
 **B-02.** `navigator.onLine` is read 14 times across 11 files. Replace them with one hook
 that also detects "connected but the server is unreachable".
@@ -144,6 +154,14 @@ Owner does: test on a real iPhone and a real Android phone in airplane mode,
 including several recipients, and record the result in this file.
 Accepted when: an offline browser test sees the composer link with the right
 recipients and body and, after reconnecting, exactly one server activation.
+
+**B-06.** `src/index.css` imports Inter from `fonts.googleapis.com`. Offline
+the request fails and the app falls back to the system font; online, every
+visit makes a request to Google, which the privacy page should account for.
+Ship the font files with the app so the service worker precaches them.
+Accepted when: the build makes no request to `fonts.googleapis.com` or
+`fonts.gstatic.com`; an offline browser test finds Inter loaded
+(`document.fonts.check`).
 
 ## Phase S: privacy that matches the claims
 
@@ -194,7 +212,11 @@ user in any table and no local data on the device.
 
 Planned after B and S, on a base that works. To be detailed then, starting from
 a walkthrough of the app as a new user on a phone. Known items: the initial
-bundle is 1 MB in a single chunk; all routes load eagerly.
+bundle is 1 MB in a single chunk; all routes load eagerly;
+`src/assets/hero-split-bg.png` is 2.6 MB and is downloaded by every first
+visit (the precache size limit in `vite.config.ts` was raised to 3 MiB for it,
+lower it again once the image is compressed); `public/favicon.png` and several
+`src/assets/*.png` files contain JPEG data under a `.png` name.
 
 ## Owner checklist
 
