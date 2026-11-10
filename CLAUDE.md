@@ -10,7 +10,9 @@ The work is driven by `docs/backlog.md`. Read it before starting anything.
 
 - React 18, Vite, TypeScript, Tailwind, shadcn/ui. Routing in `src/App.tsx`.
 - Supabase: Postgres with row level security, Auth, Deno edge functions in
-  `supabase/functions`, SQL migrations in `supabase/migrations`.
+  `supabase/functions`, SQL migrations in `supabase/migrations`. Each function
+  pins its packages in its own `deno.json` and `deno.lock` (README, "Edge
+  function dependencies"); never import a package by URL or without them.
 - Stripe for payments. Resend for email.
 - UI strings live in `src/i18n/translations.ts`, in English and Portuguese.
   Every new user-facing string goes there in both languages.

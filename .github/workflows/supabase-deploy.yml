@@ -30,9 +30,12 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+      # The version CI tests with (.github/workflows/ci.yml): the functions are
+      # bundled by the edge runtime this CLI ships, the one the tests ran on
+      # (backlog F-08). Change both together.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0
       - name: Read project ref
         id: ref
         run: echo "ref=$(grep -m1 '^project_id' supabase/config.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
@@ -40,6 +43,12 @@ jobs:
         run: supabase link --project-ref "${{ steps.ref.outputs.ref }}"
       - name: Apply migrations
         run: supabase db push --remote --yes
+      # Without Docker the CLI falls back to bundling on Supabase's side, and
+      # sends the sources without the deno.lock files: the dependencies of the
+      # functions would float again (backlog F-08). Stop instead.
+      - name: Docker is available to bundle the functions
+        if: github.event_name == 'push' || inputs.functions
+        run: docker info > /dev/null
       - name: Deploy edge functions
         if: github.event_name == 'push' || inputs.functions
         run: supabase functions deploy --project-ref "${{ steps.ref.outputs.ref }}" --yes

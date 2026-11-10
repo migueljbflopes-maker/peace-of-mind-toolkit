@@ -6,9 +6,9 @@
  * Includes deduplication logic for welcome emails.
  */
 
-import { Resend } from "https://esm.sh/resend@4.0.0";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { Resend } from "resend";
+import Stripe from "stripe";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // ============= Constants =============
 
