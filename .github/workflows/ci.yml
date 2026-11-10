@@ -25,38 +25,17 @@ jobs:
       - name: TEMP diagnose function serving
         run: |
           set +e
-          curl -sI "https://esm.sh/@supabase/supabase-js@2.57.2" | grep -i "^HTTP\|typescript"
-          curl -sI "https://esm.sh/@supabase/supabase-js@2.57.2?no-dts" | grep -i "^HTTP\|typescript"
-          curl -sL "https://esm.sh/@supabase/supabase-js@2.57.2/dist/module/lib/types.d.ts" | head -8
-          curl -sIL "https://esm.sh/@supabase/storage-js@2.99.1/dist/module/StorageClient.d.ts" | grep -i "^HTTP"
-          curl -sL "https://esm.sh/@supabase/supabase-js@2.57.2" | head -12
-          supabase functions serve --help
-          try() {
-            name="$1"; shift
-            echo "=================== VARIANT $name: supabase functions serve $*"
-            nohup supabase functions serve "$@" > "serve-$name.log" 2>&1 &
-            pid=$!
-            code=000
-            for i in $(seq 1 20); do
-              code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:54321/functions/v1/checkin-start)
-              if [ "$code" = "405" ]; then break; fi
-              sleep 2
+          mkdir -p /tmp/wd/supabase && cp -r supabase/functions supabase/config.toml /tmp/wd/supabase/
+          grep -rl 'https://esm.sh/' /tmp/wd/supabase/functions | xargs sed -i -E "s#(https://esm\.sh/[^\"'?]+)([\"'])#\1?no-dts\2#g"
+          grep -rh "esm.sh" /tmp/wd/supabase/functions | sort | uniq -c
+          nohup supabase --workdir /tmp/wd functions serve --env-file "$PWD/e2e/backend/functions.env" > serve.log 2>&1 &
+          sleep 15
+          for round in 1 2; do
+            for f in checkin-start panic-trigger create-payment-intent stripe-webhook send-scheduled-emails generate-plan-wizard expert-chat claim-guest-purchase admin-manage-user run-ai-job; do
+              code=$(curl -s -m 60 -o /tmp/body -w '%{http_code}' http://127.0.0.1:54321/functions/v1/$f)
+              echo "round $round $f -> $code $(head -c 200 /tmp/body)"
             done
-            echo "VARIANT $name -> status $code"
-            docker ps --format '{{.Names}}' | grep edge
-            docker inspect $(docker ps --format '{{.Names}}' | grep edge) --format '{{json .HostConfig.Binds}}' | tr ',' '\n' | head -60
-            docker inspect $(docker ps --format '{{.Names}}' | grep edge) --format '{{json .Config.Env}}' | tr ',' '\n' | grep -i "FUNCTIONS_CONFIG\|import" | cut -c1-1500
-            grep -v "Pull\|Download\|fs layer" "serve-$name.log" | head -30 | cut -c1-400
-            kill $pid; sleep 2
-          }
-          cat > /tmp/map-npm.json <<'JSON'
-          { "imports": {
-            "https://esm.sh/@supabase/supabase-js@2.57.2": "npm:@supabase/supabase-js@2.57.2",
-            "https://esm.sh/@supabase/supabase-js@2": "npm:@supabase/supabase-js@2"
-          } }
-          JSON
-          cp /tmp/map-npm.json e2e/backend/map-npm.json
-          try nodts --env-file e2e/backend/functions.env --import-map e2e/backend/functions.import-map.json
-          try npm --env-file e2e/backend/functions.env --import-map e2e/backend/map-npm.json
-          try nodts-abs --env-file e2e/backend/functions.env --import-map "$PWD/e2e/backend/functions.import-map.json"
+          done
+          docker inspect $(docker ps --format '{{.Names}}' | grep edge) --format '{{json .HostConfig.Binds}}'
+          grep -v "Pull\|Download\|fs layer" serve.log | head -80 | cut -c1-400
           exit 1
