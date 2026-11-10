@@ -10,7 +10,9 @@ Tags: `[HUMAN]` needs the owner to act (accounts, keys, a real phone).
 `[DECISION]` needs the owner to choose. `[PRIVACY]` must pass the
 privacy-reviewer.
 
-Phases run in order A, P, B, S, U, but a task only waits for the tasks it names.
+Phases run in order A, F, P, B, S, U, but a task only waits for the tasks it
+names. Owner priority (2026-11-10): prove the core features and the funnels
+work, with tests, before wiring real payments, email and AI.
 
 ## Phase A: foundations
 
@@ -54,7 +56,7 @@ Accepted when: `docs/edge-functions.md` lists every function with who may call
 it and how the function enforces that; each function that should require a user
 has a test proving an unauthenticated call is rejected.
 
-**A-06.** Run Supabase locally (CLI) in CI, seed a premium test user, and give
+**A-06.** Unblocks all of phase F. Run Supabase locally (CLI) in CI, seed a premium test user, and give
 Playwright a signed-in fixture. Add a way to run edge function tests.
 Accepted when: a browser test signs in as the seeded user and reaches the
 dashboard, in CI.
@@ -63,6 +65,59 @@ dashboard, in CI.
 every feature marked freeze in A-03. Keep the code recoverable from git history.
 Accepted when: the build contains no frozen route; no reference to
 `ai.gateway.lovable.dev` or `LOVABLE_API_KEY` remains; `npm run verify` passes.
+
+## Phase F: the core features and funnels work
+
+One end-to-end browser test per core feature, walking the app as a user does,
+against a local Supabase (A-06). External services are stood in for: Stripe and
+OpenAI responses are mocked at the network edge, and email is asserted as
+"would be sent" without sending. A test here that cannot pass because the
+feature is broken is the point of the phase: record the bug as a new F task,
+fix it in its own change, and never bend the test around it.
+
+| ID | Task | Needs | Status |
+|---|---|---|---|
+| F-01 | Sign up, sign in, set the master password | A-06 | todo |
+| F-02 | Vault: save, lock, unlock, read | F-01 | todo |
+| F-03 | Plans A and B through the wizard | F-01 | todo |
+| F-04 | Red Folder PDF from the user's real data | F-02, F-03 | todo |
+| F-05 | Panic setup, test mode, and a check-in session | F-01 | todo |
+| F-06 | Risk funnel up to the payment screen | A-01 | todo |
+| F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
+
+**F-01.** Accepted when: a browser test creates an account, lands signed in,
+sets a master password, signs out, signs in again and unlocks with that
+password; a wrong master password is refused with a clear message.
+
+**F-02.** Accepted when: a browser test saves data in at least two vault
+sections, locks the vault, unlocks it, reads the same data back, reloads the
+page and reads it again; the database rows for that user hold ciphertext only.
+
+**F-03.** `generate-plan-wizard` calls OpenAI; mock its response.
+Accepted when: a browser test completes every wizard step, receives plans A and
+B, edits one section, reloads and finds the edit saved; a failed generation
+shows an error the user can act on and loses none of the answers given.
+
+**F-04.** Accepted when: a browser test generates the PDF for a user with vault
+data and plans, and the downloaded file is a valid PDF containing a value typed
+into the vault and a line from each plan.
+
+**F-05.** Delivery itself belongs to phase P; this covers the screens.
+Accepted when: a browser test adds two contacts and a scenario, runs a test
+activation to completion and sees it in the history; starts a check-in session,
+responds to it, and stops it. No message is shown that claims an alert reached
+anyone.
+
+**F-06.** Mock Stripe. Covers the one-time funnel (`RiskFunnel`); the
+subscription duplicate is frozen.
+Accepted when: a browser test answers every funnel question, sees a result that
+matches the answers given, and reaches the payment screen with the right
+amount; leaving midway and returning resumes where the user left off.
+
+**F-07.** Start from a completed purchase created directly in the database.
+Accepted when: a browser test for a guest purchase claims it into an account,
+sees premium features unlocked, and completes the four onboarding steps; a user
+without a purchase is shown the paywall on each premium route.
 
 ## Phase P: a panic button that tells the truth
 
