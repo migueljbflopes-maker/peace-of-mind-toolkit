@@ -208,10 +208,15 @@ their dependencies again at that moment, which is the fault this task
 removes; Supabase keeps no earlier version of a function to return to. The
 safer answer to a failed boot is the function's log in the Supabase dashboard
 and a fix forward.
+Verified in CI: with a wrong integrity hash in one `deno.lock`, the runtime
+that serves the functions refuses to boot that function (`failed reading
+lockfile ... Integrity check failed`), so `functions serve` does resolve from
+the lockfile.
 Not verified: the deploy itself and the deployed functions; that the bundle
-uploaded by the deploy contains exactly the locked versions (inferred from the
-runtime's source, where the lockfile is read for `bundle` as for `serve`, and
-from the same runtime image being used for both).
+the deploy uploads holds exactly the locked versions. That is inferred: the
+deploy of 2026-11-10 bundled with the same runtime image (edge-runtime
+1.78.1) that CI serves with, and in that runtime's source `bundle` finds the
+lockfile the same way `serve` does.
 
 **F-09.** Found by A-06. The functions call `api.stripe.com`,
 `api.resend.com` and `api.openai.com` at fixed addresses, so a test that needs
