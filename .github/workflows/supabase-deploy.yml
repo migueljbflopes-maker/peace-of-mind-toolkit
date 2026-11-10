@@ -39,7 +39,7 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "${{ steps.ref.outputs.ref }}"
       - name: Apply migrations
-        run: supabase db push
+        run: supabase db push --remote --yes
       - name: Deploy edge functions
         if: github.event_name == 'push' || inputs.functions
         run: supabase functions deploy --project-ref "${{ steps.ref.outputs.ref }}"
