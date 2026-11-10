@@ -64,18 +64,45 @@ How it is put together:
   that calls Stripe, Resend or OpenAI still makes the call and is refused by
   the provider, so a test must not depend on such a call: mock the function's
   response in the browser with `page.route("**/functions/v1/<name>", ...)`.
-- `npm run supabase:functions` serves a copy of `supabase/functions` (made
-  under `node_modules/.cache`) whose esm.sh imports ask for no type
-  declarations, because the functions as written do not boot on the local
-  runtime (backlog F-08). Restart it after editing a function.
+- `npm run supabase:functions` serves `supabase/functions` itself, the code
+  that is deployed. `e2e/backend/functions-boot.spec.ts` calls every function
+  once and fails if one does not boot.
 - Email sent by the local auth server is not delivered; it lands in Mailpit
   at http://127.0.0.1:54324.
 
-CI pins the Supabase CLI version (`.github/workflows/ci.yml`); the harness was
-brought up with CLI 3.1.0.
+CI and the deploy workflow pin the same Supabase CLI version (3.1.0, in
+`.github/workflows/`), so the functions are bundled for production by the
+runtime the tests ran on. Change both together.
 
 ## Backend
 
 Supabase: migrations in `supabase/migrations`, edge functions in
 `supabase/functions`. The web app reads its Supabase and Stripe publishable
 keys from `.env`.
+
+### Edge function dependencies
+
+What is tested must be what is deployed, so no dependency of a function
+floats (backlog F-08):
+
+- Each function has its own `deno.json`, which maps the packages it imports
+  (`@supabase/supabase-js`, `stripe`, `resend`) to an exact version on npm.
+  The code imports them by name. All functions use the same version of a
+  package. Files under `_shared` import no packages.
+- Each function has a `deno.lock` next to it: every transitive package with
+  its integrity hash, and the hash of every file imported by URL (the
+  `deno.land/std` server). The edge runtime resolves from it when it serves a
+  function locally and when it bundles one for a deploy.
+- The runtime does not complain about an incomplete lockfile; it resolves
+  what is missing on the spot. CI therefore checks every lockfile with Deno
+  itself: `npm run functions:check-locks` (`deno cache --frozen`).
+- The deploy workflow uses the same Supabase CLI version as CI and bundles
+  with Docker. Bundling on Supabase's side (`--use-api`, or no Docker) does
+  not send the lockfiles and must not be used.
+
+To change a version: edit it in every `deno.json` that names the package, run
+`npm run functions:lock` and commit the lockfiles. Both commands need
+Deno 2.1 (`deno upgrade --version 2.1.4`), the version the edge runtime of
+the pinned CLI embeds; `scripts/function-deps.test.mjs` checks the
+declarations without Deno. A new function needs a `deno.json` and a
+`deno.lock` too, or the unit tests fail.

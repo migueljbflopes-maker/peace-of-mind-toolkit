@@ -26,12 +26,6 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.1.4
-      - name: TEMPORARY regenerate lockfiles and print the difference
-        run: |
-          npm run functions:lock || true
-          git status --short
-          git diff
-          git checkout -- supabase/functions
       - name: Every edge function resolves from its lockfile
         run: npm run functions:check-locks
 
