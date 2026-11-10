@@ -27,6 +27,12 @@ const REGISTRATION_TIMEOUT_MS = 2000;
 const SETTLE_MS = 300;
 const ACTIVATION_TIMEOUT_MS = 4000;
 const RELOAD_TIMEOUT_MS = 5000;
+// Upper bound on everything done before the first render, whatever stalls.
+const BOOT_TIMEOUT_MS = 7000;
+
+// True once the app has been told to render. From then on this module must
+// not activate or reload, however late the steps below finish.
+let appStarted = false;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -77,9 +83,14 @@ async function applyIfOnlyTab(): Promise<void> {
     // If it does not activate in time, the current version starts. The request
     // cannot be withdrawn, so the browser may still activate the new worker
     // later, under the running app: see the B-01 notes in docs/backlog.md.
-    if (!(await activate(waiting))) return;
-
+    if (appStarted) return;
+    // Set the flag first: if storage throws, nothing has been activated yet.
     sessionStorage.setItem(RELOAD_FLAG, "1");
+    if (!(await activate(waiting)) || appStarted) {
+      sessionStorage.removeItem(RELOAD_FLAG);
+      return;
+    }
+
     location.reload();
     // Keep the lock while the page is being replaced. If the reload somehow
     // does not happen, give up and let the current version render.
@@ -90,15 +101,16 @@ async function applyIfOnlyTab(): Promise<void> {
 /**
  * Call once at app start and render when it resolves. If a new version is
  * waiting and this is the only tab, it is activated and the page reloads into
- * it before anything was shown. Always resolves; never waits longer than the
- * timeouts above.
+ * it before anything was shown. Always resolves, within BOOT_TIMEOUT_MS at most.
  */
 export async function applyWaitingUpdateAtStart(): Promise<void> {
   try {
-    await applyIfOnlyTab();
+    // The app must start even if the lock request or anything else never settles.
+    await Promise.race([applyIfOnlyTab(), sleep(BOOT_TIMEOUT_MS)]);
   } catch {
     // Starting the current version always wins over updating.
   }
+  appStarted = true;
   try {
     // Never resolves: the lock is released when this tab goes away.
     void navigator.locks?.request(TAB_LOCK, { mode: "shared" }, () => new Promise<void>(() => {}));

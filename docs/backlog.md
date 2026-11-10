@@ -146,9 +146,13 @@ or reloaded (which then works offline, once the download of about 3 MB has
 finished).
 Known limits: if activation at start takes longer than 4 seconds the current
 version starts and the browser may activate the new one later under the
-running app; the same can happen when two tabs start in the same instant. In
-both cases nothing is reloaded, but a screen not opened yet can fail to load
-(B-07). Not seen in 30 consecutive test runs.
+running app. The same happens when a second tab is opened while the first is
+still applying an update at start, a window of about 2 seconds: that tab is
+left on the old version under the new worker (reproduced by forcing it, 12 of
+12). In both cases nothing is reloaded and the panic path is unaffected, since
+it is in the main bundle, but a screen not opened yet can fail to load (B-07).
+Not covered by a test: the reload-loop guard, and a regression that would
+reload on a change of controlling worker.
 Not verified: install prompt, offline launch and update on a real iPhone and
 Android phone.
 
