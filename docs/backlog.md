@@ -23,7 +23,7 @@ work, with tests, before wiring real payments, email and AI.
 | A-03 | `[DECISION]` Confirm scope: freeze non-core features | none | done |
 | A-04 | Lint to zero errors, then gate CI on lint | A-01 | todo |
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
-| A-06 | Local Supabase test harness with a signed-in test user | A-01 | todo |
+| A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
 | A-07 | Remove frozen features from the build | A-03 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
@@ -60,6 +60,33 @@ has a test proving an unauthenticated call is rejected.
 Playwright a signed-in fixture. Add a way to run edge function tests.
 Accepted when: a browser test signs in as the seeded user and reaches the
 dashboard, in CI.
+Done. CI starts a local Supabase stack (CLI pinned to 3.1.0), checks that
+every migration is applied, serves the edge functions with dummy provider keys
+(`e2e/backend/functions.env`), builds the app against the local stack and runs
+two Playwright projects: `mobile-chrome` (no backend, runs everywhere) and
+`backend` (`e2e/backend`, only with `E2E_BACKEND=1`, which
+`npm run test:e2e:backend` sets). How to run it and how it is put together:
+README, "Backend tests". What to import in a test: `e2e/backend/fixtures.ts`.
+All 26 migrations apply to the local stack unchanged, including the `pg_cron`
+job, whose `app.settings.*` values are only read when the job runs.
+The hosted project cannot be reached by the harness: the stack URL comes from
+`supabase status` and anything that is not on this machine is refused
+(`scripts/local-supabase.mjs`, unit-tested); the seed is a script outside
+`supabase/`, so the deploy workflow cannot carry it; a backend run fails
+before the first test if the build contains a hosted URL; and a page under
+test cannot reach any host but this machine.
+The dashboard is not behind the master password, so the seeded user has none;
+setting one is F-01.
+Limits. Function calls to Stripe, Resend and OpenAI are not intercepted: with
+the dummy keys the provider refuses them, and browser tests mock the function's
+response instead (F-09 for tests that need the function itself to run). The
+functions served are a copy with rewritten imports (F-08). Locally the backend
+project needs Docker; without it `npm run verify` runs `mobile-chrome` only
+and says so, and the backend tests are verified by CI.
+Not verified: running the stack on a developer machine (brought up in CI
+only); sign-up and magic link on the local stack, where email confirmation is
+off by default and mail goes to Mailpit, which F-01 must check against the
+hosted project's settings.
 
 **A-07.** Remove routes, navigation entries, edge functions and cron jobs of
 every feature marked freeze in A-03. Keep the code recoverable from git history.
@@ -84,6 +111,8 @@ fix it in its own change, and never bend the test around it.
 | F-05 | Panic setup, test mode, and a check-in session | F-01 | todo |
 | F-06 | Risk funnel up to the payment screen | A-01 | todo |
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
+| F-08 | Edge functions boot on the local runtime as written | A-06 | todo |
+| F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -118,6 +147,34 @@ amount; leaving midway and returning resumes where the user left off.
 Accepted when: a browser test for a guest purchase claims it into an account,
 sees premium features unlocked, and completes the four onboarding steps; a user
 without a purchase is shown the paywall on each premium route.
+
+**F-08.** Found by A-06. Every function imports from esm.sh by URL, and
+`supabase-js@2.57.2` there depends on `storage-js@^2.10.4`, which floats. With
+storage-js 2.99.1 the type declarations esm.sh attaches point at a file that
+no longer exists, and on the local edge runtime (CLI 3.1.0, edge-runtime
+1.78.1) every function fails to boot: `Module not found
+".../storage-js@2.99.1/dist/module/StorageClient"`. The test harness works
+around it by serving a copy with `?no-dts` imports
+(`scripts/local-functions.mjs`). The deploy of 2026-11-10 succeeded, so the
+hosted bundler did not trip on it then; whether the deployed functions boot,
+and whether the next deploy will bundle, is not verified. A floating
+dependency also means the deployed code can change without a commit. Pin the
+dependencies (per-function `deno.json` with `npm:` specifiers, or one import
+map) so that what is tested is what is deployed.
+Accepted when: `supabase functions serve` serves `supabase/functions` itself
+in CI, `scripts/local-functions.mjs` and its copy step are deleted, and the
+backend tests pass.
+
+**F-09.** Found by A-06. The functions call `api.stripe.com`,
+`api.resend.com` and `api.openai.com` at fixed addresses, so a test that needs
+the function itself to run (P-02 delivery, `stripe-verify-session`, the
+webhook's receipt email) has no way to answer for the provider; today such a
+call leaves CI and is refused for its dummy key. Read each provider's base URL
+from the environment, defaulting to the real one, and add a stub server to the
+harness that records what it was sent.
+Accepted when: a backend test drives one function per provider against the
+stub and asserts on the request the stub received; with the variable unset
+the function uses the real address.
 
 ## Phase P: a panic button that tells the truth
 
@@ -234,6 +291,8 @@ recipients and body and, after reconnecting, exactly one server activation.
 **B-06.** `src/index.css` imports Inter from `fonts.googleapis.com`. Offline
 the request fails and the app falls back to the system font; online, every
 visit makes a request to Google, which the privacy page should account for.
+The build also warns that this `@import` comes after the `@tailwind` lines,
+where CSS does not allow it (seen in every build log).
 Ship the font files with the app so the service worker precaches them.
 The `@import` also blocks rendering: on a network that is connected but cannot
 reach Google, the shell is served from the cache at once and then waits for
