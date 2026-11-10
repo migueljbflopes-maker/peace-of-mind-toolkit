@@ -33,13 +33,13 @@ jobs:
         run: node scripts/with-local-supabase.mjs node scripts/check-migrations.mjs
       - name: Serve the edge functions locally
         run: |
-          nohup supabase functions serve --env-file e2e/backend/functions.env > supabase-functions.log 2>&1 &
-          for i in $(seq 1 60); do
+          nohup npm run supabase:functions > supabase-functions.log 2>&1 &
+          for i in $(seq 1 45); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:54321/functions/v1/checkin-start || true)
             if [ "$code" = "405" ]; then echo "edge functions answer after ${i} tries"; exit 0; fi
             sleep 2
           done
-          echo "edge functions did not come up (last status $code)"; cat supabase-functions.log; exit 1
+          echo "edge functions did not come up (last status $code)"; head -n 80 supabase-functions.log; exit 1
 
       - run: npx playwright install --with-deps chromium
       # Builds the app against the local stack and runs both Playwright

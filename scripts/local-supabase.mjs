@@ -100,7 +100,9 @@ export function readLocalStack() {
         (error.stderr || error.message),
     );
   }
-  return stackEnv(parseStatusEnv(text));
+  const status = parseStatusEnv(text);
+  console.log(`[local-supabase] supabase status reports: ${Object.keys(status).sort().join(", ")}`);
+  return stackEnv(status);
 }
 
 /**
