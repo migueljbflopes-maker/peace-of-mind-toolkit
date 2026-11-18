@@ -62,7 +62,8 @@ next worked on.
 | A-09 | Browser tests never run against another checkout's build | A-01 | done |
 | A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
 | A-11 | Remove code that nothing renders | A-07 | todo |
-| A-12 | The sign-in callback page: an expired link is reported as such, in the user's language | A-08 | todo |
+| A-12 | The sign-in callback page: an expired link is reported as such, in the user's language | A-08 | done |
+| A-30 | The sign-in page shows the auth server's error text as it comes | A-12 | todo |
 | A-13 | The "no frozen feature" page test does not time out on `networkidle` | A-07 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
@@ -425,6 +426,82 @@ Accepted when: a browser test follows an expired link on the local stack and
 the visitor is told at once that the link has expired and how to get a new
 one; every text of the page is in `translations.ts` in both languages; the
 way back to sign-in keeps the return address.
+Done. What the local auth server sends, read in CI run 44379113628 (the link
+followed outside the browser, redirect not followed): for a link used a
+second time and for a link past its expiry alike, `303` to
+`/auth/callback?return_url=…#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired&sb=`.
+The error is in the fragment only; the query keeps `return_url` and nothing
+else. (Expiry was produced by moving `auth.users.recovery_sent_at` two days
+back with SQL on the local database: the hour a link lives was not waited
+out.) Inside the browser that redirect cannot be read once the app's service
+worker is installed: Playwright then reports the navigation as the page it
+ends on (`200`, `fromServiceWorker`), seen in run 44377348462.
+- How the page decides (`src/lib/authCallback.ts`, unit-tested): it reads
+  what the address carries when it mounts, then awaits
+  `supabase.auth.initialize()` (the promise of the reading the client began
+  at start-up; it resolves with the error when the link was refused) and
+  then `getSession()`. A session, from this link or from before: on to the
+  return address. None: the failure is one of five kinds. `expired`: the
+  address says `otp_expired` (or another code that means the same), or the
+  auth server refused the token with a 4xx. `failed`: any other error in the
+  address, or tokens the client could not use. `unsupported`: a `?code=`.
+  `empty`: nothing in the address. `connection`: no proper answer (request
+  failed, 429, 5xx) or the ten-second timeout, which is unchanged.
+- What the visitor gets: every kind but `connection` is shown at once, with
+  one button ("Get a new link" for `expired` and `failed`, "Go to sign-in"
+  for `unsupported` and `empty`) and no "Try again"; the tokens or the error
+  are taken out of the address. `connection` keeps the link in the address
+  and offers "Try again" and "Go to sign-in"; when the request fails outright
+  it is shown at once instead of after ten seconds. Every way to `/login`
+  carries the return address if `safeReturnPath` accepts it and it is not
+  the default, and nothing otherwise. The server's text is never shown; the
+  codes go to the console (`[AuthCallback] kind=… error_code=…`).
+- Chosen: a visitor already signed in who opens a link that was refused
+  still goes to the return address signed in as before, and is told so by a
+  notice that names the account ("That sign-in link was not used … You are
+  still signed in as …"), since the link may have been for another account.
+  This now also holds for an error in the query, which used to stop on the
+  error page even when signed in.
+- The page still never calls `setSession`, its listener is still synchronous
+  and starts no Supabase call; `AuthContext` and `useLocale.ts` are untouched.
+- One line of an existing test was changed, and the owner should know: the
+  A-08 timeout helper in `e2e/auth-callback.spec.ts` looked for the English
+  "Signing you in..." with the phone in Portuguese, which is the hard-coded
+  text this task translates. It now looks for the text in the phone's
+  language (the same assertion in English, a stricter one in Portuguese).
+Tests: `e2e/auth-callback.spec.ts`, no backend, 43 new: token refused with
+401, 403 and 400, error in the fragment, in the query and in both, `?code=`,
+and the empty address, each in English and Portuguese (message, within 2.5
+seconds, one button, address cleaned, `/login` with the return address),
+each again with three return addresses that leave the site (not carried);
+no connection (message at once, link kept, "Try again" signs in); the
+timeout's way to sign-in keeps the return address; signed in with an expired
+link. Before the change 43 of 43 failed and the 3 of A-08 passed; after it
+46 of 46 pass. `e2e/backend/auth-callback.spec.ts`, real local auth server,
+3 tests: a link asked for from a gated page, used once, opened again
+(expired message, "Get a new link" lands on `/login` with the return
+address, Magic Link form); a link past its expiry; a used link for another
+account opened while signed in. CI run 44379113628: 201 passed, none flaky,
+with `.github/workflows/ci.yml` as on main. A-08's guard repeated: the two
+magic-link tests (`signup-master-password.spec.ts`, `return-url.spec.ts`)
+with `--repeat-each=20 --retries=0` through a temporary step, since
+reverted, passed 20 of 20 each in run 44375732002 and again in run
+44377348462 (both runs are red for another reason: the first version of the
+used-twice backend test tripped over the service-worker reporting above;
+A-13's test also failed once and passed on retry in the first).
+Not done here: a link past its expiry was not waited out in real time; the
+hosted auth server was not asked (no route to it), so that it sends the same
+fragment as the local one is an assumption; a 5xx or 429 from the auth
+server gets the connection message, whose wording blames the connection.
+
+**A-30.** Found by A-12. `src/contexts/AuthContext.tsx` shows the auth
+server's `error.message` as it comes, in English under the title "Error",
+in the toasts of the sign-in page (magic-link request, password sign-in,
+sign-up, sign-out), to visitors whose phone is in Portuguese as well.
+Accepted when: known error codes (rate limit, invalid credentials, address
+not confirmed, weak password) have their own text in `translations.ts` in
+both languages, the rest a generic one, the server's text goes to the
+console only, and a browser test shows one of them in each language.
 
 **A-13.** Recorded by A-08; the runs and what was ruled out are at the end
 of the A-08 paragraph. `e2e/frozen-features.spec.ts:101` waits for
