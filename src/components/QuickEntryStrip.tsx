@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AlertTriangle, Package, Library, Newspaper, ArrowRight } from "lucide-react";
+import { AlertTriangle, Package, Library, ArrowRight } from "lucide-react";
 
 const QuickEntryStrip = () => {
   const entries = [
@@ -26,14 +26,6 @@ const QuickEntryStrip = () => {
       href: "/library",
       iconBg: "bg-sky-100",
       iconColor: "text-sky-600",
-    },
-    {
-      title: "Weekly Briefing",
-      description: "Stay informed, stay calm",
-      icon: Newspaper,
-      href: "/news/weekly",
-      iconBg: "bg-violet-100",
-      iconColor: "text-violet-600",
     },
   ];
 

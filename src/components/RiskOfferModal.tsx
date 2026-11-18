@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Info,
   Timer,
-  Radar,
+  FileText,
   Lock,
   Siren,
   Sparkles,
@@ -74,12 +74,12 @@ export function RiskOfferModal({
 
   const features = locale === 'pt' ? [
     { title: "Plano 72h", subtitle: "Passos e checklists personalizados", icon: Timer },
-    { title: "Segurança & Orientação", subtitle: "Consultar especialistas", icon: Radar },
+    { title: "Red Folder", subtitle: "PDF offline imprimível", icon: FileText },
     { title: "Vault", subtitle: "Cofre encriptado para documentos,\ncontactos e instruções", icon: Lock },
     { title: "Botão Pânico", subtitle: "Alertar pessoas-chave e partilhar\ninformação crítica", icon: Siren },
   ] : [
     { title: "72h Plan", subtitle: "Personalized steps and checklists", icon: Timer },
-    { title: "Safety & Guidance", subtitle: "Consult experts for guidance", icon: Radar },
+    { title: "Red Folder", subtitle: "Printable offline PDF", icon: FileText },
     { title: "Vault", subtitle: "Encrypted vault for documents,\ncontacts, and instructions", icon: Lock },
     { title: "Panic Button", subtitle: "Alert key people instantly and share\ncritical information", icon: Siren },
   ];

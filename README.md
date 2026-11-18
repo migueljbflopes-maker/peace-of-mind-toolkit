@@ -111,3 +111,10 @@ After a deploy, the `Supabase deploy` workflow checks that every deployed
 function boots (`scripts/smoke-deployed-functions.mjs`: one CORS preflight
 each, no side effects) and fails if one does not. To try a change on one
 function first, run the workflow by hand with its name in `only`.
+
+Deploying only uploads. To remove a function, delete its directory and its
+entry in `supabase/config.toml`: after the next full deploy the workflow
+deletes from the project every deployed function that has no directory
+(`scripts/prune-deployed-functions.mjs`, which prints what it deletes and
+deletes nothing if it cannot read the deployed list). Run it with
+`--dry-run` to see what it would delete.

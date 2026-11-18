@@ -97,8 +97,8 @@ const ProductPillars = () => {
                 <div className="flex items-start gap-3">
                   <Clock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Safe Triggers and Guidance</p>
-                    <p className="text-xs text-muted-foreground">Share your plan automatically or consult experts for guidance</p>
+                    <p className="text-sm font-medium text-foreground">Safe Triggers</p>
+                    <p className="text-xs text-muted-foreground">Share your plan automatically</p>
                   </div>
                 </div>
               </div>

@@ -25,7 +25,6 @@ export function PremiumBundleCard({ compact = false }: PremiumBundleCardProps) {
     features.plans,
     features.backup,
     features.insights,
-    features.alerts,
   ];
 
   if (compact) {

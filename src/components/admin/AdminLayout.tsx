@@ -6,7 +6,6 @@ import {
   Users, 
   BarChart3, 
   Zap, 
-  Link as LinkIcon,
   LayoutDashboard,
   LogOut,
   Loader2,
@@ -26,7 +25,6 @@ const navItems = [
   { path: '/admin/users', label: 'Users', icon: Users },
   { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/admin/features', label: 'Features', icon: Zap },
-  { path: '/admin/affiliates', label: 'Affiliates', icon: LinkIcon },
   { path: '/admin/emails', label: 'Emails', icon: Mail },
   { path: '/admin/prompts', label: 'AI Prompts', icon: Brain },
 ];

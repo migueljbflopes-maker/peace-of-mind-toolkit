@@ -48,7 +48,6 @@ export const FEATURES = {
   PANIC_BUTTON: 'panic_button',
   LIBRARY: 'library',
   TIPS: 'tips',
-  WEEKLY_BRIEFING: 'weekly_briefing',
   PREMIUM_PURCHASE: 'premium_purchase',
 } as const;
 

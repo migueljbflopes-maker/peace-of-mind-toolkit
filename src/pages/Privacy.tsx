@@ -168,13 +168,6 @@ export default function Privacy() {
                       No personally identifiable information is included.
                     </p>
                   </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <h4 className="font-semibold mb-2">News Sources</h4>
-                    <p className="text-sm text-muted-foreground">
-                      We fetch public data from GDACS, USGS, and ReliefWeb. 
-                      No personal data is shared with these services.
-                    </p>
-                  </div>
                 </div>
               </CardContent>
             </Card>

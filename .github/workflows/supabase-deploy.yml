@@ -85,3 +85,13 @@ jobs:
         env:
           ONLY: ${{ inputs.only }}
         run: node scripts/smoke-deployed-functions.mjs "${{ steps.ref.outputs.ref }}" $ONLY
+      # Deploying only uploads: a function whose directory was removed from the
+      # repository stays deployed, and callable, until it is deleted from the
+      # project (backlog A-07). After a full deploy that booted, delete exactly
+      # the deployed functions that have no directory under supabase/functions,
+      # and print each one. The script deletes nothing, and fails the run, when
+      # it cannot read the deployed list or the list lacks a function of the
+      # repository (scripts/prune-deployed-functions.mjs, unit-tested).
+      - name: Functions removed from the repository are deleted from the project
+        if: github.event_name == 'push' || (inputs.functions && inputs.only == '')
+        run: node scripts/prune-deployed-functions.mjs "${{ steps.ref.outputs.ref }}"

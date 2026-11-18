@@ -63,11 +63,10 @@ const Navbar = forwardRef<HTMLElement>((_, ref) => {
     { label: t.nav.pricing, href: "/pricing", icon: CreditCard },
   ];
 
-  // Be Prepared dropdown: Risk, Supplies, Products, Library, Tips
+  // Be Prepared dropdown: Risk, Supplies, Library, Tips
   const bePreparedLinks = [
     { label: t.nav.riskCalculator, href: "/tools/risk", icon: AlertTriangle },
     { label: t.nav.suppliesPlanner, href: "/tools/supplies", icon: Package },
-    { label: t.nav.products, href: "/products", icon: Package },
     { label: t.nav.library, href: "/library", icon: Library },
     { label: t.nav.tips, href: "/tips", icon: Lightbulb },
   ];

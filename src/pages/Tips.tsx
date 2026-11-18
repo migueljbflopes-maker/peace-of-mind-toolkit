@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   Package,
   BookOpen,
-  Newspaper,
   WifiOff,
   Sparkles,
   X,
@@ -175,7 +174,6 @@ const Tips = () => {
     { title: "2-minute risk check", description: "Understand your situation", href: "/tools/risk", icon: AlertTriangle },
     { title: "14-day essentials plan", description: "Build your supplies list", href: "/tools/supplies", icon: Package },
     { title: "Official guidance library", description: "Trusted government sources", href: "/library", icon: BookOpen },
-    { title: "Weekly briefing", description: "Stay informed, calmly", href: "/news/weekly", icon: Newspaper },
   ];
 
   const TipCard = ({ tip }: { tip: TipContent }) => (
@@ -336,7 +334,7 @@ const Tips = () => {
             <Sparkles className="h-5 w-5 text-primary" />
             Start here
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {startHereCards.map((card) => (
               <Link
                 key={card.href}

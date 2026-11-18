@@ -15,7 +15,7 @@ const FAQ = () => {
     {
       question: "Do I need to create an account?",
       answer:
-        "No account is required to use our core free features: risk calculator, supplies planner, library, tips, and weekly briefings. You only need to log in if you want to save your progress, sync across devices, or access Premium features.",
+        "No account is required to use our core free features: risk calculator, supplies planner, library, and tips. You only need to log in if you want to save your progress, sync across devices, or access Premium features.",
     },
     {
       question: "What is the Red Folder PDF?",

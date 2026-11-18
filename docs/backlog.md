@@ -24,8 +24,11 @@ work, with tests, before wiring real payments, email and AI.
 | A-04 | Lint to zero errors, then gate CI on lint | A-01 | todo |
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
-| A-07 | Remove frozen features from the build | A-03 | todo |
+| A-07 | Remove frozen features from the build | A-03 | doing |
 | A-08 | The magic-link sign-up test does not flake | A-06 | todo |
+| A-09 | Browser tests never run against another checkout's build | A-01 | todo |
+| A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
+| A-11 | Remove code that nothing renders | A-07 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -51,8 +54,10 @@ subscription funnel `RiskFunnel1`.
 **A-04.** `npx eslint .` reports 36 errors today.
 Accepted when: it reports zero errors and CI runs it as a required step.
 
-**A-05.** There are 31 edge functions. `supabase/config.toml` sets
-`verify_jwt = false` on 24 of them, `true` on one, and does not list six.
+**A-05.** There are 21 edge functions (31 before A-07 removed the ten of the
+frozen features). `supabase/config.toml` sets `verify_jwt = false` on 17 of
+them, `true` on one, and does not list three (`complete-express-purchase`,
+`generate-risk-insights`, `send-scheduled-emails`).
 Accepted when: `docs/edge-functions.md` lists every function with who may call
 it and how the function enforces that; each function that should require a user
 has a test proving an unauthenticated call is rejected.
@@ -63,7 +68,13 @@ Found while reviewing F-08 (2026-11-18), to be fixed here, each with a test:
   `RESEND_API_KEY` is set on the hosted project** (see the owner checklist).
 - `send-scheduled-emails`: not in `config.toml`, no caller check, service
   role, sends the queued emails.
-- The six `ingest-*` functions: no caller check, service-role writes.
+- ~~The six `ingest-*` functions: no caller check, service-role writes.~~
+  Removed by A-07, with `expert-chat` and the three subscription functions;
+  they stay callable on the hosted project until the deploy that follows the
+  merge of A-07 has deleted them (see A-07).
+- `run-ai-job`: kept, because the onboarding step that drafts plans A and B
+  calls it (`src/lib/aiPlanDraft.ts`). It has not been reviewed here; it
+  calls OpenAI and belongs in this audit and in S-04.
 - `set-guest-email` (lines 35-80): unauthenticated; anyone holding a claim
   code can overwrite `payer_email` on a purchase in `created` or `paid`.
 - `generate-plan-wizard` (lines 108-133) and `generate-risk-insights` (lines
@@ -123,6 +134,105 @@ hosted project's settings.
 every feature marked freeze in A-03. Keep the code recoverable from git history.
 Accepted when: the build contains no frozen route; no reference to
 `ai.gateway.lovable.dev` or `LOVABLE_API_KEY` remains; `npm run verify` passes.
+Doing; everything but the deletion on the hosted project is finished, and
+that can only happen in the deploy that follows the merge.
+Removed. News ingestion and alerts: the six `ingest-*` functions, the alert
+preferences and inbox components and hooks (nothing rendered them), the
+`alerts` texts. Weekly briefing: `/news/weekly` (a "coming soon" page) and
+its links. Expert chat: `/premium/expert`, the dashboard card and its locked
+twin, the `expert-chat` function, the dummy gateway key of the test harness.
+Amazon products: `/products`, the product links and "Amazon" buttons of the
+supplies planner, `/admin/affiliates`. Subscription funnel: `/riskfunnel1`
+and `create-subscription-checkout`, `create-subscription-setup`,
+`complete-subscription-setup`. Ten functions, 31 down to 21.
+Kept, having looked: `run-ai-job`, `ai_prompts` and `/admin/prompts` (the
+onboarding step that drafts plans A and B calls `run-ai-job`; the plan wizard
+and the risk insights read their prompts from `ai_prompts`);
+`generate-plan-wizard` and `generate-risk-insights` (OpenAI, no news data, so
+"insights" stays in the copy); `riskFunnel/shared.tsx` (every export is used
+by the one-time funnel); Library and Tips (static content in `src/data`, no
+backend); every Stripe function of the one-time funnel. No dependency in
+`package.json` was used by the frozen features only.
+Database: nothing dropped, no migration edited or added. The tables
+`news_items`, `news_sources`, `news_domain_allowlist`, `weekly_briefings`,
+`alert_preferences`, `expert_questions` and `affiliate_links` keep their
+rows; nothing under `src/` reads them, and `admin-manage-user` still deletes
+a user's rows from them. The only scheduled job is the hourly
+`send-scheduled-emails`, which is kept; no job ever called a removed
+function, and a test now fails if a migration schedules a function that does
+not exist.
+Claims changed with the code: the premium feature list and the paywall text
+no longer promise alerts (English and Portuguese); "consult experts" is gone
+from the landing page and from the offer shown after the risk check, where
+the Red Folder takes its place; the FAQ no longer lists weekly briefings as
+a free feature; the privacy page no longer says the app fetches from GDACS,
+USGS and ReliefWeb.
+Hosted project: deleting a directory does not delete the deployed function,
+and several of the ten have no caller check. The deploy workflow now ends
+with `scripts/prune-deployed-functions.mjs`: after a full deploy that booted,
+it lists the deployed functions through the Management API, deletes exactly
+those with no directory under `supabase/functions`, prints each, and lists
+again to check. It deletes nothing and fails the run if the list cannot be
+read or lacks a function of the repository (unit-tested). In the deploy run
+after the merge, expect `21 booted, 0 not shown, 0 failed`, then
+`21 functions in supabase/functions, 10 deployed function(s) not among them`,
+ten `deleted` lines and `the project now has exactly the 21 functions of the
+repository`. If that step fails, the ten are still callable: delete them in
+the Supabase dashboard (Edge Functions) or re-run the workflow.
+Tests: `scripts/frozen-features.test.mjs` (sources: routes, functions,
+configuration, calls, tables, the gateway, cron), `e2e/frozen-features.spec.ts`
+(the build: each removed address shows the not-found page, no page links to
+one, no frozen name or claim is in the scripts), and
+`e2e/backend/frozen-features.spec.ts` (the signed-in dashboard). The lists
+they read are in `scripts/frozen-features.mjs`. Main chunk 1,048 kB before,
+1,020 kB after (gzip 301 to 293); precache 3,229 to 3,172 KiB.
+Not verified: the Management API calls against the real project (address
+and `Authorization: Bearer` header are those the CLI uses; the request and
+response shapes are from the API reference); that the access token of the
+workflow may delete functions. What is left over is A-10.
+
+**A-09.** Found by A-07. Outside CI, Playwright reuses whatever answers on
+port 4173 (`reuseExistingServer`). With two checkouts on one machine, a
+`npm run verify` in one silently tested the preview server of the other and
+reported its failures and passes. Nothing checks that the server under test
+serves this checkout's `dist/`; only the backend run has such a check
+(`e2e/global-setup.ts`). `CI=1` avoids it by refusing a taken port.
+Accepted when: a browser run fails with a clear message when the server on
+the port does not serve the build in this checkout's `dist/`, or picks a
+free port; a test covers it.
+
+**A-10.** `[DECISION]` Found by A-07. Left in place because kept code shares
+it or because removing it destroys data; each needs the owner to say remove
+or keep.
+- `stripe-webhook` and `complete-guest-purchase` still handle subscription
+  events and subscription checkouts (`customer.subscription.*`, status
+  `subscription_active` and the like). No funnel creates a subscription any
+  more. If a subscription was ever sold, these branches are what records its
+  cancellation; if none was, they are dead code in the payment path. Also
+  the Stripe price `price_1Sp2vlGudTqpziaHp7oKKuyY` named by the removed
+  funnel: archive it in Stripe if unused.
+- `/admin/analytics` has an A/B tab comparing `riskfunnel` with
+  `riskfunnel1` from `feature_usage`. It only reads history now.
+- The seven tables of the frozen features and their rows (listed in A-07),
+  the `expert_chat_system` row of `ai_prompts` (still shown and editable in
+  `/admin/prompts`) and the `expert_chat` row of `ai_rate_config`. Dropping
+  is irreversible; S-01 must list them while they exist, and S-06 must
+  delete from them.
+- Any secret of a removed feature still set on the hosted project (the AI
+  gateway key): remove it in the Supabase dashboard.
+
+**A-11.** Found by A-07 while tracing what renders what. Nothing imports
+these, on any route: `BugInOutSection`, `ConsoleLogOverlay`,
+`FeaturesSection`, `NavLink`, `PremiumLockedCards`, `PricingTeaser`,
+`QuickEntryStrip`, `StripeGuestWalletModal`, `SyncStatusIndicator`,
+`TipsPreview`, `ValueSection`, `components/plans/*`, `hooks/use-mobile`,
+`useDashboardReadiness`, `usePlansSync`, `lib/requireLogin`, `App.css`, four
+images in `src/assets`; and the package `@hookform/resolvers`. Some carry
+copy and calls to edge functions that no test sees
+(`StripeGuestWalletModal` calls `set-guest-email`). `create-checkout-session`
+is called from the Pricing page only.
+Accepted when: each is deleted or wired to a route on purpose, and
+`npm run verify` passes.
 
 ## Phase F: the core features and funnels work
 
