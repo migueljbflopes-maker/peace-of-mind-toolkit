@@ -34,20 +34,44 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const { data } = await supabase
-          .from('user_profiles')
-          .select('locale')
-          .eq('user_id', session.user.id)
-          .single();
-        if (data?.locale && (data.locale === 'en' || data.locale === 'pt')) {
-          setLocaleState(data.locale);
-          localStorage.setItem(LOCALE_STORAGE_KEY, data.locale);
-        }
+    let active = true;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+
+    const applyProfileLocale = async (userId: string) => {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('locale')
+        .eq('user_id', userId)
+        .single();
+      if (!active) return;
+      if (data?.locale && (data.locale === 'en' || data.locale === 'pt')) {
+        setLocaleState(data.locale);
+        localStorage.setItem(LOCALE_STORAGE_KEY, data.locale);
       }
+    };
+
+    // This listener must stay synchronous and must not start a Supabase call
+    // (backlog A-08). The auth client awaits its listeners while holding its
+    // lock, and every Supabase call first waits for that lock: a call awaited
+    // in here never answers, and the sign-in that fired the event never
+    // completes. The profile is read after the listener has returned.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        applyProfileLocale(userId).catch(() => {
+          // Offline or refused: the language of the device stays.
+        });
+      }, 0);
+      timers.add(timer);
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      active = false;
+      timers.forEach(clearTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const t = translations[locale] as TranslationKeys;

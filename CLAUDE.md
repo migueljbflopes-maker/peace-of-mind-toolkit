@@ -29,6 +29,9 @@ The work is driven by `docs/backlog.md`. Read it before starting anything.
 | `npm run verify` | All of the above, in order. This is the definition of "passing" |
 
 Without the bundled Chromium, run browser tests with `PW_CHANNEL=chrome`.
+Outside CI each checkout serves the app under test on its own port
+(`e2e/port.ts`) and never reuses a running server, so parallel checkouts on
+one machine do not test each other's build.
 Backend-dependent tests live in `e2e/backend/` and are verified by CI; see the
 README for the fixtures.
 

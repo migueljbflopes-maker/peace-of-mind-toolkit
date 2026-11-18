@@ -14,6 +14,39 @@ Phases run in order A, F, P, B, S, U, but a task only waits for the tasks it
 names. Owner priority (2026-11-10): prove the core features and the funnels
 work, with tests, before wiring real payments, email and AI.
 
+## Owner decisions
+
+Recorded as given. A task that a decision touches follows the decision; where
+the task text disagrees, the decision wins and the task is updated when it is
+next worked on.
+
+**2026-11-18**
+- **Sales paths.** Two, on purpose: the home page leads to the free calculator
+  and the pricing page; `/riskfunnel` is the landing page for paid traffic
+  (Google Ads). The funnel must therefore also meet the ad platform's rules on
+  misrepresentation, and needs conversion measurement, which in turn needs a
+  consent choice and a privacy page that says so (new work, not yet a task).
+- **Price.** It must be changeable without a code change and shown from one
+  source everywhere (F-24). What "dynamic" covers beyond that (per campaign,
+  per country, tests) is still to be specified by the owner.
+- **Funnel score (F-20).** Change it: never above 100, and good answers can
+  be rated Low.
+- **No real users or purchases exist in the old Lovable project.** Nothing to
+  migrate; F-14 (accounts that never saw their kit) is closed as not needed.
+- **Vault lock (F-16).** Accepted that the vault no longer locks on token
+  refresh or tab focus; an inactivity lock replaces it, 10 minutes.
+- **Recovery.** Words used in a recovery are retired and a new kit is issued
+  (as built in F-10).
+- **Kit file (F-17).** The kit can be downloaded only as part of finishing
+  the step.
+- **Master password (F-15).** 12 characters wherever one is created.
+- **Clipboard (S-07).** Copying the words does not count as saved; download
+  or writing down is required.
+- **Gate order (Phase U).** The paywall comes before the master password.
+- **Open:** the user counts, review counts, countdown and crossed-out price on
+  the funnel (F-25). The owner asked why they should go; answered the same
+  day, decision pending.
+
 ## Phase A: foundations
 
 | ID | Task | Needs | Status |
@@ -25,10 +58,12 @@ work, with tests, before wiring real payments, email and AI.
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
 | A-07 | Remove frozen features from the build | A-03 | done |
-| A-08 | The magic-link sign-up test does not flake | A-06 | todo |
-| A-09 | Browser tests never run against another checkout's build | A-01 | todo |
+| A-08 | The magic-link sign-up test does not flake | A-06 | done |
+| A-09 | Browser tests never run against another checkout's build | A-01 | done |
 | A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
 | A-11 | Remove code that nothing renders | A-07 | todo |
+| A-12 | The sign-in callback page: an expired link is reported as such, in the user's language | A-08 | todo |
+| A-13 | The "no frozen feature" page test does not time out on `networkidle` | A-07 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -109,6 +144,61 @@ shown when it happens was not captured.
 Accepted when: the cause is found (slow callback, or a real race in
 `AuthCallback.tsx`) and fixed where it lies; the test passes 20 times in a
 row in CI with retries off.
+Done. The cause was neither a slow callback nor only a race: a deadlock in
+the auth client that left a real visitor on "Signing you in..." for good.
+- Trigger: `AuthCallback.tsx` read the tokens from the address and called
+  `supabase.auth.setSession` with them, while the client was already
+  consuming the same tokens (`detectSessionInUrl`). When the page mounted
+  before the client had its answer from `GET /auth/v1/user`, that call ran.
+- Deadlock: supabase-js 2.90.0 awaits its `SIGNED_IN` listeners while it
+  holds the auth lock (`_setSession` → `_notifyAllSubscribers`, inside
+  `_acquireLock`). The listener in `src/i18n/useLocale.ts` awaited a
+  `user_profiles` query; every query first calls `getSession()`, which
+  queues behind the lock holder. Neither ever returned. The package says so
+  itself (`GoTrueClient.d.ts`, `onAuthStateChange`: "Avoid using an async
+  function ... you might end up with a deadlock").
+- Why it stayed: the page's ten-second timeout was armed on the third of its
+  three paths only.
+Fixed where it lay: the `useLocale` listener is synchronous and reads the
+profile after it has returned; `AuthCallback.tsx` no longer calls
+`setSession` and waits for the client instead (`getSession()`, which answers
+once the client has read the address, plus the auth listener); its timeout is
+armed before anything is waited for and ends in a message with "Try again"
+(reloads the link) and "Go to sign-in", in both languages. Still handled:
+error parameters in the query, tokens in the fragment, a visitor already signed in. A `?code=` link is NOT handled (correction from
+verification: it times out as it did before, see A-12). Dropped: the page's own
+`history.replaceState`; the client empties the fragment and the redirect
+replaces the address. The other `onAuthStateChange` listeners in `src/`
+(`AuthContext.tsx`, the one in `AuthCallback.tsx`) are synchronous and start
+no Supabase call; `AuthContext` is unchanged.
+Tests: `e2e/auth-callback.spec.ts` needs no backend (auth server and
+database answered in the test, `GET /auth/v1/user` held back one second):
+before the fix that test failed 8 of 8 times and the two timeout tests 3
+of 3 each; after it all three passed 10 of 10; with only
+`useLocale.ts` fixed the visitor already arrived (5 of 5), which is what
+shows the listener to be the deadlock and `setSession` only its trigger.
+`src/i18n/useLocale.test.tsx` shows the same with the real supabase-js
+client. Acceptance: CI run 44359911711 ran the magic-link test of
+`e2e/backend/signup-master-password.spec.ts` with `--repeat-each=20
+--retries=0`: 20 of 20 passed, and it passed first time in the normal run of
+the same job. That step was temporary and is not in the workflow: the test
+without a backend keeps guarding the cause on every run, and twenty more
+sign-ups per run would guard nothing further.
+A second test that sometimes fails, recorded here and not fixed:
+`e2e/frozen-features.spec.ts:101` ("the pages a visitor reads before buying
+promise no frozen feature") timed out at 30 seconds in
+`page.waitForLoadState("networkidle")` on the first attempt and passed on
+retry in runs 44354322608, 44306180323 and 44305134959; in run 44307078392
+it timed out on the retry as well and failed the run, and so it did in run
+44362439246 on this branch (every other test passed there, the magic-link
+test first time). The log does not say on which of its eight routes. It is not this deadlock: the visitor there is
+signed out, nothing calls `setSession`, and with no session the old
+`useLocale` listener returned before it awaited anything. Not established:
+which request keeps the network busy. Candidates, all of them requests the
+`mobile-chrome` project lets through to the outside: the Google Fonts
+stylesheet imported by the CSS, Stripe.js on `/riskfunnel`, and the
+`page_views` insert of `usePageTracking` on every route. The trace is in the
+Playwright report of those runs for 7 days. It is A-13.
 
 **A-06.** Unblocks all of phase F. Run Supabase locally (CLI) in CI, seed a premium test user, and give
 Playwright a signed-in fixture. Add a way to run edge function tests.
@@ -248,6 +338,14 @@ serves this checkout's `dist/`; only the backend run has such a check
 Accepted when: a browser run fails with a clear message when the server on
 the port does not serve the build in this checkout's `dist/`, or picks a
 free port; a test covers it.
+Done 2026-11-18. It bit again, twice, while F-06 and F-30 were verified, and
+`CI=1` turned out not to prevent it: Playwright saw the other checkout's
+server answer before its own failed to bind, and ran tests against the wrong
+build. Now each checkout serves on its own port outside CI, derived from its
+path (`e2e/port.ts`; CI and the backend run stay on 4173, which the local
+stack is configured with; `E2E_PORT` overrides), and a server that already
+answers is never reused: the run stops with Playwright's "already used"
+error. Tests: `scripts/playwright-port.test.mjs`.
 
 **A-10.** `[DECISION]` Found by A-07. Left in place because kept code shares
 it or because removing it destroys data; each needs the owner to say remove
@@ -298,6 +396,46 @@ is called from the Pricing page only.
 Accepted when: each is deleted or wired to a route on purpose, and
 `npm run verify` passes.
 
+**A-12.** Found by A-08, in `src/pages/AuthCallback.tsx`.
+- The page reads an error only from the query (`?error=`). Opened with the
+  error in the fragment, as in
+  `/auth/callback#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired`,
+  it shows "Signing you in..." for ten seconds and then the timeout message,
+  which blames the connection (seen in a browser; before A-08 it was the
+  same wait and "Authentication timed out"). Not checked against the real
+  auth server: whether an expired or already used link arrives with the
+  error in the fragment only, or in the query as well.
+- Every text of the page except the timeout message is English in the code
+  ("Signing you in...", "Welcome!", "Something went wrong", "Try again"),
+  and error messages from the auth server are shown as they come.
+- After a failure, "Try again" and "Go to sign-in" lead to `/login` without
+  the `return_url` the link carried.
+- Regression introduced by A-08, measured by its verifier: when the auth
+  server refuses the token (401 or 400: a link that expired or was already
+  used, reopened from the address bar), the visitor now waits 10 seconds and
+  is told the connection is slow, with the tokens left in the address. Before
+  A-08 the page said at once "invalid JWT: token is expired". From reading
+  the client, `supabase.auth.initialize()` resolves with that error, so the
+  page can show it immediately (not yet tried).
+- A `?code=` link times out, as it did before A-08: the client exchanges a
+  code only when it holds a code verifier, which this app never writes.
+- Opened directly while signed out, "Try again" reloads into the same message
+  after another 10 seconds; only "Go to sign-in" leads anywhere.
+Accepted when: a browser test follows an expired link on the local stack and
+the visitor is told at once that the link has expired and how to get a new
+one; every text of the page is in `translations.ts` in both languages; the
+way back to sign-in keeps the return address.
+
+**A-13.** Recorded by A-08; the runs and what was ruled out are at the end
+of the A-08 paragraph. `e2e/frozen-features.spec.ts:101` waits for
+`networkidle` on eight public routes and times out at 30 seconds in about
+half of the CI runs looked at (5 of 10), usually on the first attempt only;
+twice it failed both attempts and with them the run.
+Accepted when: the request that keeps the network busy is named (the trace
+of a failing run shows it); the test waits for what it reads instead of for
+a quiet network, or that request is answered in the test; and the test
+passes 20 times in a row in CI with retries off.
+
 ## Phase F: the core features and funnels work
 
 One end-to-end browser test per core feature, walking the app as a user does,
@@ -314,7 +452,7 @@ fix it in its own change, and never bend the test around it.
 | F-03 | Plans A and B through the wizard | F-01 | todo |
 | F-04 | Red Folder PDF from the user's real data | F-02, F-03 | todo |
 | F-05 | Panic setup, test mode, and a check-in session | F-01 | todo |
-| F-06 | Risk funnel up to the payment screen | A-01 | todo |
+| F-06 | Risk funnel up to the payment screen | A-01 | doing |
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
 | F-08 | Edge functions boot on the local runtime as written | A-06 | done |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
@@ -322,12 +460,18 @@ fix it in its own change, and never bend the test around it.
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | done |
 | F-12 | Edge functions are type-checked in CI | F-08 | todo |
 | F-13 | One way to start a function: `Deno.serve`, no `deno.land` imports | F-08 | todo |
-| F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | todo |
+| F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | done (not needed: no real users, owner 2026-11-18) |
 | F-15 | One set of rules and words for the master password everywhere it is created | F-10 | todo |
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
-| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | todo |
+| F-20 | The funnel's score stays within 0 to 100 and every risk category can be reached | A-01 | todo |
+| F-21 | Checkout opens from the funnel when Stripe.js has not loaded | A-01 | todo |
+| F-22 | The funnel resumes where the visitor left off; part (b) is a `[DECISION]` | A-01 | todo |
+| F-23 | The visitor can go back one question in the funnel | A-01 | todo |
+| F-24 | The price has one source, and the price charged is checked against it | F-09 | todo |
+| F-25 | `[DECISION]` The funnel's sales claims: keep only what is true | A-01 | todo |
+| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | done |
 | F-40 | Return addresses that are written but never read | F-30 | todo |
 | F-41 | The claim code is encoded where it is put into an address | F-30 | todo |
 | F-42 | The frozen-features page test does not wait for the network to go quiet | A-07 | todo |
@@ -372,6 +516,60 @@ subscription duplicate is frozen.
 Accepted when: a browser test answers every funnel question, sees a result that
 matches the answers given, and reaches the payment screen with the right
 amount; leaving midway and returning resumes where the user left off.
+
+Tested by `e2e/risk-funnel.spec.ts` (22 tests, no backend needed: everything
+the funnel sends is answered at the network edge and the request is what is
+asserted) and `e2e/backend/risk-funnel.spec.ts` (2 tests: the analytics rows
+as stored on the local stack; the real `create-guest-checkout` refused by
+Stripe). Green in CI run 44306180323, on commit 6d42831, the last one to
+change a test (96 passed, the seven known failures among them; 2 flaky that
+passed on retry, neither in these files: the magic-link test of A-08 and
+`e2e/frozen-features.spec.ts:101`). Status stays `doing`, not done, and F-06 closes when F-22 (a) is done and (b) is decided; it is
+done: F-22 does not wait for F-06, its tests are already here. Two
+acceptance points are open:
+
+- "Resumes where the user left off" is not true: F-22. Three tests are marked
+  `test.fail` for it. What does hold, and is tested: after a reload in the
+  same tab the answers already given are still filled in.
+- "The payment screen with the right amount" is proven only as far as the app
+  goes. The payment screen is not ours: it is Stripe's hosted Checkout page,
+  or the phone's Apple Pay / Google Pay sheet. Proven: the offer shows €49;
+  the wallet sheet is asked for 4900 cents in EUR; with no wallet, the
+  browser is sent to the URL `create-guest-checkout` returned, and the app's
+  request for it is exactly `{ source: "riskfunnel" }`. Not proven by any
+  test: the amount on Stripe's page, which is whatever the Stripe price
+  behind the secret `STRIPE_PRICE_ID_PREMIUM` says (F-24).
+
+Found on the way, each with its own `test.fail`: F-20 (a score of 110/100;
+"Low" cannot be reached), F-21 (no checkout when Stripe.js does not load),
+F-23 (Back leaves the funnel). Owner decision: F-25.
+
+How the funnel relates to the rest: nothing in the app links to
+`/riskfunnel`; it is reached only by a direct link. That is by design: the
+owner decided on 2026-11-18 that it is the landing page for paid traffic
+(Google Ads), see "Owner decisions". The landing page
+and every "risk check" link go to the free calculator, `/tools/risk`
+(`RiskCalculator`, `src/components/riskWizard`), which shares no code with
+the funnel, scores differently, and sells through `/pricing`.
+`StripeGuestWalletModal.tsx` and `ProductPopup` in `RiskFunnel.tsx` are used
+by nothing. The funnel has no email step: no address is asked for or sent
+before payment.
+
+What leaves the phone before payment (asserted in the last test of the
+spec): one `page_views` row (path, referrer, user agent, a random session
+id); twenty `feature_usage` rows saying which step was seen and completed;
+and, when "START NOW" is pressed, the risk level and score. None of the
+answers, and nothing to the AI function. Third parties contacted: Stripe.js
+is fetched when the funnel opens, and four stock photos are loaded from
+`images.unsplash.com` on every question. For phase S: the answers (city,
+postal code, "medical needs") sit unencrypted in `sessionStorage` under
+`resilient_risk_funnel` until the tab closes; `page_views` and
+`feature_usage` are not in a data inventory; and step 1 says "your answers
+stay private unless you choose to save", though there is nothing to save.
+
+Not covered: the edge functions and Stripe themselves (F-09), the purchase
+page after payment (F-07), 3-D Secure in the wallet path, a real phone
+wallet.
 
 **F-07.** Start from a completed purchase created directly in the database.
 Accepted when: a browser test for a guest purchase claims it into an account,
@@ -666,6 +864,11 @@ URL was the right one each time, and nothing F-30 changed runs before the
 session exists. The test now prints what the page shows and its console when
 this happens (`[A-08]` in the log). To close F-30: fix A-08, then re-run this
 branch; A-08 should count this test as well as the sign-up one.
+Closed 2026-11-18: A-08 landed first (the hang was a deadlock in the auth
+client, triggered by the callback page and independent of F-30), main was
+merged into this branch with one conflict in `AuthCallback.tsx` (A-08's
+effect kept, with `safeReturnPath` in `arrive()`), and the verifier ran the
+combination beforehand: about 130 hostile addresses, none left the site.
 Not covered: the signed-in and magic-link tests were not seen failing on the
 old pages (no Docker locally; the unit and signed-out tests were); only
 Chromium was used. Other
@@ -826,6 +1029,151 @@ blocked the merge.
   that otherwise uses "tu"; all Portuguese strings of the kit screens need a
   read by a native speaker (the owner).
 Accepted when: each point has a test or a recorded decision.
+
+**F-20.** Found by F-06. The result of the risk funnel can be impossible. A
+visitor in a high flat with children, an elderly relative and medical needs,
+with nothing prepared, is shown "Score: 110/100". And no visitor can be shown
+"Low": the best answers the funnel accepts give 53, "Moderate".
+Cause: `calculateScore` in `src/pages/riskFunnel/shared.tsx:120-159` caps
+exposure at 70 and the preparedness gap at 40 and adds them, so the total
+reaches 110. Exposure starts at 35, adds 10 for every visitor whatever the
+country or city (line 124) and at least 8 for the home, so the minimum is 53,
+while `getRiskLevel` (line 161) ends "Low" at 40. The country is asked for
+and never used. The three "quick checks (optional)" switches count as "no"
+when left alone (lines 147-149), adding 18 points and the reason "Water
+supply for 3+ days is essential" for a visitor who skipped them.
+Owner decision, 2026-11-18: the score never goes above 100 and good answers
+can be rated Low. Still to specify when this is worked on: which answers
+count as good and where the thresholds sit; whether the country is used or
+no longer asked; and that a switch left alone is not counted as "no".
+Accepted when: `the score never goes above the 100 it is shown out of` and
+`the best answers the funnel accepts are rated Low` in
+`e2e/risk-funnel.spec.ts` pass without `test.fail`. The tests that change
+with the fix, all in that file, and no others: those two; and, if the rules
+change the numbers, the three `...: the result shown is the one the answers
+give` tests and `on a Portuguese phone`, whose expected score, level and
+reasons come from the `CASES` table and are to be worked out again by hand
+from the new rules. `the connection drops before the analysing screen` reads
+the same table. No other test names a score: the two that check the
+analytics row compare what is sent with what is shown.
+
+**F-21.** Found by F-06. When Stripe.js cannot be loaded (a content blocker,
+a network that blocks `js.stripe.com`, a connection that drops), pressing
+"START NOW" on the offer shows "Error opening checkout" every time, and the
+visitor cannot buy. The checkout they would get is a plain link to Stripe's
+page and needs no Stripe.js.
+Cause: `handleCheckout` in `src/pages/riskFunnel/RiskFunnel.tsx:269` awaits
+`stripePromise`, which rejects when the script fails to load; the rejection
+lands in the `catch` at line 283 before `create-guest-checkout` is called.
+Accepted when: `Stripe.js does not load (blocked or bad connection): the
+visitor can still go to Checkout` in `e2e/risk-funnel.spec.ts` passes without
+`test.fail`.
+
+**F-22.** Found by F-06; it is the open acceptance point of F-06. A visitor
+who leaves the funnel midway does not come back to where they were.
+Reloading the page returns to question 1 (the answers are still filled in,
+but every question has to be confirmed again and the waiting screens sat
+through). Closing the tab and opening the funnel again starts empty. Going
+to Stripe's page and pressing its back arrow returns to question 1, not to
+the result and the offer.
+Cause: the step is React state only (`RiskFunnel.tsx:82`); the answers are in
+`sessionStorage` (lines 88 and 215), which a new tab does not share; and
+`create-guest-checkout` sends Stripe the return address
+`/riskfunnel?purchase=cancel`, which the funnel never reads. There is also
+no "start over".
+Two parts, so that the first needs no decision:
+(a) Same tab: reload, and return from Stripe. Keeping the step next to the
+answers in `sessionStorage` is enough and changes nothing about where data
+lives.
+Accepted when: `after a reload the visitor is on the question they had
+reached` and `coming back from Stripe's page without paying returns to the
+result, not to question 1` in `e2e/risk-funnel.spec.ts` pass without
+`test.fail`. A fix for (a) that stores the step also changes `what the funnel keeps on
+the device, and where` (`e2e/risk-funnel.spec.ts`), which lists the exact
+keys and contents of `sessionStorage`: update that test with the fix, on
+purpose, and keep its rule that nothing outlives the tab.
+With (a) done, F-06 can be closed if the owner decides (b) as
+"a new tab starts empty".
+(b) `[DECISION]` A new tab. Where the answers are kept is for the owner and
+the privacy review: either `sessionStorage` only, as now, and then a closed
+tab starts empty and that is the intended behaviour; or storage that
+outlives the tab, which keeps a city, a postal code and "medical needs" on
+the device in plain text until removed. The two tests follow the decision:
+with the first, `closing the tab and opening the funnel again resumes with
+the answers` is rewritten to expect an empty start and loses its
+`test.fail`; with the second it passes as written, and the last lines of
+`what the funnel keeps on the device, and where`, which today require that
+nothing of the answers is in `localStorage`, are rewritten to say what is
+kept, for how long, and that "start over" removes it.
+Accepted when: the decision is recorded here and both tests agree with it.
+
+**F-23.** Found by F-06. There is no way back inside the funnel. A visitor
+who tapped the wrong answer cannot return to it: the screens have no Back
+button, and the browser's Back leaves the funnel for the page before it
+(for a visitor arriving from an ad, out of the site).
+Cause: the steps are not in the browser history and
+`FunnelQuestionsLayout` (`shared.tsx:613`) offers no control for it.
+Accepted when: `the browser's Back button returns to the previous question`
+in `e2e/risk-funnel.spec.ts` passes without `test.fail`.
+
+**F-24.** Found by F-06. The price is written out again and again, and no
+test can say what a buyer is charged. On main after A-07,
+`grep -rnE "€ ?49|49 ?€|4900|priceNow|priceWas" src supabase/functions`
+gives 47 lines in 26 files (generated types left out; a handful are
+comments or the crossed-out €120). The visitor sees "€49": `priceNow={49}`
+in `RiskFunnel.tsx:307`, with the same default in `RiskOfferModal.tsx:44`
+and as text at `:176-177`; `Pricing.tsx`; `translations.ts` as "49€" (lines
+51-53 and 550-552); the FAQ, the Terms, the paywall and dashboard buttons,
+the free calculator and the supplies planner; the admin email preview; and
+three email templates under `supabase/functions`.
+The wallet path charges `amount: 4900, currency: "eur"`, written once in the
+browser (`RiskFunnel.tsx:134-135`, what the wallet sheet shows) and again in
+`create-payment-intent/index.ts:55-56` (what is charged) and `:81-82` (what
+is recorded). The Checkout path charges whatever the Stripe price named by
+the secret `STRIPE_PRICE_ID_PREMIUM` says, in whatever currency it has, with
+promotion codes allowed. Change any one of these and the others keep saying
+€49. The purchase email says "€49" whatever was paid.
+Owner decision, 2026-11-18: the price must be changeable without a code
+change and shown from one source, so a constant in the code no longer meets
+this task. The price lives in one place read at run time (the Stripe price,
+or configuration the functions serve to the app), and the offer, the wallet
+amount, the emails and the recorded `amount_cents` all read it. What
+"dynamic" covers beyond that (per campaign, per country or currency, price
+tests) is not yet specified by the owner; design so that the price shown and
+the price charged cannot differ whichever is chosen.
+Accepted when: the amount and currency have that single source and every
+text and call reads it; with the Stripe stand-in of
+F-09, a test fails if the amount or currency of the Checkout price differs
+from the price shown on the offer.
+
+**F-25.** `[DECISION]` Found by F-06. Decision pending as of 2026-11-18: the
+owner asked why the claims should go and was answered the same day. The
+verifier of F-06 confirmed each claim is a hard-coded literal with no source
+in the code. Because the funnel is the landing page for Google Ads, the
+claims must also meet the ad platform's misrepresentation rules. Measuring
+conversions for those ads, the consent choice it needs and the privacy page
+text have no task yet; when they get one, the "before payment" test's list
+of third-party hosts and its analytics assertions change with it.
+The funnel makes claims that only the owner can stand behind. Under every question: "Over 4,000 active users who
+trust our preparedness guidance", "Excellent", five stars drawn in
+Trustpilot's green, "Based on 56,334 reviews", and four stock photographs
+from Unsplash as the users' faces (`shared.tsx:31-36, 309-332`). On the
+offer: "Discount expires in 10:00", a countdown that restarts every time the
+offer is opened and, at zero, disables the buy button (`RiskOfferModal.tsx`,
+`disabled={loading || secondsLeft === 0}`) while the price stays €49; a
+crossed-out "€120" that was never the price (`priceWas={120}`); "Works
+offline after purchase", which phase B has not yet made true. The analysing screen shows "Checking location
+context" while nothing is checked, and the first reason on every result is
+"Location in <city> presents specific risks" whatever the city.
+Needed from the owner: for each claim, the evidence, or the decision to
+remove or reword it. The invariant "what the app says about privacy and
+offline matches what the code does" covers the offline line; the rest is
+consumer law (invented reviews and false urgency are unfair commercial
+practices in the EU) and belongs with the legal review in the owner
+checklist.
+Accepted when: every claim on the funnel and the offer is either backed by
+a source the owner names or gone, and a test asserts the removed texts are
+absent.
 
 ## Phase P: a panic button that tells the truth
 
@@ -1111,6 +1459,32 @@ Noted by F-01 while walking sign-up and the master password on a phone
   settings dialog are Portuguese.
 - Signing out drops the user on the marketing home page with no word that
   they were signed out.
+
+Noted by F-06 while walking the risk funnel on a phone (not fixed there;
+the broken parts are F-20 to F-25):
+
+- Closing the offer (the X, or a tap outside it) sends the visitor to the
+  home page. The result behind it cannot be read again, and the only button
+  on the result, "View Results & Get Ready", opens the offer, not results.
+- The offer has two close buttons on top of each other in the same corner.
+- Three waiting screens (2.5 s, 2.5 s and 4.3 s) pretend to work; the first
+  two can be skipped, the "Analyzing your risk..." one cannot.
+- The funnel has no language switch and no navigation: the language is the
+  phone's. In English the postal code label reads "Postal Code (opcional)".
+  In Portuguese the country list is in English ("Spain", "Germany"), the
+  score line reads "Score:", and the price is written "€49" where the rest
+  of the app writes "49€".
+- A city made only of spaces is accepted; the result then reads "Location in
+  presents specific risks".
+- The three switches on the kit question have no accessible name, and the
+  answer buttons do not say which one is selected (colour only).
+- After "START NOW" with a wallet, the button stays on "Preparing secure
+  payment…" until the wallet sheet answers; if the sheet never opens there
+  is no way out but closing the offer, which leaves the funnel.
+- (By design since 2026-11-18: the funnel is for paid traffic.) The landing
+  page never leads to this funnel, and the free calculator at
+  `/tools/risk` asks different questions and gives a different score for
+  the same household.
 
 ## Owner checklist
 
