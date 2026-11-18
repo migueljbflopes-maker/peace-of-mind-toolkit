@@ -202,12 +202,15 @@ test("a magic link followed on a slow connection signs the visitor in and takes 
 // taken with the phone in English, the other with the phone in Portuguese.
 const TIMEOUT_TEXTS = {
   "en-US": {
+    // The spinner text was English in the code for every visitor until A-12.
+    loading: "Signing you in...",
     title: "We could not sign you in",
     description: /^Signing in is taking too long\. Your connection may be slow or down\./,
     retry: "Try again",
     signIn: "Go to sign-in",
   },
   "pt-PT": {
+    loading: "A iniciar a tua sessão...",
     title: "Não conseguimos iniciar a tua sessão",
     description: /^Entrar está a demorar demasiado\. A tua ligação pode estar lenta ou em baixo\./,
     retry: "Tentar outra vez",
@@ -221,12 +224,12 @@ async function waitForTheTimeoutMessage(page: Page, texts: (typeof TIMEOUT_TEXTS
   const backend = await standInBackend(page, issuedAt, NEVER_MS);
 
   await page.goto(callbackAddress("/dashboard", issuedAt));
-  await expect(page.getByText("Signing you in...")).toBeVisible();
+  await expect(page.getByText(texts.loading)).toBeVisible();
 
   // The page gives up after ten seconds.
   const alert = page.getByRole("alert").filter({ hasText: texts.title });
   await expect(alert).toBeVisible({ timeout: 13_000 });
-  await expect(page.getByText("Signing you in...")).toHaveCount(0);
+  await expect(page.getByText(texts.loading)).toHaveCount(0);
   await expect(alert.getByText(texts.description)).toBeVisible();
   await expect(alert.getByRole("button", { name: texts.retry })).toBeVisible();
   await expect(alert.getByRole("button", { name: texts.signIn })).toBeVisible();
@@ -270,6 +273,305 @@ test.describe("with the phone in Portuguese", () => {
     await alert.getByRole("button", { name: texts.signIn }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("alert").filter({ hasText: texts.title })).toHaveCount(0);
+
+    expect(backend.unanswered).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── Backlog A-12: every failure is reported as what it is, at once ──────────
+//
+// A link that expired or was already used, an address this app does not use,
+// and the page opened on its own each end in their own message, in the
+// visitor's language, within about a second: not in ten seconds of spinner
+// and a message that blames the connection. The auth server's own text is
+// never shown, the tokens or the error are taken out of the address bar, and
+// the way forward keeps the return address the link carried if it is safe.
+// The same against the real local auth server (a link used twice, a link
+// past its expiry) is in e2e/backend/auth-callback.spec.ts.
+
+// A route behind sign-in, with an encoded slash in its own query (as in F-30).
+const GATED_ROUTE = "/premium/plans/wizard?next=%2Fx&plan=B";
+const GATED_ROUTE_ENCODED = encodeURIComponent(GATED_ROUTE);
+// "About a second", with room for a loaded machine; far from the 10 s timeout.
+const AT_ONCE_MS = 2_500;
+const SERVER_TEXT = /Email link is invalid|invalid JWT|token is expired|access_denied|otp_expired|bad_jwt/i;
+const EXPIRED_ERROR =
+  "error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired";
+
+const FAILURE_TEXTS = {
+  "en-US": {
+    loading: "Signing you in...",
+    newLink: "Get a new link",
+    signIn: "Go to sign-in",
+    retry: "Try again",
+    expired: {
+      title: "This sign-in link has expired",
+      description:
+        "A sign-in link works once and for a limited time. This one has expired or was already used. Ask for a new one and we will email it to you.",
+    },
+    unsupported: {
+      title: "This link cannot sign you in",
+      description: "This is not a kind of sign-in link AmIReady uses. Go to sign-in and ask for a new link.",
+    },
+    empty: {
+      title: "There is no sign-in link here",
+      description:
+        "This page finishes signing you in when you open the link in our email. Opened on its own, it has nothing to do. Go to sign-in to get a link.",
+    },
+  },
+  "pt-PT": {
+    loading: "A iniciar a tua sessão...",
+    newLink: "Pedir um novo link",
+    signIn: "Ir para o início de sessão",
+    retry: "Tentar outra vez",
+    expired: {
+      title: "Este link de início de sessão expirou",
+      description:
+        "Um link de início de sessão funciona uma só vez e por tempo limitado. Este expirou ou já foi usado. Pede um novo e enviamos-to por email.",
+    },
+    unsupported: {
+      title: "Este link não pode iniciar a tua sessão",
+      description:
+        "Não é um tipo de link de início de sessão que o AmIReady use. Vai para o início de sessão e pede um novo link.",
+    },
+    empty: {
+      title: "Não há aqui nenhum link de início de sessão",
+      description:
+        "Esta página termina o início de sessão quando abres o link do nosso email. Aberta sozinha, não tem nada para fazer. Vai para o início de sessão para receberes um link.",
+    },
+  },
+} as const;
+
+type Language = keyof typeof FAILURE_TEXTS;
+type FailureKind = "expired" | "unsupported" | "empty";
+
+/** The auth server refuses the token of the link, as it does for one that expired. */
+async function refuseTheToken(page: Page, status: number) {
+  const body =
+    status === 400
+      ? { code: 400, error_code: "validation_failed", msg: "invalid JWT: unable to parse or verify signature" }
+      : {
+          code: status,
+          error_code: "bad_jwt",
+          msg: "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired",
+        };
+  // Registered after the stand-in, so it answers first.
+  await page.route(
+    (url) => url.pathname.endsWith("/auth/v1/user"),
+    (route) =>
+      route.request().method() === "OPTIONS"
+        ? route.fallback()
+        : route.fulfill({
+            status,
+            headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
+            contentType: "application/json",
+            body: JSON.stringify(body),
+          }),
+  );
+}
+
+interface FailureCase {
+  name: string;
+  kind: FailureKind;
+  /** The address, given the return address as it is written after `return_url=`. */
+  address: (returnUrl: string, issuedAt: number) => string;
+  refusedWith?: number;
+}
+
+const withReturn = (returnUrl: string, rest: string) => `/auth/callback?return_url=${returnUrl}${rest}`;
+const tokensAddress = (returnUrl: string, issuedAt: number) =>
+  callbackAddress("/x", issuedAt).replace("return_url=%2Fx", `return_url=${returnUrl}`);
+
+const FAILURE_CASES: FailureCase[] = [
+  { name: "a link whose token the auth server refuses with 401", kind: "expired", address: tokensAddress, refusedWith: 401 },
+  { name: "a link whose token the auth server refuses with 403", kind: "expired", address: tokensAddress, refusedWith: 403 },
+  { name: "a link whose token the auth server refuses with 400", kind: "expired", address: tokensAddress, refusedWith: 400 },
+  { name: "an expired-link error in the fragment", kind: "expired", address: (r) => withReturn(r, `#${EXPIRED_ERROR}`) },
+  { name: "an expired-link error in the query", kind: "expired", address: (r) => withReturn(r, `&${EXPIRED_ERROR}`) },
+  {
+    name: "an expired-link error in the query and the fragment",
+    kind: "expired",
+    address: (r) => withReturn(r, `&${EXPIRED_ERROR}#${EXPIRED_ERROR}`),
+  },
+  {
+    name: "a code address (a form this app does not use)",
+    kind: "unsupported",
+    address: (r) => withReturn(r, "&code=4f8b1c2d-pkce-code"),
+  },
+  { name: "the page opened on its own, signed out", kind: "empty", address: (r) => withReturn(r, "") },
+];
+
+/** Opens the address and expects the message of that kind, at once, and nothing of the server's. */
+async function expectFailureMessage(page: Page, language: Language, failure: FailureCase, returnUrl: string) {
+  const texts = FAILURE_TEXTS[language];
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const backend = await standInBackend(page, issuedAt, 0);
+  if (failure.refusedWith) await refuseTheToken(page, failure.refusedWith);
+
+  await page.goto(failure.address(returnUrl, issuedAt));
+
+  const alert = page.getByRole("alert").filter({ hasText: texts[failure.kind].title });
+  await expect(alert).toBeVisible({ timeout: AT_ONCE_MS });
+  await expect(alert.getByText(texts[failure.kind].description, { exact: true })).toBeVisible();
+  await expect(page.getByText(texts.loading)).toHaveCount(0);
+  // Not the message that blames the connection, and nothing the server wrote.
+  await expect(page.getByText(TIMEOUT_TEXTS[language].title)).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(SERVER_TEXT);
+
+  // One way forward. "Try again" would reload into the same failure.
+  const forward = failure.kind === "expired" ? texts.newLink : texts.signIn;
+  await expect(alert.getByRole("button")).toHaveText([forward]);
+  return { alert, backend, forward };
+}
+
+for (const language of ["en-US", "pt-PT"] as const) {
+  test.describe(`a link that cannot sign the visitor in, with the phone in ${language}`, () => {
+    test.use({ locale: language });
+
+    for (const failure of FAILURE_CASES) {
+      test(`${failure.name} is reported as what it is, at once, and the way forward keeps the return address`, async ({
+        page,
+      }) => {
+        const pageErrors: string[] = [];
+        page.on("pageerror", (error) => pageErrors.push(error.message));
+
+        const { alert, backend, forward } = await expectFailureMessage(page, language, failure, GATED_ROUTE_ENCODED);
+
+        // Neither the tokens nor the error stay in the address bar.
+        const shown = new URL(page.url());
+        expect(shown.pathname + shown.search + shown.hash).toBe(`/auth/callback?return_url=${GATED_ROUTE_ENCODED}`);
+
+        // The message stays: no second outcome, no timeout message later.
+        await page.waitForTimeout(1_000);
+        await expect(alert).toBeVisible();
+
+        await alert.getByRole("button", { name: forward }).click();
+        await expect(page).toHaveURL(/\/login\?/);
+        const signIn = new URL(page.url());
+        expect(signIn.pathname + signIn.search + signIn.hash).toBe(`/login?return_url=${GATED_ROUTE_ENCODED}`);
+        expect(signIn.searchParams.get("return_url")).toBe(GATED_ROUTE);
+        await expect(
+          page.getByRole("alert").filter({ hasText: FAILURE_TEXTS[language][failure.kind].title }),
+        ).toHaveCount(0);
+        // The sign-in page, on the form that sends a new link.
+        await expect(page.locator("input[type=email]").first()).toBeVisible();
+
+        expect(backend.unanswered).toEqual([]);
+        expect(pageErrors).toEqual([]);
+      });
+    }
+  });
+}
+
+test.describe("a link that cannot sign the visitor in, with a return address that leaves the site", () => {
+  test.use({ locale: "en-US" });
+
+  for (const failure of FAILURE_CASES) {
+    for (const hostile of ["//example.com", "%2F%5Cexample.com", "https://example.com/"]) {
+      test(`${failure.name}: return_url=${hostile} is not carried forward`, async ({ page, baseURL }) => {
+        const offSite: string[] = [];
+        page.on("request", (request) => {
+          if (new URL(request.url()).hostname.endsWith("example.com")) offSite.push(request.url());
+        });
+        await page.route(
+          (url) => url.hostname.endsWith("example.com"),
+          (route) => route.abort("blockedbyclient"),
+        );
+
+        const { alert, forward } = await expectFailureMessage(page, "en-US", failure, hostile);
+
+        const shown = new URL(page.url());
+        expect(shown.origin).toBe(new URL(baseURL!).origin);
+        expect(shown.pathname + shown.search + shown.hash).toBe("/auth/callback");
+
+        await alert.getByRole("button", { name: forward }).click();
+        await expect(page).toHaveURL(/\/login$/);
+        expect(new URL(page.url()).origin).toBe(new URL(baseURL!).origin);
+        expect(offSite).toEqual([]);
+      });
+    }
+  }
+});
+
+test.describe("with the phone in English: the auth server cannot be reached", () => {
+  test.use({ locale: "en-US" });
+
+  test("a link followed with no connection gets the connection message at once, keeps the link, and trying again signs in", async ({
+    page,
+  }) => {
+    const texts = TIMEOUT_TEXTS["en-US"];
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const backend = await standInBackend(page, issuedAt, 0);
+    let down = true;
+    await page.route(
+      (url) => url.pathname.endsWith("/auth/v1/user"),
+      (route) => (down ? route.abort("internetdisconnected") : route.fallback()),
+    );
+
+    await page.goto(callbackAddress("/dashboard", issuedAt));
+
+    // Known as soon as the request fails: not after the ten-second timeout.
+    const alert = page.getByRole("alert").filter({ hasText: texts.title });
+    await expect(alert).toBeVisible({ timeout: AT_ONCE_MS });
+    await expect(alert.getByText(texts.description)).toBeVisible();
+    await expect(page.getByText(FAILURE_TEXTS["en-US"].expired.title)).toHaveCount(0);
+    await expect(alert.getByRole("button")).toHaveText([texts.retry, texts.signIn]);
+    // The link may still be good: it stays in the address for "Try again".
+    await expect(page).toHaveURL(/\/auth\/callback\?return_url=%2Fdashboard#access_token=/);
+
+    down = false;
+    await alert.getByRole("button", { name: texts.retry }).click();
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: ARRIVES_WITHIN_MS });
+    await expectSignedInOnDashboard(page);
+    expect(backend.unanswered).toEqual([]);
+  });
+
+  test("the timeout message's way to sign-in keeps the return address", async ({ page }) => {
+    test.setTimeout(45_000);
+    const texts = TIMEOUT_TEXTS["en-US"];
+    const issuedAt = Math.floor(Date.now() / 1000);
+    await standInBackend(page, issuedAt, NEVER_MS);
+
+    await page.goto(tokensAddress(GATED_ROUTE_ENCODED, issuedAt));
+    const alert = page.getByRole("alert").filter({ hasText: texts.title });
+    await expect(alert).toBeVisible({ timeout: 13_000 });
+
+    await alert.getByRole("button", { name: texts.signIn }).click();
+    await expect(page).toHaveURL(/\/login\?/);
+    const signIn = new URL(page.url());
+    expect(signIn.pathname + signIn.search + signIn.hash).toBe(`/login?return_url=${GATED_ROUTE_ENCODED}`);
+  });
+});
+
+test.describe("already signed in, with the phone in English", () => {
+  test.use({ locale: "en-US" });
+
+  test("an expired link leaves the visitor signed in, takes them to the return address and says the link was not used", async ({
+    page,
+  }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const backend = await standInBackend(page, issuedAt, 0);
+
+    // Signed in by a good link first.
+    await page.goto(callbackAddress("/dashboard", issuedAt));
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: ARRIVES_WITHIN_MS });
+    await expectSignedInOnDashboard(page);
+
+    // Then an old link is opened.
+    await page.goto(`/auth/callback?return_url=%2Fdashboard#${EXPIRED_ERROR}`);
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: ARRIVES_WITHIN_MS });
+    await expect(page.getByText("That sign-in link was not used", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(
+        `It had expired, was already used, or could not be checked. You are still signed in as ${EMAIL}.`,
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(SERVER_TEXT);
+    await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
 
     expect(backend.unanswered).toEqual([]);
     expect(pageErrors).toEqual([]);

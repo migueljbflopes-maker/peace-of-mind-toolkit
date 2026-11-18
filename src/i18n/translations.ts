@@ -430,6 +430,23 @@ export const translations = {
       callbackTimeoutDescription: 'Signing in is taking too long. Your connection may be slow or down. Try again, or go back and ask for a new sign-in link.',
       callbackTimeoutRetry: 'Try again',
       callbackTimeoutSignIn: 'Go to sign-in',
+      // The rest of that page (backlog A-12). The auth server's own text is never shown.
+      callbackLoadingTitle: 'Signing you in...',
+      callbackLoadingDescription: 'Please wait while we verify your login.',
+      callbackSuccessTitle: 'Welcome!',
+      callbackSuccessDescription: 'Redirecting you now...',
+      callbackExpiredTitle: 'This sign-in link has expired',
+      callbackExpiredDescription: 'A sign-in link works once and for a limited time. This one has expired or was already used. Ask for a new one and we will email it to you.',
+      callbackFailedTitle: 'This sign-in link did not work',
+      callbackFailedDescription: 'We could not sign you in with this link. Ask for a new one and we will email it to you.',
+      callbackUnsupportedTitle: 'This link cannot sign you in',
+      callbackUnsupportedDescription: 'This is not a kind of sign-in link AmIReady uses. Go to sign-in and ask for a new link.',
+      callbackEmptyTitle: 'There is no sign-in link here',
+      callbackEmptyDescription: 'This page finishes signing you in when you open the link in our email. Opened on its own, it has nothing to do. Go to sign-in to get a link.',
+      callbackNewLink: 'Get a new link',
+      // Shown on arrival to a visitor who was already signed in. {email} is their account.
+      callbackLinkNotUsedTitle: 'That sign-in link was not used',
+      callbackLinkNotUsedDescription: 'It had expired, was already used, or could not be checked. You are still signed in as {email}.',
     },
     // Signed out on a route behind the master password gate (backlog F-11)
     signedOutGate: {
@@ -935,6 +952,23 @@ export const translations = {
       callbackTimeoutDescription: 'Entrar está a demorar demasiado. A tua ligação pode estar lenta ou em baixo. Tenta outra vez, ou volta atrás e pede um novo link de início de sessão.',
       callbackTimeoutRetry: 'Tentar outra vez',
       callbackTimeoutSignIn: 'Ir para o início de sessão',
+      // O resto dessa página (backlog A-12). O texto do servidor nunca é mostrado.
+      callbackLoadingTitle: 'A iniciar a tua sessão...',
+      callbackLoadingDescription: 'Aguarda enquanto verificamos o teu início de sessão.',
+      callbackSuccessTitle: 'Boas-vindas!',
+      callbackSuccessDescription: 'A redirecionar-te...',
+      callbackExpiredTitle: 'Este link de início de sessão expirou',
+      callbackExpiredDescription: 'Um link de início de sessão funciona uma só vez e por tempo limitado. Este expirou ou já foi usado. Pede um novo e enviamos-to por email.',
+      callbackFailedTitle: 'Este link de início de sessão não funcionou',
+      callbackFailedDescription: 'Não conseguimos iniciar a tua sessão com este link. Pede um novo e enviamos-to por email.',
+      callbackUnsupportedTitle: 'Este link não pode iniciar a tua sessão',
+      callbackUnsupportedDescription: 'Não é um tipo de link de início de sessão que o AmIReady use. Vai para o início de sessão e pede um novo link.',
+      callbackEmptyTitle: 'Não há aqui nenhum link de início de sessão',
+      callbackEmptyDescription: 'Esta página termina o início de sessão quando abres o link do nosso email. Aberta sozinha, não tem nada para fazer. Vai para o início de sessão para receberes um link.',
+      callbackNewLink: 'Pedir um novo link',
+      // Mostrado à chegada a quem já tinha sessão iniciada. {email} é a conta.
+      callbackLinkNotUsedTitle: 'Esse link de início de sessão não foi usado',
+      callbackLinkNotUsedDescription: 'Tinha expirado, já tinha sido usado ou não pôde ser verificado. Continuas com a sessão iniciada como {email}.',
     },
     // Sem sessão numa rota atrás da Master Password (backlog F-11)
     signedOutGate: {
