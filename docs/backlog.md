@@ -344,14 +344,16 @@ outside the app, and that no words or master password are in any stored row
 or any request, plain, base64 or hex. Unit tests:
 `src/contexts/VaultKeyContext.test.tsx`,
 `src/components/security/MasterKeyGate.test.tsx`.
-Green in CI run 44284098061, second attempt (29 passed, the F-11 known
-failure among them); the commit after it only edits this file.
+Green in CI run 44286157560, second attempt, on this change merged with
+main after F-08 (61 passed, the F-11 known failure among them, none on a
+retry); the commit after it only edits this paragraph. Its first attempt
+ran no test: Docker on the runner could not start the database container.
 Limits. The vault section read back after recovery was put in `vault_items`
 by the test, encrypted as the app encrypts it; saving through the vault
 screens is F-02. The first CI run of this change passed the recovery test
 only on a retry (an error toast covered the button; fixed by showing the
-refusal in the form). The first attempt of run 44284098061 failed in the
-magic-link test of F-01, twice, and passed when re-run: F-16.
+refusal in the form). The second run, 44284098061, failed in the magic-link
+test of F-01, twice, and passed when re-run: F-16.
 Not done here: existing accounts are told where to make a kit only on the
 Backup page and the "Forgot?" screen (F-14). A kit file that was downloaded
 and then abandoned stays on the user's device and looks like a real one; the
