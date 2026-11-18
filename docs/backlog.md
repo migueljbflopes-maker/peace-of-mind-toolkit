@@ -113,10 +113,11 @@ fix it in its own change, and never bend the test around it.
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
 | F-08 | Edge functions boot on the local runtime as written | A-06 | todo |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
-| F-10 | The Recovery Kit is shown after the master password is created | F-01 | todo |
+| F-10 | The Recovery Kit is shown after the master password is created | F-01 | done |
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
 | F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | todo |
 | F-15 | One set of rules and words for the master password everywhere it is created | F-10 | todo |
+| F-16 | The magic-link callback sometimes never reaches the dashboard | F-01 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -128,8 +129,9 @@ the vault, sign-out, sign-in, unlock, a wrong master password, a reload. The
 stored `user_vault_keys` row is checked column by column and opened outside
 the app with the right password only. A purchase is stood in for by setting
 `premium_entitlements` (buying is F-07). Two tests in that file are marked
-`test.fail` for the bugs it found: F-10 and F-11. Green in CI run 42828248986
-(24 passed, the two known failures among them).
+`test.fail` for the bugs it found: F-10 and F-11 (F-10 has since been fixed
+and its test runs unmarked). Green in CI run 42828248986 (24 passed, the two
+known failures among them).
 Not covered: sign-up on a project with email confirmation switched on (the
 local stack confirms at once); OAuth, which the app does not offer.
 
@@ -223,6 +225,57 @@ passes with its `test.fail` removed; and a browser test for an account that
 set its master password before the fix creates a kit from inside the app,
 forgets the password, and gets back in with the "Forgot?" flow and that kit.
 
+Done. The rule now in the code (`src/contexts/VaultKeyContext.tsx`): the
+server never holds a recovery wrap for words the user was not given and did
+not confirm saving. Every step that makes new words prepares them in memory,
+shows them with `RecoveryKitPanel`, and writes only when the user has copied
+or downloaded the kit, ticked the box and pressed finish. Leaving, reloading
+or losing the connection before that leaves the account exactly as it was.
+- Creating a master password: no row in `user_vault_keys` until the kit is
+  confirmed, and no protected page before. A reload during the step means
+  there is no master password yet; the app asks for one again and shows new
+  words. A save that fails says so, keeps the words on screen and can be
+  retried. "Master Password created." is shown when the key is stored.
+- "Forgot?": the kit's words and a new master password lead to a new kit.
+  Both wraps are replaced in one update when that kit is confirmed, so the
+  words just used stop working when the new password starts working. A
+  refusal is shown in the form, where it stays.
+- Backup page, "Recovery Kit": a new kit for an unlocked vault. The master
+  password is asked again (the key in memory cannot be exported, and an
+  unlocked screen should not be enough to replace the kit). The old words
+  stop working when the new kit is confirmed, not before.
+- Onboarding step 1 stores the key only after its own kit step (F-15 for
+  the rest of that screen).
+- The key state resets when the signed-in account changes, no longer on
+  every session event for the same account (token refresh, the tab regaining
+  focus), which would have dropped a kit step while the user was away saving
+  the words. An unlocked vault therefore no longer re-locks on those events;
+  it still locks on reload, sign-out and "Lock Vault".
+No change to `src/utils/crypto.ts`, `src/lib/crypto.ts` or `supabase/`.
+Tested by `e2e/backend/signup-master-password.spec.ts` (the F-10 test,
+unmarked; the journey now saves the kit) and `e2e/backend/recovery-kit.spec.ts`
+(leaving and reloading during the step; a failed save; recovery end to end
+with a vault section read back in the vault; the account from before the
+fix; a new kit that makes the old words useless). Each asserts through
+`admin` when the six wrap columns change, that the words open the stored key
+outside the app, and that no words or master password are in any stored row
+or any request, plain, base64 or hex. Unit tests:
+`src/contexts/VaultKeyContext.test.tsx`,
+`src/components/security/MasterKeyGate.test.tsx`.
+Green in CI run 44284098061, second attempt (29 passed, the F-11 known
+failure among them); the commit after it only edits this file.
+Limits. The vault section read back after recovery was put in `vault_items`
+by the test, encrypted as the app encrypts it; saving through the vault
+screens is F-02. The first CI run of this change passed the recovery test
+only on a retry (an error toast covered the button; fixed by showing the
+refusal in the form). The first attempt of run 44284098061 failed in the
+magic-link test of F-01, twice, and passed when re-run: F-16.
+Not done here: existing accounts are told where to make a kit only on the
+Backup page and the "Forgot?" screen (F-14). A kit file that was downloaded
+and then abandoned stays on the user's device and looks like a real one; the
+app refuses its words. Portuguese texts were written, not read by a native
+speaker on the screens.
+
 **F-11.** Found by F-01. A signed-out visitor who opens `/premium/vault`,
 `/premium/plans`, `/premium/plans/wizard`, `/premium/red-folder` or
 `/premium/backup` (an old bookmark, a link from the Pricing page, a session
@@ -270,6 +323,26 @@ Accepted when: both places use the same form and the same `RecoveryKitPanel`;
 a browser test sets a master password through onboarding and is held to the
 12-character rule and the saved kit; every text that says what happens when
 the master password is forgotten names the Recovery Kit.
+
+**F-16.** Found by F-10. "a new user signs up with a magic link from the
+email and lands signed in" failed twice in a row in one CI attempt (run
+44284098061, first attempt; its Playwright report is attached to that run
+for 7 days) and passed in the attempt before, the attempt after, and every
+run of F-01. The link is followed, the session tokens are taken from the
+address (it ends in a bare `#`), and the page then stays on
+`/auth/callback?return_url=%2Fdashboard` for more than five seconds instead
+of going to the dashboard. Cause not found. Nothing F-10 changed is on that
+path, but that is an argument, not a proof. Places to look:
+`src/pages/AuthCallback.tsx` reads the tokens from the address in a race
+with the Supabase client, which reads and clears them itself, and its
+ten-second "timed out" fallback covers only one of its three paths;
+`LocaleProvider` awaits a database call inside `onAuthStateChange`, which
+Supabase documents as a way to block the auth client, and `AuthContext`
+already carries a three-second timeout for `getSession()` hanging. What the
+user is shown when this happens was not captured.
+Accepted when: the cause is named from a trace; the callback reaches the
+dashboard, or shows an error with a way on, on every path; and the test has
+passed in 20 consecutive CI attempts.
 
 ## Phase P: a panic button that tells the truth
 
