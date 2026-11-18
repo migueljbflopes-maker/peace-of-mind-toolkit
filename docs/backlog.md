@@ -63,6 +63,7 @@ next worked on.
 | A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
 | A-11 | Remove code that nothing renders | A-07 | todo |
 | A-12 | The sign-in callback page: an expired link is reported as such, in the user's language | A-08 | todo |
+| A-13 | The "no frozen feature" page test does not time out on `networkidle` | A-07 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -188,15 +189,16 @@ A second test that sometimes fails, recorded here and not fixed:
 promise no frozen feature") timed out at 30 seconds in
 `page.waitForLoadState("networkidle")` on the first attempt and passed on
 retry in runs 44354322608, 44306180323 and 44305134959; in run 44307078392
-it timed out on the retry as well and failed the run. The log does not say
-on which of its eight routes. It is not this deadlock: the visitor there is
+it timed out on the retry as well and failed the run, and so it did in run
+44362439246 on this branch (every other test passed there, the magic-link
+test first time). The log does not say on which of its eight routes. It is not this deadlock: the visitor there is
 signed out, nothing calls `setSession`, and with no session the old
 `useLocale` listener returned before it awaited anything. Not established:
 which request keeps the network busy. Candidates, all of them requests the
 `mobile-chrome` project lets through to the outside: the Google Fonts
 stylesheet imported by the CSS, Stripe.js on `/riskfunnel`, and the
 `page_views` insert of `usePageTracking` on every route. The trace is in the
-Playwright report of those runs for 7 days.
+Playwright report of those runs for 7 days. It is A-13.
 
 **A-06.** Unblocks all of phase F. Run Supabase locally (CLI) in CI, seed a premium test user, and give
 Playwright a signed-in fixture. Add a way to run edge function tests.
@@ -412,6 +414,16 @@ Accepted when: a browser test follows an expired link on the local stack and
 the visitor is told at once that the link has expired and how to get a new
 one; every text of the page is in `translations.ts` in both languages; the
 way back to sign-in keeps the return address.
+
+**A-13.** Recorded by A-08; the runs and what was ruled out are at the end
+of the A-08 paragraph. `e2e/frozen-features.spec.ts:101` waits for
+`networkidle` on eight public routes and times out at 30 seconds in about
+half of the CI runs looked at (5 of 10), usually on the first attempt only;
+twice it failed both attempts and with them the run.
+Accepted when: the request that keeps the network busy is named (the trace
+of a failing run shows it); the test waits for what it reads instead of for
+a quiet network, or that request is answered in the test; and the test
+passes 20 times in a row in CI with retries off.
 
 ## Phase F: the core features and funnels work
 
