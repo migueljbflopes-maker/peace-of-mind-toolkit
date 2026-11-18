@@ -147,8 +147,11 @@ hosted project's settings.
 every feature marked freeze in A-03. Keep the code recoverable from git history.
 Accepted when: the build contains no frozen route; no reference to
 `ai.gateway.lovable.dev` or `LOVABLE_API_KEY` remains; `npm run verify` passes.
-Done: the acceptance is met in CI run 44293941004 (100 unit tests, 21
-functions boot, 58 browser tests on both projects). One thing is left that
+Done: the acceptance is met in CI run 44298847936, on the branch merged with
+main as of F-11 (171 unit tests; 21 functions resolve from their lockfiles
+and boot; 73 browser tests passed on both projects and one, the magic-link
+sign-up of A-08, failed once and passed on retry). The commit after that run
+changes only this file. One thing is left that
 only the deploy following the merge can do and show, the deletion of the ten
 functions from the hosted project: see "Hosted project" below for what that
 run must print.
