@@ -124,15 +124,21 @@ test.describe("signed in", () => {
       await test.step(`/login?return_url=${address}`, async () => {
         const visited: string[] = [];
         const record = (frame: Frame) => {
-          if (frame === page.mainFrame()) visited.push(new URL(frame.url()).pathname);
+          if (frame !== page.mainFrame()) return;
+          const { pathname, search } = new URL(frame.url());
+          // The same address reported twice in a row is one visit.
+          if (visited[visited.length - 1] !== pathname + search) visited.push(pathname + search);
         };
         page.on("framenavigated", record);
         await page.goto(`/login?return_url=${address}`);
         await expect(page).toHaveURL(/\/dashboard$/);
         await expect(dashboard(page)).toBeVisible();
         page.off("framenavigated", record);
-        // One visit to the sign-in page, then the dashboard: no going round.
-        expect(visited.filter((path) => /^\/(login|auth)/i.test(path))).toHaveLength(1);
+        // The sign-in page as it was opened, then the dashboard: it is not
+        // visited a second time under another address.
+        expect(visited).toHaveLength(2);
+        expect(visited[0]).toMatch(/^\/login\?return_url=/);
+        expect(visited[1]).toBe("/dashboard");
       });
       await test.step(`/auth/callback?return_url=${address}`, async () => {
         await page.goto(`/auth/callback?return_url=${address}`);
