@@ -652,6 +652,15 @@ a magic link read from Mailpit, returns to
 signing in. Green in CI run 44301375644 (127 passed; none of these on a
 retry; the one flaky test was F-42); the commits after it merge main and edit
 this file.
+Flaky, and it is A-08: in the next run, 44303170764, the magic-link test here
+(`e2e/backend/return-url.spec.ts`, "a magic link asked for from a page
+returns to that page") failed once and passed on retry. The link was
+followed, the tokens were taken from the address (it ends in a bare `#`), and
+the page was still on `/auth/callback?return_url=…` after 20 seconds, so it
+is a hang and not slowness: longer than the callback's own ten-second
+"timed out" fallback, which changes the message and not the address. The
+return address in that URL was the right one. A-08 should count this test
+as well as the sign-up one.
 Not covered: the signed-in and magic-link tests were not seen failing on the
 old pages (no Docker locally; the unit and signed-out tests were); only
 Chromium was used. Other
