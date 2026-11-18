@@ -31,6 +31,8 @@ export const backend = {
    */
   hold: null as null | Promise<void>,
   user: { id: FIRST_USER_ID, email: "user@example.test" } as { id: string; email?: string } | null,
+  /** True while the session is still being restored on page load. */
+  authLoading: false,
   reset() {
     backend.rows = [];
     backend.writes = [];
@@ -38,6 +40,7 @@ export const backend = {
     backend.failReads = 0;
     backend.hold = null;
     backend.user = { id: FIRST_USER_ID, email: "user@example.test" };
+    backend.authLoading = false;
   },
   snapshot(): Row[] {
     return JSON.parse(JSON.stringify(backend.rows));
@@ -120,5 +123,5 @@ export const supabaseClientModule = {
 };
 
 export const useAuthModule = {
-  useAuth: () => ({ user: backend.user, loading: false }),
+  useAuth: () => ({ user: backend.user, loading: backend.authLoading }),
 };
