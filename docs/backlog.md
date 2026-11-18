@@ -370,11 +370,16 @@ fix; a new kit that makes the old words useless). Each asserts through
 outside the app, and that no words or master password are in any stored row
 or any request, plain, base64 or hex. Unit tests:
 `src/contexts/VaultKeyContext.test.tsx`,
-`src/components/security/MasterKeyGate.test.tsx`.
-Green in CI run 44286157560, second attempt, on this change merged with
-main after F-08 (61 passed, the F-11 known failure among them, none on a
-retry); the commit after it only edits this paragraph. Its first attempt
-ran no test: Docker on the runner could not start the database container.
+`src/components/security/MasterKeyGate.test.tsx`,
+`src/components/security/RecoveryKitPanel.test.tsx`,
+`src/components/onboarding/OnboardingStep1Vault.test.tsx`. The lost answer
+is also tested against the real database: the last test in
+`recovery-kit.spec.ts` lets an update through and drops its answer.
+Green in CI run 44290193711, first attempt, after the verifier's rework
+(62 passed, the F-11 known failure among them, none on a retry); the commit
+after it only edits this paragraph and the pull request text. Before the
+rework: run 44286157560, second attempt, 61 passed; its first attempt ran
+no test, because Docker on the runner could not start the database.
 Limits. The vault section read back after recovery was put in `vault_items`
 by the test, encrypted as the app encrypts it; saving through the vault
 screens is F-02. The first CI run of this change passed the recovery test
