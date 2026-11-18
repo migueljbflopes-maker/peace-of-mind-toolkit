@@ -219,7 +219,9 @@ Tested by `e2e/risk-funnel.spec.ts` (22 tests, no backend needed: everything
 the funnel sends is answered at the network edge and the request is what is
 asserted) and `e2e/backend/risk-funnel.spec.ts` (2 tests: the analytics rows
 as stored on the local stack; the real `create-guest-checkout` refused by
-Stripe). Status is `doing`, not done, because two acceptance points are open:
+Stripe). Green in CI run 44299277160 (96 passed, the seven known failures
+among them). Status is `doing`, not done, because two acceptance points are
+open:
 
 - "Resumes where the user left off" is not true: F-22. Three tests are marked
   `test.fail` for it. What does hold, and is tested: after a reload in the
