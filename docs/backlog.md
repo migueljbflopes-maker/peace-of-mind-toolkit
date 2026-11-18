@@ -14,6 +14,39 @@ Phases run in order A, F, P, B, S, U, but a task only waits for the tasks it
 names. Owner priority (2026-11-10): prove the core features and the funnels
 work, with tests, before wiring real payments, email and AI.
 
+## Owner decisions
+
+Recorded as given. A task that a decision touches follows the decision; where
+the task text disagrees, the decision wins and the task is updated when it is
+next worked on.
+
+**2026-11-18**
+- **Sales paths.** Two, on purpose: the home page leads to the free calculator
+  and the pricing page; `/riskfunnel` is the landing page for paid traffic
+  (Google Ads). The funnel must therefore also meet the ad platform's rules on
+  misrepresentation, and needs conversion measurement, which in turn needs a
+  consent choice and a privacy page that says so (new work, not yet a task).
+- **Price.** It must be changeable without a code change and shown from one
+  source everywhere (F-24). What "dynamic" covers beyond that (per campaign,
+  per country, tests) is still to be specified by the owner.
+- **Funnel score (F-20).** Change it: never above 100, and good answers can
+  be rated Low.
+- **No real users or purchases exist in the old Lovable project.** Nothing to
+  migrate; F-14 (accounts that never saw their kit) is closed as not needed.
+- **Vault lock (F-16).** Accepted that the vault no longer locks on token
+  refresh or tab focus; an inactivity lock replaces it, 10 minutes.
+- **Recovery.** Words used in a recovery are retired and a new kit is issued
+  (as built in F-10).
+- **Kit file (F-17).** The kit can be downloaded only as part of finishing
+  the step.
+- **Master password (F-15).** 12 characters wherever one is created.
+- **Clipboard (S-07).** Copying the words does not count as saved; download
+  or writing down is required.
+- **Gate order (Phase U).** The paywall comes before the master password.
+- **Open:** the user counts, review counts, countdown and crossed-out price on
+  the funnel (F-25). The owner asked why they should go; answered the same
+  day, decision pending.
+
 ## Phase A: foundations
 
 | ID | Task | Needs | Status |
@@ -322,7 +355,7 @@ fix it in its own change, and never bend the test around it.
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | done |
 | F-12 | Edge functions are type-checked in CI | F-08 | todo |
 | F-13 | One way to start a function: `Deno.serve`, no `deno.land` imports | F-08 | todo |
-| F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | todo |
+| F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | done (not needed: no real users, owner 2026-11-18) |
 | F-15 | One set of rules and words for the master password everywhere it is created | F-10 | todo |
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
