@@ -115,6 +115,8 @@ fix it in its own change, and never bend the test around it.
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
 | F-10 | The Recovery Kit is shown after the master password is created | F-01 | todo |
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
+| F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | todo |
+| F-15 | One set of rules and words for the master password everywhere it is created | F-10 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -126,7 +128,7 @@ the vault, sign-out, sign-in, unlock, a wrong master password, a reload. The
 stored `user_vault_keys` row is checked column by column and opened outside
 the app with the right password only. A purchase is stood in for by setting
 `premium_entitlements` (buying is F-07). Two tests in that file are marked
-`test.fail` for the bugs it found: F-10 and F-11. Green in CI run 42827717384
+`test.fail` for the bugs it found: F-10 and F-11. Green in CI run 42828248986
 (24 passed, the two known failures among them).
 Not covered: sign-up on a project with email confirmation switched on (the
 local stack confirms at once); OAuth, which the app does not offer.
@@ -235,6 +237,39 @@ Accepted when: "signed out, the vault address offers a way to sign in instead
 of an empty page" in `e2e/backend/signup-master-password.spec.ts` passes with
 its `test.fail` removed, extended to the other four routes; after signing in
 from there the user is returned to the route they asked for.
+
+**F-14.** Found by F-10. An account that set its master password before F-10
+has a recovery wrap for words nobody was shown, and the app cannot tell such
+an account from one whose kit was saved: `user_vault_keys` has no column that
+says "the user confirmed this kit". F-10 gives those users a way out (Backup
+page, "Create a new Recovery Kit") and says so on the Backup page and on the
+"Forgot?" screen, but a user who visits neither is not told, and still
+believes the app's old promise.
+`[DECISION]` for the owner, in this order: (1) how many accounts on the
+hosted project have a row in `user_vault_keys` created before the F-10
+deploy; if none, close this task. (2) Otherwise choose: a new nullable column
+`recovery_kit_confirmed_at`, set when a kit is confirmed, and a forced kit
+step after the next unlock for rows where it is null (a migration, so after
+F-08); or an email to those users; or both.
+Accepted when: a browser test for a row without the confirmation unlocks with
+its master password and cannot reach a protected page before saving a new
+kit; a row with the confirmation is not asked again.
+
+**F-15.** Found by F-10. A master password can be created in two places with
+different rules. The vault gate (`MasterPasswordScreen`) asks for 12
+characters, an acknowledgement, and a kit that must be copied or downloaded
+before the tick box works. Onboarding step 1 (`OnboardingStep1Vault`, route
+`/premium/onboarding`, which is not behind the gate) accepts 6 characters,
+has its own kit screen with only a tick box, and downloads the bare words
+without the account or the date. F-10 made it store the key only after the
+tick, like the gate, and changed nothing else there. The vault texts also
+still say "passphrase" and "if you forget your passphrase, we cannot recover
+your data" (`vault.setup.warning`, `backup.safetyNote`,
+`DataLossWarning.tsx`, `Privacy.tsx`) without a word about the Recovery Kit.
+Accepted when: both places use the same form and the same `RecoveryKitPanel`;
+a browser test sets a master password through onboarding and is held to the
+12-character rule and the saved kit; every text that says what happens when
+the master password is forgotten names the Recovery Kit.
 
 ## Phase P: a panic button that tells the truth
 

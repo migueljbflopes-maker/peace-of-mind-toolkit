@@ -449,6 +449,9 @@ function RecoveryForm({
   const [pw2, setPw2] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Shown in the form, where it stays until the next try: a refusal here
+  // must not be a message that disappears, or one that covers the button.
+  const [failure, setFailure] = useState<VaultKeyFailure | null>(null);
 
   const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length;
   const tooShort = pw.length > 0 && pw.length < MIN_PASSWORD_LENGTH;
@@ -462,10 +465,11 @@ function RecoveryForm({
   const handle = async () => {
     if (!canSubmit) return;
     setBusy(true);
+    setFailure(null);
     const res = await onRecover(phrase, pw);
     setBusy(false);
     if (res.ok !== true) {
-      toast.error(recoveryKitErrorMessage(t, res));
+      setFailure(res);
     } else {
       // Not recovered yet: the new password becomes active when the new
       // Recovery Kit, shown next, is confirmed.
@@ -596,6 +600,15 @@ function RecoveryForm({
               </p>
             )}
           </div>
+
+          {failure && (
+            <Alert variant="destructive" role="alert">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription className="text-sm leading-relaxed">
+                {recoveryKitErrorMessage(t, failure)}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Button className="w-full" onClick={handle} disabled={!canSubmit}>
             {busy ? (

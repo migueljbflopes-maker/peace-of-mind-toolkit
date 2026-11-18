@@ -269,3 +269,12 @@ export async function submitRecovery(page: Page, words: string[], newMasterPassw
   await page.getByLabel("Confirm new password").fill(newMasterPassword);
   await page.getByRole("button", { name: "Recover and set new password" }).click();
 }
+
+/** The recovery just submitted was refused: the form says why, and stays. */
+export async function expectRecoveryRefused(page: Page, reason: string) {
+  // The button carries its name again once the attempt is over.
+  await expect(page.getByRole("button", { name: "Recover and set new password" })).toBeEnabled();
+  await expect(page.getByRole("alert").filter({ hasText: reason })).toBeVisible();
+  await expect(page.getByText("Recover with Recovery Kit", { exact: true })).toBeVisible();
+  await expect(page.getByText("Save your new Recovery Kit", { exact: true })).toHaveCount(0);
+}

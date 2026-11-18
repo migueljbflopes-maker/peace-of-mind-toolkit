@@ -150,9 +150,19 @@ describe("recovering behind the gate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Forgot?" }));
     expect(screen.getByTestId("recovery-never-shown-note")).toHaveTextContent("If you were never shown 24 words");
 
-    fireEvent.change(screen.getByLabelText("Recovery phrase (24 words)"), { target: { value: phrase } });
+    // Words that are not the kit: refused in the form itself, where the
+    // message stays, and nothing changes.
+    const notTheKit = phrase.split(" ").reverse().join(" ");
+    fireEvent.change(screen.getByLabelText("Recovery phrase (24 words)"), { target: { value: notTheKit } });
     fireEvent.change(screen.getByPlaceholderText("Minimum 12 characters"), { target: { value: PASSWORD } });
     fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: PASSWORD } });
+    fireEvent.click(screen.getByRole("button", { name: "Recover and set new password" }));
+    await screen.findByText("These words do not open this account. Check them and try again.");
+    expect(screen.queryByText("Save your new Recovery Kit")).not.toBeInTheDocument();
+    expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+    expect(backend.rows).toEqual(before);
+
+    fireEvent.change(screen.getByLabelText("Recovery phrase (24 words)"), { target: { value: phrase } });
     fireEvent.click(screen.getByRole("button", { name: "Recover and set new password" }));
 
     await screen.findByText("Save your new Recovery Kit");

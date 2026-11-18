@@ -12,6 +12,7 @@ import {
   encryptedVaultItem,
   expectNeverSent,
   expectNoTraceOf,
+  expectRecoveryRefused,
   fillNewMasterPassword,
   keyRowWithUnseenKit,
   newRecoveryKitTitle,
@@ -142,7 +143,7 @@ test("reloading or leaving during the Recovery Kit step stores nothing: the user
   await page.reload();
   await expect(unlockTitle(page)).toBeVisible();
   await submitRecovery(page, abandonedWords, newPassword("Not-Used"));
-  await expect(page.getByText(WRONG_WORDS).first()).toBeVisible();
+  await expectRecoveryRefused(page, WRONG_WORDS);
   await expect(newRecoveryKitTitle(page)).toHaveCount(0);
   expect(await vaultKeyRows(admin, user.id)).toEqual([row]);
   expect(pageErrors).toEqual([]);
@@ -232,7 +233,7 @@ test("a forgotten master password: the kit's words set a new one, saved vault da
 
   // The right words in the wrong order are not the kit.
   await submitRecovery(page, [...words].reverse(), replacementPassword);
-  await expect(page.getByText(WRONG_WORDS).first()).toBeVisible();
+  await expectRecoveryRefused(page, WRONG_WORDS);
   await expect(newRecoveryKitTitle(page)).toHaveCount(0);
   expect(await vaultKeyRows(admin, user.id)).toEqual([before]);
 
@@ -269,13 +270,14 @@ test("a forgotten master password: the kit's words set a new one, saved vault da
   // Next visit: the old password is refused, the old words are refused, the new password opens the vault.
   await page.reload();
   await expect(unlockTitle(page)).toBeVisible();
+  await submitRecovery(page, words, newPassword("Not-Used"));
+  await expectRecoveryRefused(page, WRONG_WORDS);
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await unlockWith(page, forgottenPassword);
   await expect(page.getByText("Incorrect master password.", { exact: true }).last()).toBeVisible();
+  await expect(unlockTitle(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock Vault" })).toHaveCount(0);
-  await submitRecovery(page, words, newPassword("Not-Used"));
-  await expect(page.getByText(WRONG_WORDS).first()).toBeVisible();
   expect(await vaultKeyRows(admin, user.id)).toEqual([after]);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
   await unlockWith(page, replacementPassword);
   await expect(page.getByRole("button", { name: "Lock Vault" })).toBeVisible();
   await page.getByRole("button", { name: "Edit", exact: true }).first().click();
@@ -435,7 +437,7 @@ test("a new Recovery Kit from the Backup page replaces the old one only when it 
   await expect(unlockTitle(page)).toBeVisible();
   for (const refusedWords of [oldWords, abandonedWords]) {
     await submitRecovery(page, refusedWords, replacementPassword);
-    await expect(page.getByText(WRONG_WORDS).first()).toBeVisible();
+    await expectRecoveryRefused(page, WRONG_WORDS);
     await expect(newRecoveryKitTitle(page)).toHaveCount(0);
     await expect(page.getByText("Recover with Recovery Kit", { exact: true })).toBeVisible();
   }
