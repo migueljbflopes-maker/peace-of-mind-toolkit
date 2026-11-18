@@ -15,6 +15,14 @@
  *  losing the connection during the kit step leaves the account exactly as it
  *  was before the step began.
  *
+ *  A write whose answer is lost is never reported as "not saved": `commit()`
+ *  reads the row back and compares it with the wraps it prepared. Saved is
+ *  saved; not there is 'not-saved'; and when even that read fails the answer
+ *  is 'outcome-unknown', which claims neither.
+ *
+ *  A key is put in memory only for the account it was prepared for: every
+ *  path checks who is signed in again after each wait on the network.
+ *
  * SECURITY:
  *  - Master Key is only present in memory.
  *  - Master Password & Recovery Phrase never persist anywhere.
@@ -65,7 +73,8 @@ export type VaultKeyStatus =
 
 export type VaultKeyErrorCode =
   | 'not-authenticated'   // no user, or the user changed since the step began
-  | 'not-saved'           // the server did not confirm the write
+  | 'not-saved'           // checked: the write is not on the server
+  | 'outcome-unknown'     // the write may or may not be on the server
   | 'already-set-up'      // another device created a master password meanwhile
   | 'wrong-password'
   | 'invalid-phrase'      // not 12+ words from the wordlist
@@ -197,6 +206,32 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  /** The row as the server has it now, or `unknown` when it cannot be read. */
+  const readBack = useCallback(
+    async (forUserId: string): Promise<{ unknown: boolean; row: FullWrappedRow | null }> => {
+      try {
+        return { unknown: false, row: await fetchWrappedRow(forUserId) };
+      } catch {
+        return { unknown: true, row: null };
+      }
+    },
+    [fetchWrappedRow]
+  );
+
+  const signedOut = () => fail('not-authenticated', 'Not authenticated');
+
+  /**
+   * Puts a master key in memory, for the account it belongs to and no other.
+   * Called after waits on the network, during which the user may have signed
+   * out or another account may have signed in.
+   */
+  const open = useCallback((forUserId: string, masterKey: CryptoKey): { ok: true } | VaultKeyFailure => {
+    if (currentUserIdRef.current !== forUserId) return fail('not-authenticated', 'Not authenticated');
+    masterKeyRef.current = masterKey;
+    setStatus('unlocked');
+    return { ok: true };
+  }, []);
+
   // ── Effect: when the user changes, decide whether we need setup or unlock ──
 
   const userId = user?.id ?? null;
@@ -254,14 +289,8 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         //    the kit, so a key never exists on the server without its words
         //    having been handed over.
         const commit = async (): Promise<{ ok: true } | VaultKeyFailure> => {
-          if (currentUserIdRef.current !== userId) {
-            return fail('not-authenticated', 'Not authenticated');
-          }
-          const opened = () => {
-            masterKeyRef.current = masterKey;
-            setStatus('unlocked');
-            return { ok: true as const };
-          };
+          if (currentUserIdRef.current !== userId) return signedOut();
+          let writeError = 'Could not save';
           try {
             const { error } = await supabase.from('user_vault_keys').insert({
               user_id: userId,
@@ -274,27 +303,28 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
               recovery_iv: recovery.iv,
               recovery_salt: recovery.salt,
             });
-            if (!error) return opened();
-
-            if (error.code === '23505') {
-              // A row already exists. Either an earlier attempt of this same
-              // commit reached the server and its answer was lost, or another
-              // device created a master password in the meantime.
-              const existing = await fetchWrappedRow(userId);
-              if (
-                existing &&
-                existing.encrypted_master_key === wrapped.encrypted_master_key &&
-                existing.recovery_encrypted_master_key === recovery.encrypted
-              ) {
-                return opened();
-              }
-              setStatus('needs-unlock');
-              return fail('already-set-up', 'A master password already exists for this account');
-            }
-            return fail('not-saved', error.message);
+            if (!error) return open(userId, masterKey);
+            writeError = error.message;
           } catch (e) {
-            return fail('not-saved', e instanceof Error ? e.message : 'Could not save');
+            if (e instanceof Error) writeError = e.message;
           }
+
+          // The insert did not report success. That is not the same as "not
+          // stored": the answer may have been lost, an earlier attempt of this
+          // commit may have landed (a duplicate-key refusal), or another
+          // device may have created a master password meanwhile. Look.
+          const found = await readBack(userId);
+          if (found.unknown) return fail('outcome-unknown', writeError);
+          if (currentUserIdRef.current !== userId) return signedOut();
+          if (!found.row) return fail('not-saved', writeError);
+          if (
+            found.row.encrypted_master_key === wrapped.encrypted_master_key &&
+            found.row.recovery_encrypted_master_key === recovery.encrypted
+          ) {
+            return open(userId, masterKey);
+          }
+          setStatus('needs-unlock');
+          return fail('already-set-up', 'A master password already exists for this account');
         };
 
         return { ok: true, recoveryPhrase, commit };
@@ -302,7 +332,7 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         return fail('failed', e instanceof Error ? e.message : 'Setup failed');
       }
     },
-    [userId, fetchWrappedRow]
+    [userId, readBack, open]
   );
 
   // ── Unlock (returning user) ────────────────────────────────────────────────
@@ -314,20 +344,21 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
       if (!userId) return { ok: false, error: 'Not authenticated' };
       try {
         const wrapped = await fetchWrappedRow(userId);
+        if (currentUserIdRef.current !== userId) return { ok: false, error: 'Not authenticated' };
         if (!wrapped) {
           setStatus('needs-setup');
           return { ok: false, error: 'No key on server' };
         }
 
         const masterKey = await openWrappedMasterKey(wrapped, masterPassword);
-        masterKeyRef.current = masterKey;
-        setStatus('unlocked');
+        const opened = open(userId, masterKey);
+        if (opened.ok !== true) return { ok: false, error: 'Not authenticated' };
         return { ok: true };
       } catch {
         return { ok: false, error: 'Incorrect master password' };
       }
     },
-    [userId, fetchWrappedRow]
+    [userId, fetchWrappedRow, open]
   );
 
   // ── Recovery (forgot password) ─────────────────────────────────────────────
@@ -386,9 +417,8 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         const newRecovery = await wrapMasterKeyForRecovery(masterKey, newPhrase);
 
         const commit = async (): Promise<{ ok: true } | VaultKeyFailure> => {
-          if (currentUserIdRef.current !== userId) {
-            return fail('not-authenticated', 'Not authenticated');
-          }
+          if (currentUserIdRef.current !== userId) return signedOut();
+          let writeError = 'No key row was updated';
           try {
             // One update: the new password and the new words become valid
             // together, or neither does.
@@ -407,15 +437,26 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
               .eq('user_id', userId)
               .select('user_id');
 
-            if (error) return fail('not-saved', error.message);
-            if (!data || data.length !== 1) return fail('not-saved', 'No key row was updated');
-
-            masterKeyRef.current = masterKey;
-            setStatus('unlocked');
-            return { ok: true };
+            if (!error && data && data.length === 1) return open(userId, masterKey);
+            if (error) writeError = error.message;
           } catch (e) {
-            return fail('not-saved', e instanceof Error ? e.message : 'Could not save');
+            if (e instanceof Error) writeError = e.message;
           }
+
+          // No confirmation. If the update landed, the words the user typed
+          // are already dead and the new ones are the kit: saying "not saved"
+          // would be the opposite of the truth. Look before saying anything.
+          const found = await readBack(userId);
+          if (found.unknown) return fail('outcome-unknown', writeError);
+          if (currentUserIdRef.current !== userId) return signedOut();
+          if (
+            found.row &&
+            found.row.encrypted_master_key === newWrapped.encrypted_master_key &&
+            found.row.recovery_encrypted_master_key === newRecovery.encrypted
+          ) {
+            return open(userId, masterKey);
+          }
+          return fail('not-saved', writeError);
         };
 
         return { ok: true, recoveryPhrase: newPhrase, commit };
@@ -423,7 +464,7 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         return fail('failed', e instanceof Error ? e.message : 'Recovery failed');
       }
     },
-    [userId, fetchWrappedRow]
+    [userId, fetchWrappedRow, readBack, open]
   );
 
   // ── New Recovery Kit (the account already has a master password) ───────────
@@ -461,9 +502,8 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         const recovery = await wrapMasterKeyForRecovery(masterKey, recoveryPhrase);
 
         const commit = async (): Promise<{ ok: true } | VaultKeyFailure> => {
-          if (currentUserIdRef.current !== userId) {
-            return fail('not-authenticated', 'Not authenticated');
-          }
+          if (currentUserIdRef.current !== userId) return signedOut();
+          let writeError = 'No key row was updated';
           try {
             const { data, error } = await supabase
               .from('user_vault_keys')
@@ -475,12 +515,20 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
               .eq('user_id', userId)
               .select('user_id');
 
-            if (error) return fail('not-saved', error.message);
-            if (!data || data.length !== 1) return fail('not-saved', 'No key row was updated');
-            return { ok: true };
+            if (!error && data && data.length === 1) return { ok: true };
+            if (error) writeError = error.message;
           } catch (e) {
-            return fail('not-saved', e instanceof Error ? e.message : 'Could not save');
+            if (e instanceof Error) writeError = e.message;
           }
+
+          // No confirmation. If the update landed, the old kit is dead and
+          // this one is live; look before telling the user which.
+          const found = await readBack(userId);
+          if (found.unknown) return fail('outcome-unknown', writeError);
+          if (found.row && found.row.recovery_encrypted_master_key === recovery.encrypted) {
+            return { ok: true };
+          }
+          return fail('not-saved', writeError);
         };
 
         return { ok: true, recoveryPhrase, commit };
@@ -488,7 +536,7 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         return fail('failed', e instanceof Error ? e.message : 'Could not create a new kit');
       }
     },
-    [userId, fetchWrappedRow]
+    [userId, fetchWrappedRow, readBack]
   );
 
   // ── Lock (wipe in-memory key) ──────────────────────────────────────────────

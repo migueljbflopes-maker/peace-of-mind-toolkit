@@ -1,22 +1,35 @@
 /**
  * End-to-end zero-knowledge flow test.
  *
- * Mirrors the real journey a user takes through VaultKeyContext + backup.ts:
+ * Follows the journey a user takes through the key scheme and backup.ts:
  *
- *   1. setup()              → create wrapped master key + recovery wrap
+ *   1. setup                → create wrapped master key + recovery wrap
  *   2. encrypt section      → save EncryptedBlob into vaultStorage cache
  *   3. createBackup()       → wrap the bundle with the master key, push to "server"
  *   4. reset                → wipe local cache + in-memory key (simulate logout
  *                             on a new device, or "I forgot my password")
- *   5. recoverWithPhrase()  → unwrap master key with the 24-word phrase,
- *                             rewrap with a brand new password
- *   6. unlock with new pwd  → confirm the new password works
+ *   5. recover              → unwrap master key with the 24-word phrase,
+ *                             rewrap with a brand new password AND with a
+ *                             brand new phrase, in one update
+ *   6. unlock with new pwd  → confirm the new password works, the old one
+ *                             and the used phrase do not
  *   7. restoreFromBackup()  → pull bundle, decrypt with recovered key,
  *                             write sections back to local cache
  *   8. decrypt section      → confirm the ORIGINAL plaintext comes back
  *
  * The Supabase client is mocked with in-memory tables so the test runs
  * fully offline — only IndexedDB (fake) and WebCrypto (node:crypto) are real.
+ *
+ * WHAT THIS FILE DOES AND DOES NOT COVER
+ * It does not run VaultKeyContext. `setupAccount`, `unlockAccount` and
+ * `recoverAccount` below are standalone copies of the crypto calls and the
+ * rows the context writes (same functions from utils/crypto, same columns),
+ * kept in step with it by hand. What it proves is that the key scheme and
+ * backup/restore work together: data encrypted before a recovery is readable
+ * after it. The context's own rules (nothing stored before the Recovery Kit
+ * is confirmed, reading back after a lost answer, never opening a key for
+ * another account) are tested in src/contexts/VaultKeyContext.test.tsx, and
+ * the screens in src/components/security/*.test.tsx.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -259,10 +272,15 @@ async function unlockAccount(masterPassword: string): Promise<VaultKeyState> {
   return { masterKey };
 }
 
+/**
+ * As beginRecovery + commit in VaultKeyContext: the phrase opens the key,
+ * which is wrapped again with the new password and with a NEW phrase; both
+ * wraps are written in one update, so the used phrase stops working.
+ */
 async function recoverAccount(
   recoveryPhrase: string,
   newPassword: string
-): Promise<VaultKeyState> {
+): Promise<VaultKeyState & { newRecoveryPhrase: string }> {
   const { data } = await supabase
     .from("user_vault_keys")
     .select(
@@ -284,6 +302,8 @@ async function recoverAccount(
   );
 
   const newWrapped = await rewrapMasterKey(masterKey, newPassword);
+  const newRecoveryPhrase = generateRecoveryPhrase();
+  const newRecovery = await wrapMasterKeyForRecovery(masterKey, newRecoveryPhrase);
   const { error } = await supabase
     .from("user_vault_keys")
     .update({
@@ -292,11 +312,14 @@ async function recoverAccount(
       salt: newWrapped.salt,
       kdf_iterations: newWrapped.kdf_iterations,
       version: newWrapped.version,
+      recovery_encrypted_master_key: newRecovery.encrypted,
+      recovery_iv: newRecovery.iv,
+      recovery_salt: newRecovery.salt,
     })
     .eq("user_id", USER_ID);
   expect(error).toBeNull();
 
-  return { masterKey };
+  return { masterKey, newRecoveryPhrase };
 }
 
 function makeCipher(state: VaultKeyState): MasterCipher {
@@ -359,6 +382,12 @@ describe("Zero-Knowledge end-to-end flow", () => {
     const reUnlocked = await unlockAccount(NEW_PASSWORD);
     expect(reUnlocked.masterKey).toBeDefined();
     await expect(unlockAccount(ORIGINAL_PASSWORD)).rejects.toBeDefined();
+
+    // 5c. The phrase that was used is retired; the new one opens the same key.
+    expect(recovered.newRecoveryPhrase).not.toBe(recoveryPhrase);
+    await expect(recoverAccount(recoveryPhrase, "another-password-entirely-3")).rejects.toBeDefined();
+    const again = await recoverAccount(recovered.newRecoveryPhrase, NEW_PASSWORD);
+    expect(await decryptData(blob, again.masterKey)).toEqual(SECRET);
 
     // 6. Restore from backup with the recovered cipher.
     const restoreResult = await restoreFromBackup(USER_ID, makeCipher(recovered));

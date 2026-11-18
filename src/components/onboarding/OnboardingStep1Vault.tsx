@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { useLocale } from '@/i18n/useLocale';
 import { useVaultKey, type PendingRecoveryKit } from '@/contexts/VaultKeyContext';
 import { recoveryKitErrorMessage } from '@/components/security/recoveryKitMessages';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   onNext: () => void;
@@ -42,6 +43,19 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
   const [phraseAcknowledged, setPhraseAcknowledged] = useState(false);
   const [storing, setStoring] = useState(false);
   const [storeError, setStoreError] = useState('');
+
+  // Words prepared for one account are never kept for, or shown to, another.
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    setPendingKit(null);
+    setPhraseAcknowledged(false);
+    setStoreError('');
+  }, [userId]);
+  // Nor kept once the account no longer waits for a first master password.
+  useEffect(() => {
+    if (status !== 'needs-setup' && status !== 'loading') setPendingKit(null);
+  }, [status]);
 
   const isPt = locale === 'pt';
   const L = {
@@ -160,7 +174,8 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
             <span>{L.recoveryAck}</span>
           </label>
 
-          <p className="text-xs text-muted-foreground">{t.recoveryKit.pendingSetup}</p>
+          {/* Not while a save is unconfirmed: "nothing is kept" could be false then. */}
+          {!storeError && <p className="text-xs text-muted-foreground">{t.recoveryKit.pendingSetup}</p>}
 
           {storeError && (
             <Alert variant="destructive" role="alert">

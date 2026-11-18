@@ -23,11 +23,20 @@ export const backend = {
    * its answer is lost, as when the connection drops after the request left.
    */
   failNextWrite: null as null | { code?: string; message: string; applyAnyway?: boolean },
+  /** Makes the next reads fail, as when the connection is down: how many. */
+  failReads: 0,
+  /**
+   * When set, every query waits for this before it answers (it has already
+   * been applied): lets a test change who is signed in during a round trip.
+   */
+  hold: null as null | Promise<void>,
   user: { id: FIRST_USER_ID, email: "user@example.test" } as { id: string; email?: string } | null,
   reset() {
     backend.rows = [];
     backend.writes = [];
     backend.failNextWrite = null;
+    backend.failReads = 0;
+    backend.hold = null;
     backend.user = { id: FIRST_USER_ID, email: "user@example.test" };
   },
   snapshot(): Row[] {
@@ -40,7 +49,13 @@ function from(table: string) {
   const q = { op: "select", payload: {} as Row, filters: [] as Array<[string, unknown]>, returning: false };
   const matching = () => backend.rows.filter((r) => q.filters.every(([k, v]) => r[k] === v));
   const run = () => {
-    if (q.op === "select") return { data: matching(), error: null };
+    if (q.op === "select") {
+      if (backend.failReads > 0) {
+        backend.failReads -= 1;
+        return { data: null, error: { message: "Failed to fetch" } };
+      }
+      return { data: matching(), error: null };
+    }
     backend.writes.push({ op: q.op, payload: q.payload });
     const failure = backend.failNextWrite;
     backend.failNextWrite = null;
@@ -78,13 +93,17 @@ function from(table: string) {
     },
     maybeSingle() {
       const res = run();
-      return Promise.resolve({ data: (res.data as Row[] | null)?.[0] ?? null, error: res.error });
+      const answer = { data: (res.data as Row[] | null)?.[0] ?? null, error: res.error };
+      return Promise.resolve(backend.hold).then(() => answer);
     },
     single() {
       return builder.maybeSingle();
     },
     then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
-      return Promise.resolve(run()).then(resolve, reject);
+      const answer = run();
+      return Promise.resolve(backend.hold)
+        .then(() => answer)
+        .then(resolve, reject);
     },
   };
   return builder;

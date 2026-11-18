@@ -82,6 +82,19 @@ consent.
 sign-up) failed once and passed on retry in CI run 44281457084:
 `toHaveURL(/\/dashboard$/)` timed out after 5 seconds on the way through
 `/auth/callback`. A test that sometimes fails gets ignored.
+Seen again on the F-10 branch: run 44284098061, first attempt, failed it
+twice in a row (first try and retry) and passed when re-run; its Playwright
+report is attached to that run for 7 days. Same symptom: the link is
+followed, the tokens are taken from the address (it ends in a bare `#`), and
+the page stays on `/auth/callback?return_url=%2Fdashboard` for more than
+five seconds. `AuthCallback.tsx` uses nothing F-10 changed. Places to look,
+noted there: `AuthCallback.tsx` reads the tokens from the address in a race
+with the Supabase client, which reads and clears them itself, and its
+ten-second "timed out" fallback covers only one of its three paths;
+`LocaleProvider` awaits a database call inside `onAuthStateChange`, which
+Supabase documents as a way to block the auth client; `AuthContext` already
+carries a three-second timeout for `getSession()` hanging. What the user is
+shown when it happens was not captured.
 Accepted when: the cause is found (slow callback, or a real race in
 `AuthCallback.tsx`) and fixed where it lies; the test passes 20 times in a
 row in CI with retries off.
@@ -150,7 +163,8 @@ fix it in its own change, and never bend the test around it.
 | F-13 | One way to start a function: `Deno.serve`, no `deno.land` imports | F-08 | todo |
 | F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | todo |
 | F-15 | One set of rules and words for the master password everywhere it is created | F-10 | todo |
-| F-16 | The magic-link callback sometimes never reaches the dashboard | F-01 | todo |
+| F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
+| F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -332,7 +346,20 @@ or losing the connection before that leaves the account exactly as it was.
   every session event for the same account (token refresh, the tab regaining
   focus), which would have dropped a kit step while the user was away saving
   the words. An unlocked vault therefore no longer re-locks on those events;
-  it still locks on reload, sign-out and "Lock Vault".
+  it still locks on reload, sign-out and "Lock Vault". That accidental lock
+  was the only automatic one: F-16 replaces it and is required before launch.
+- A write whose answer is lost is never called "not saved" (found by the
+  verifier: after a lost answer the new-kit screen offered "keep my current
+  kit" when the old words were already dead). All three writes read the row
+  back and compare it with what they prepared: stored is reported as stored,
+  absent as not saved, and if the row cannot be read either the screen says
+  the outcome is unknown, to keep everything and try again, and withdraws
+  "nothing changes" and "keep my current kit" until a retry settles it.
+- A key is put in memory only for the account it was prepared for: the
+  signed-in account is checked again after every wait on the network, in the
+  three writes and in unlock.
+- When another device creates the master password first, the unlock screen
+  carries a notice that the kit just shown is void until the user is in.
 No change to `src/utils/crypto.ts`, `src/lib/crypto.ts` or `supabase/`.
 Tested by `e2e/backend/signup-master-password.spec.ts` (the F-10 test,
 unmarked; the journey now saves the kit) and `e2e/backend/recovery-kit.spec.ts`
@@ -353,11 +380,12 @@ by the test, encrypted as the app encrypts it; saving through the vault
 screens is F-02. The first CI run of this change passed the recovery test
 only on a retry (an error toast covered the button; fixed by showing the
 refusal in the form). The second run, 44284098061, failed in the magic-link
-test of F-01, twice, and passed when re-run: F-16.
+test of F-01, twice, and passed when re-run: A-08.
 Not done here: existing accounts are told where to make a kit only on the
 Backup page and the "Forgot?" screen (F-14). A kit file that was downloaded
 and then abandoned stays on the user's device and looks like a real one; the
-app refuses its words. Portuguese texts were written, not read by a native
+app refuses its words (F-17). What the privacy review noted and this change
+did not take on is S-07. Portuguese texts were written, not read by a native
 speaker on the screens.
 
 **F-11.** Found by F-01. A signed-out visitor who opens `/premium/vault`,
@@ -426,25 +454,57 @@ a browser test sets a master password through onboarding and is held to the
 12-character rule and the saved kit; every text that says what happens when
 the master password is forgotten names the Recovery Kit.
 
-**F-16.** Found by F-10. "a new user signs up with a magic link from the
-email and lands signed in" failed twice in a row in one CI attempt (run
-44284098061, first attempt; its Playwright report is attached to that run
-for 7 days) and passed in the attempt before, the attempt after, and every
-run of F-01. The link is followed, the session tokens are taken from the
-address (it ends in a bare `#`), and the page then stays on
-`/auth/callback?return_url=%2Fdashboard` for more than five seconds instead
-of going to the dashboard. Cause not found. Nothing F-10 changed is on that
-path, but that is an argument, not a proof. Places to look:
-`src/pages/AuthCallback.tsx` reads the tokens from the address in a race
-with the Supabase client, which reads and clears them itself, and its
-ten-second "timed out" fallback covers only one of its three paths;
-`LocaleProvider` awaits a database call inside `onAuthStateChange`, which
-Supabase documents as a way to block the auth client, and `AuthContext`
-already carries a three-second timeout for `getSession()` hanging. What the
-user is shown when this happens was not captured.
-Accepted when: the cause is named from a trace; the callback reaches the
-dashboard, or shows an error with a way on, on every path; and the test has
-passed in 20 consecutive CI attempts.
+**F-16.** Found by F-10. Required before launch. Until F-10 the vault locked
+itself by accident: the key was dropped whenever Supabase handed out a new
+session object, which by the code happens on a token refresh and when the
+tab regains focus. That was the only automatic lock, and nobody had designed
+it. F-10 removed it, because it also threw away a Recovery Kit step while the
+user was in another app saving the words. Today an unlocked vault stays open
+until the page is reloaded or closed, the user signs out, or presses "Lock
+Vault": on a shared or lost device that is too long. Put a deliberate lock
+in its place:
+- A timeout that is stated to the user, in the vault and where the master
+  password is created, as a length of time ("locks after N minutes without
+  use"). Choose N and whether the user can change it; say which in the task
+  notes.
+- "Without use" is defined: no pointer, key or touch input in the app. A tab
+  in the background counts as not in use.
+- It never locks during a Recovery Kit step (setup, recovery, renewal),
+  where locking would discard words the user may be saving elsewhere, nor
+  while a vault or plan save is in flight; the lock waits for those to end.
+- On return the user sees the unlock screen with a line saying the vault was
+  locked for inactivity, on the route they were on, and unsaved text in an
+  open editor is not silently lost: either it is kept for after the unlock
+  or the user was warned before the lock.
+- `vault.autoLock` ("Auto-lock in") exists in `src/i18n/translations.ts` and
+  is used nowhere: make it true and use it, or remove it.
+- The privacy page and any text that says when the vault locks match this.
+Accepted when, each as a test named for its rule: the vault locks after the
+stated time without input and not before; input resets the clock; a
+background tab locks; it does not lock during each of the three kit steps;
+it does not lock while a save is in flight and does lock once it ends; the
+unlock screen after an automatic lock says why and returns to the same
+route; the stated time on screen equals the time the code uses.
+
+**F-17.** Found by F-10 (privacy review). The Recovery Kit can be downloaded
+or copied before the step is finished, and has to be: saving it is the
+condition for finishing. A user who downloads the file and then leaves is
+left with a file that looks like a real kit and whose words will never work
+(the app refuses them; nothing on the file says so). The same when another
+device creates the master password first, and after a new kit replaces an
+old one. Choose one and say why in the notes:
+(a) the file is produced as part of finishing, after the server has
+confirmed the kit, with a different confirmation of "saved" before that
+(for example typing back three of the words); or
+(b) the download stays where it is, and the file says in its first lines
+that it is valid only once the app has shown "kit active", carries the time
+to the minute and a short check code that the app also shows after
+confirming, so a user holding two files can tell which one is live.
+Either way the file name stops being identical for two kits made on the
+same day.
+Accepted when: a browser test abandons a kit step after saving the file and
+shows, from the file alone or from the app, that the file is not a live kit;
+and a file from a finished step is identifiable as the live one.
 
 ## Phase P: a panic button that tells the truth
 
@@ -589,6 +649,7 @@ the reload action instead of an empty `#root`.
 | S-04 | `[PRIVACY]` Consent before anything goes to an AI provider | S-01 | todo |
 | S-05 | `[PRIVACY]` Privacy page and in-app claims match the inventory | S-02, S-03, S-04 | todo |
 | S-06 | `[PRIVACY]` Account deletion removes everything | S-01, A-06 | todo |
+| S-07 | `[PRIVACY]` Recovery Kit and master key: what the F-10 review left open | F-10 | todo |
 
 **S-01.** Write `docs/data-inventory.md`: every table and every local store,
 what it holds, plaintext or ciphertext, why, who can read it, how long it is
@@ -623,6 +684,33 @@ Accepted when: every privacy and offline claim in `translations.ts`,
 
 **S-06.** Accepted when: a test deletes an account and finds no row for that
 user in any table and no local data on the device.
+
+**S-07.** Noted by the privacy review of F-10; none of it is changed there.
+Each is a decision or a fix of its own; some need `src/utils/crypto.ts`, so
+tests for the changed behaviour come first (CLAUDE.md).
+- Copying the words counts as "backed up", and the clipboard is never
+  cleared: the 24 words stay there for any app or clipboard history to read.
+  Decide whether copy should count, and clear or warn.
+- The master key stays extractable in memory after setup and after a
+  recovery (it is created or unwrapped extractable so it can be wrapped, and
+  kept as it is). After an ordinary unlock it is not. Re-import it as
+  non-extractable once the wraps are made.
+- Recovery and a new kit do not change the master key, only how it is
+  wrapped. Whoever holds an old copy of the `user_vault_keys` row and the
+  old words (or old password) can still open the data. Retiring words is
+  therefore not a remedy for words that leaked together with a row; say so
+  where the app talks about replacing a kit, or add a real key rotation that
+  re-encrypts the vault.
+- Master password fields use `autoComplete="current-password"` or
+  `"new-password"`, so a browser offers to save the master password next to
+  the account password, on the same device as the data it protects.
+- Recovery accepts 12 or more words (`normaliseRecoveryPhrase`,
+  `RecoveryForm`), though every kit has 24.
+- The comment at `src/utils/crypto.ts:16` says the master key is
+  non-extractable; it is created extractable (`generateMasterKey`). The
+  comment or the code is wrong.
+Accepted when: each item is either fixed with a test or closed with the
+owner's decision written here.
 
 ## Phase U: usability
 

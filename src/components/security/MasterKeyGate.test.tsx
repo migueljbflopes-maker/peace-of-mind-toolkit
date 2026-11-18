@@ -131,6 +131,133 @@ describe("creating a master password behind the gate", () => {
   });
 });
 
+async function createAndReachKit() {
+  await screen.findByText("Create your Master Password");
+  fireEvent.change(screen.getByPlaceholderText("Minimum 12 characters"), { target: { value: PASSWORD } });
+  fireEvent.change(screen.getByLabelText("Confirm Master Password"), { target: { value: PASSWORD } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /I understand that if I lose both/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Create and generate Recovery Kit" }));
+  await screen.findByText("Save your Recovery Kit");
+}
+
+describe("another device creates the master password first", () => {
+  it("drops the kit and keeps telling the user it is void, on the unlock screen, until they are in", async () => {
+    renderGate();
+    await createAndReachKit();
+
+    // Meanwhile, elsewhere: a master password for the same account.
+    const elsewhere = await createWrappedMasterKey("the-password-set-elsewhere");
+    backend.rows.push({ user_id: FIRST_USER_ID, ...elsewhere.wrapped });
+    const before = backend.snapshot();
+
+    const voidWords = await saveKitAndFinish("Finish and enter the Vault");
+    await screen.findByText("Unlock the Vault");
+    const notice = screen.getByTestId("void-kit-notice");
+    expect(notice).toHaveTextContent("was NOT saved and its words will never work");
+    expect(notice).toHaveTextContent("delete it");
+    // The void words are gone from the screen, and nothing was written.
+    expect(screen.queryByText("Save your Recovery Kit")).not.toBeInTheDocument();
+    expect(screen.queryByText(voidWords.split(" ")[0], { selector: "span" })).not.toBeInTheDocument();
+    expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+    expect(backend.rows).toEqual(before);
+
+    // It is not a message that passes: a wrong password later, it is still there.
+    fireEvent.change(screen.getByPlaceholderText("Master Password"), { target: { value: "not-the-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+    await waitFor(() => expect(screen.getByPlaceholderText("Master Password")).toHaveValue(""));
+    expect(screen.getByTestId("void-kit-notice")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Master Password"), { target: { value: "the-password-set-elsewhere" } });
+    fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+    await screen.findByText(PROTECTED);
+  });
+});
+
+describe("a save that cannot be confirmed, behind the gate", () => {
+  it("creating: says the outcome is unknown, keeps the page closed, and a second press settles it", async () => {
+    renderGate();
+    await createAndReachKit();
+
+    backend.failNextWrite = { message: "Failed to fetch", applyAnyway: true };
+    backend.failReads = 1;
+    await saveKitAndFinish("Finish and enter the Vault");
+
+    const alert = await screen.findByTestId("recovery-kit-failure");
+    expect(alert).toHaveTextContent("may or may not have gone through");
+    expect(screen.queryByTestId("recovery-kit-pending-note")).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing is kept/)).not.toBeInTheDocument();
+    expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish and enter the Vault" }));
+    await screen.findByText(PROTECTED);
+    expect(backend.rows).toHaveLength(1);
+  });
+
+  it("recovering: the update landed and the answer was lost, so the vault opens and nothing says 'not saved'", async () => {
+    const { wrapped, masterKey } = await createWrappedMasterKey("the-forgotten-password");
+    const phrase = generateRecoveryPhrase();
+    const recovery = await wrapMasterKeyForRecovery(masterKey, phrase);
+    backend.rows.push({
+      user_id: FIRST_USER_ID,
+      ...wrapped,
+      recovery_encrypted_master_key: recovery.encrypted,
+      recovery_iv: recovery.iv,
+      recovery_salt: recovery.salt,
+    });
+    const before = backend.snapshot();
+
+    renderGate();
+    await screen.findByText("Unlock the Vault");
+    fireEvent.click(screen.getByRole("button", { name: "Forgot?" }));
+    fireEvent.change(screen.getByLabelText("Recovery phrase (24 words)"), { target: { value: phrase } });
+    fireEvent.change(screen.getByPlaceholderText("Minimum 12 characters"), { target: { value: PASSWORD } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: PASSWORD } });
+    fireEvent.click(screen.getByRole("button", { name: "Recover and set new password" }));
+    await screen.findByText("Save your new Recovery Kit");
+
+    backend.failNextWrite = { message: "Failed to fetch", applyAnyway: true };
+    await saveKitAndFinish("Finish and enter the Vault");
+    await screen.findByText(PROTECTED);
+    expect(screen.queryByText(/Could not save/)).not.toBeInTheDocument();
+    expect(backend.rows[0].recovery_encrypted_master_key).not.toBe(before[0].recovery_encrypted_master_key);
+  });
+
+  it("recovering: nothing can be read back, so it stops saying the entered words still work", async () => {
+    const { wrapped, masterKey } = await createWrappedMasterKey("the-forgotten-password");
+    const phrase = generateRecoveryPhrase();
+    const recovery = await wrapMasterKeyForRecovery(masterKey, phrase);
+    backend.rows.push({
+      user_id: FIRST_USER_ID,
+      ...wrapped,
+      recovery_encrypted_master_key: recovery.encrypted,
+      recovery_iv: recovery.iv,
+      recovery_salt: recovery.salt,
+    });
+
+    renderGate();
+    await screen.findByText("Unlock the Vault");
+    fireEvent.click(screen.getByRole("button", { name: "Forgot?" }));
+    fireEvent.change(screen.getByLabelText("Recovery phrase (24 words)"), { target: { value: phrase } });
+    fireEvent.change(screen.getByPlaceholderText("Minimum 12 characters"), { target: { value: PASSWORD } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: PASSWORD } });
+    fireEvent.click(screen.getByRole("button", { name: "Recover and set new password" }));
+    await screen.findByText("Save your new Recovery Kit");
+    expect(screen.getByTestId("recovery-kit-pending-note")).toHaveTextContent("the words you just entered still work");
+
+    backend.failNextWrite = { message: "Failed to fetch", applyAnyway: true };
+    backend.failReads = 1;
+    await saveKitAndFinish("Finish and enter the Vault");
+
+    expect(await screen.findByTestId("recovery-kit-failure")).toHaveTextContent("may or may not have gone through");
+    expect(screen.queryByText(/still work/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing changes/)).not.toBeInTheDocument();
+    expect(screen.queryByText(PROTECTED)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish and enter the Vault" }));
+    await screen.findByText(PROTECTED);
+  });
+});
+
 describe("recovering behind the gate", () => {
   it("asks for the kit's words, then makes a new kit be saved before the page renders or anything changes", async () => {
     const { wrapped, masterKey } = await createWrappedMasterKey("the-forgotten-password");

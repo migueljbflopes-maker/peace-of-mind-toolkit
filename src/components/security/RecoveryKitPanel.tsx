@@ -79,6 +79,10 @@ export function RecoveryKitPanel({
   const hasBackedUp = copied || downloaded;
   // After "another device got there first" these words can never be stored.
   const dead = failure?.code === 'already-set-up';
+  // The write may have gone through. Until a retry settles it, this panel
+  // must not say "nothing changes" or offer to "keep the current kit":
+  // either could be false.
+  const outcomeUnknown = failure?.code === 'outcome-unknown';
   const canContinue = hasBackedUp && acknowledged && !saving && !dead;
 
   const pendingNote =
@@ -202,9 +206,11 @@ export function RecoveryKitPanel({
               {isPt
                 ? 'Não conseguimos voltar a mostrar estas palavras. Guarde-as num local seguro e offline (papel, gestor de passwords, cofre).'
                 : 'We cannot show these words again. Store them somewhere safe and offline (paper, password manager, safe).'}
-              <span className="block mt-2" data-testid="recovery-kit-pending-note">
-                {pendingNote}
-              </span>
+              {!outcomeUnknown && (
+                <span className="block mt-2" data-testid="recovery-kit-pending-note">
+                  {pendingNote}
+                </span>
+              )}
             </AlertDescription>
           </Alert>
 
@@ -307,7 +313,7 @@ export function RecoveryKitPanel({
           </label>
 
           {failure && (
-            <Alert variant="destructive" role="alert">
+            <Alert variant="destructive" role="alert" data-testid="recovery-kit-failure">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-sm leading-relaxed">
                 {recoveryKitErrorMessage(t, failure)}
@@ -331,7 +337,7 @@ export function RecoveryKitPanel({
             )}
           </Button>
 
-          {onCancel && (
+          {onCancel && !outcomeUnknown && (
             <Button type="button" variant="ghost" className="w-full" onClick={onCancel} disabled={saving}>
               {t.recoveryKit.cancelRenewal}
             </Button>

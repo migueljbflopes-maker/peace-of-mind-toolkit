@@ -55,13 +55,29 @@ export function MasterPasswordScreen() {
     (PendingRecoveryKit & { mode: 'setup' | 'recovery' }) | null
   >(null);
   const [unlockMode, setUnlockMode] = useState<'unlock' | 'recover'>('unlock');
+  // The kit just shown turned out to be void (another device created the
+  // master password first). Stays on the unlock screen until the user is in.
+  const [voidKit, setVoidKit] = useState(false);
 
   // Words prepared for one account are never shown to another.
   const userId = user?.id ?? null;
   useEffect(() => {
     setPendingKit(null);
     setUnlockMode('unlock');
+    setVoidKit(false);
   }, [userId]);
+
+  // Words are kept only while their step is the one on screen. If the account
+  // moves on without them (a master password appears from elsewhere, the key
+  // row is gone), they are dropped rather than left in memory.
+  useEffect(() => {
+    if (status === 'loading') return;
+    setPendingKit((kit) => {
+      if (!kit) return kit;
+      const stillItsStep = kit.mode === 'setup' ? status === 'needs-setup' : status === 'needs-unlock';
+      return stillItsStep ? kit : null;
+    });
+  }, [status]);
 
   const confirmKit = async (): Promise<{ ok: true } | VaultKeyFailure> => {
     if (!pendingKit) return { ok: false, code: 'failed', error: 'No pending kit' };
@@ -74,8 +90,9 @@ export function MasterPasswordScreen() {
       setUnlockMode('unlock');
     } else if (result.code === 'already-set-up') {
       // The account got a master password elsewhere: these words are void and
-      // the unlock form takes over. Keep the explanation on screen for a while.
-      toast.error(recoveryKitErrorMessage(t, result), { duration: 30_000 });
+      // the unlock form takes over, with the explanation on it until the user
+      // is in. They may have just downloaded a kit that will never work.
+      setVoidKit(true);
       setPendingKit(null);
     }
     return result;
@@ -158,6 +175,7 @@ export function MasterPasswordScreen() {
       <UnlockForm
         onUnlock={unlock}
         onForgot={() => setUnlockMode('recover')}
+        notice={voidKit ? t.recoveryKit.voidKitNotice : undefined}
         isPt={isPt}
       />
     );
@@ -279,7 +297,7 @@ function SetupForm({
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               autoComplete="new-password"
-              aria-label={isPt ? 'Confirmar Master Password' : 'Confirm Master Password'}
+              aria-label={t.recoveryKit.ariaConfirmMasterPassword}
               disabled={busy}
               onKeyDown={(e) => e.key === 'Enter' && handle()}
             />
@@ -331,10 +349,13 @@ function SetupForm({
 function UnlockForm({
   onUnlock,
   onForgot,
+  notice,
   isPt,
 }: {
   onUnlock: (pw: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   onForgot: () => void;
+  /** Something the user must read before unlocking; stays until they are in. */
+  notice?: string;
   isPt: boolean;
 }) {
   const [pw, setPw] = useState('');
@@ -373,6 +394,12 @@ function UnlockForm({
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {notice && (
+            <Alert variant="destructive" role="alert" data-testid="void-kit-notice">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription className="text-sm leading-relaxed">{notice}</AlertDescription>
+            </Alert>
+          )}
           <div className={`relative ${shake ? 'animate-shake' : ''}`}>
             <Input
               type={show ? 'text' : 'password'}
@@ -528,7 +555,7 @@ function RecoveryForm({
               {isPt ? 'Frase de recuperação (24 palavras)' : 'Recovery phrase (24 words)'}
             </label>
             <Textarea
-              aria-label={isPt ? 'Frase de recuperação (24 palavras)' : 'Recovery phrase (24 words)'}
+              aria-label={t.recoveryKit.ariaRecoveryPhrase}
               value={phrase}
               onChange={(e) => setPhrase(e.target.value)}
               placeholder={
@@ -590,7 +617,7 @@ function RecoveryForm({
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               autoComplete="new-password"
-              aria-label={isPt ? 'Confirmar nova password' : 'Confirm new password'}
+              aria-label={t.recoveryKit.ariaConfirmNewPassword}
               disabled={busy}
               onKeyDown={(e) => e.key === 'Enter' && handle()}
             />

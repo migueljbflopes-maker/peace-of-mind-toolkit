@@ -105,20 +105,49 @@ describe("creating a master password", () => {
     expect(view.result.current.isUnlocked).toBe(true);
   });
 
-  it("a save that reached the server but whose answer was lost counts as saved on retry", async () => {
+  it("a save that reached the server but whose answer was lost is found by reading back, and counts as saved", async () => {
     const view = await mount();
     const begun = await begin(() => view.result.current.beginSetup(PASSWORD));
 
     h.failNextWrite = { message: "connection reset", applyAnyway: true };
     await act(async () => {
-      expect(await begun.commit()).toMatchObject({ ok: false, code: "not-saved" });
+      expect(await begun.commit()).toEqual({ ok: true });
     });
+    expect(h.rows).toHaveLength(1);
+    expect(h.writes).toHaveLength(1);
+    expect(view.result.current.isUnlocked).toBe(true);
+  });
+
+  it("when the answer is lost and the row cannot be read either, it claims neither outcome, and a retry settles it", async () => {
+    const view = await mount();
+    const begun = await begin(() => view.result.current.beginSetup(PASSWORD));
+
+    h.failNextWrite = { message: "connection reset", applyAnyway: true };
+    h.failReads = 1;
+    await act(async () => {
+      expect(await begun.commit()).toMatchObject({ ok: false, code: "outcome-unknown" });
+    });
+    expect(view.result.current.isUnlocked).toBe(false);
+    // It did reach the server. The retry finds its own row and opens.
     expect(h.rows).toHaveLength(1);
     await act(async () => {
       expect(await begun.commit()).toEqual({ ok: true });
     });
     expect(h.rows).toHaveLength(1);
     expect(view.result.current.isUnlocked).toBe(true);
+  });
+
+  it("when nothing reached the server and the row cannot be read, it still claims neither outcome", async () => {
+    const view = await mount();
+    const begun = await begin(() => view.result.current.beginSetup(PASSWORD));
+
+    h.failNextWrite = { message: "offline" };
+    h.failReads = 1;
+    await act(async () => {
+      expect(await begun.commit()).toMatchObject({ ok: false, code: "outcome-unknown" });
+    });
+    expect(h.rows).toEqual([]);
+    expect(view.result.current.isUnlocked).toBe(false);
   });
 
   it("refuses the kit when another device created a master password meanwhile", async () => {
@@ -211,6 +240,212 @@ describe("a new Recovery Kit from an unlocked vault", () => {
       expect(await recovery.commit()).toEqual({ ok: true });
     });
     expect(await later.result.current.decrypt(secret)).toEqual({ note: "kept" });
+  });
+});
+
+describe("a write whose answer is lost", () => {
+  const NEW_PASSWORD = "second-master-password";
+
+  /** An account with a kit, locked again, and the recovery prepared. */
+  async function preparedRecovery() {
+    const first = await mount();
+    const phrase = await setUp(first);
+    const secret = await act(async () => first.result.current.encrypt({ note: "kept" }));
+    first.unmount();
+    const view = await mount();
+    const recovery = await begin(() => view.result.current.beginRecovery(phrase, NEW_PASSWORD));
+    return { view, phrase, secret, recovery, before: h.snapshot() };
+  }
+
+  /** What a later visit finds: which password and which words open the account. */
+  async function laterVisit() {
+    const later = await mount();
+    const tryPassword = async (password: string) => {
+      let result: { ok: boolean } | undefined;
+      await act(async () => {
+        result = await later.result.current.unlock(password);
+      });
+      act(() => later.result.current.lock());
+      return result!.ok;
+    };
+    const tryWords = async (words: string) => {
+      let result: { ok: boolean; code?: string } | undefined;
+      await act(async () => {
+        result = await later.result.current.beginRecovery(words, "third-master-password");
+      });
+      return result!.ok;
+    };
+    return { later, tryPassword, tryWords };
+  }
+
+  it("recovery: the update landed, so it is reported as saved and the vault opens", async () => {
+    const { view, phrase, secret, recovery } = await preparedRecovery();
+
+    h.failNextWrite = { message: "connection reset", applyAnyway: true };
+    await act(async () => {
+      expect(await recovery.commit()).toEqual({ ok: true });
+    });
+    expect(view.result.current.isUnlocked).toBe(true);
+    expect(await view.result.current.decrypt(secret)).toEqual({ note: "kept" });
+    view.unmount();
+
+    // And that is the truth: the used words are dead, the new ones and the new password live.
+    const { tryPassword, tryWords } = await laterVisit();
+    expect(await tryPassword(PASSWORD)).toBe(false);
+    expect(await tryPassword(NEW_PASSWORD)).toBe(true);
+    expect(await tryWords(phrase)).toBe(false);
+    expect(await tryWords(recovery.recoveryPhrase)).toBe(true);
+  });
+
+  it("recovery: the update landed but nothing can be read, so neither outcome is claimed; a retry opens the vault", async () => {
+    const { view, recovery, before } = await preparedRecovery();
+
+    h.failNextWrite = { message: "connection reset", applyAnyway: true };
+    h.failReads = 1;
+    await act(async () => {
+      expect(await recovery.commit()).toMatchObject({ ok: false, code: "outcome-unknown" });
+    });
+    expect(view.result.current.isUnlocked).toBe(false);
+    expect(h.rows[0].encrypted_master_key).not.toBe(before[0].encrypted_master_key);
+
+    await act(async () => {
+      expect(await recovery.commit()).toEqual({ ok: true });
+    });
+    expect(view.result.current.isUnlocked).toBe(true);
+  });
+
+  it("recovery: the update did not land, which reading back confirms, so 'not saved' is true", async () => {
+    const { view, phrase, recovery, before } = await preparedRecovery();
+
+    h.failNextWrite = { message: "offline" };
+    await act(async () => {
+      expect(await recovery.commit()).toMatchObject({ ok: false, code: "not-saved" });
+    });
+    expect(view.result.current.isUnlocked).toBe(false);
+    expect(h.rows).toEqual(before);
+    view.unmount();
+
+    const { tryPassword, tryWords } = await laterVisit();
+    expect(await tryPassword(PASSWORD)).toBe(true);
+    expect(await tryWords(recovery.recoveryPhrase)).toBe(false);
+    expect(await tryWords(phrase)).toBe(true);
+  });
+
+  it("a new kit: the update landed, so it is reported as saved, and the old words are dead", async () => {
+    const view = await mount();
+    const oldPhrase = await setUp(view);
+    const renewal = await begin(() => view.result.current.beginRecoveryKitRenewal(PASSWORD));
+
+    h.failNextWrite = { message: "connection reset", applyAnyway: true };
+    await act(async () => {
+      expect(await renewal.commit()).toEqual({ ok: true });
+    });
+    view.unmount();
+
+    const { tryWords } = await laterVisit();
+    expect(await tryWords(oldPhrase)).toBe(false);
+    expect(await tryWords(renewal.recoveryPhrase)).toBe(true);
+  });
+
+  it("a new kit: the update landed but nothing can be read, so neither outcome is claimed; a retry confirms it", async () => {
+    const view = await mount();
+    await setUp(view);
+    const before = h.snapshot();
+    const renewal = await begin(() => view.result.current.beginRecoveryKitRenewal(PASSWORD));
+
+    h.failNextWrite = { message: "connection reset", applyAnyway: true };
+    h.failReads = 1;
+    await act(async () => {
+      expect(await renewal.commit()).toMatchObject({ ok: false, code: "outcome-unknown" });
+    });
+    expect(h.rows[0].recovery_encrypted_master_key).not.toBe(before[0].recovery_encrypted_master_key);
+    await act(async () => {
+      expect(await renewal.commit()).toEqual({ ok: true });
+    });
+  });
+
+  it("a new kit: the update did not land, which reading back confirms, so the old kit really is still the kit", async () => {
+    const view = await mount();
+    const oldPhrase = await setUp(view);
+    const before = h.snapshot();
+    const renewal = await begin(() => view.result.current.beginRecoveryKitRenewal(PASSWORD));
+
+    h.failNextWrite = { message: "offline" };
+    await act(async () => {
+      expect(await renewal.commit()).toMatchObject({ ok: false, code: "not-saved" });
+    });
+    expect(h.rows).toEqual(before);
+    view.unmount();
+
+    const { tryWords } = await laterVisit();
+    expect(await tryWords(renewal.recoveryPhrase)).toBe(false);
+    expect(await tryWords(oldPhrase)).toBe(true);
+  });
+});
+
+describe("another account signs in while a request is on its way", () => {
+  const OTHER_USER = { id: "00000000-0000-0000-0000-0000000000f2" };
+
+  /** Starts `action`, switches account before the server answers, then lets it answer. */
+  async function switchAccountDuring<T>(view: Awaited<ReturnType<typeof mount>>, action: () => Promise<T>) {
+    let release!: () => void;
+    h.hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let pending!: Promise<T>;
+    act(() => {
+      pending = action();
+    });
+    // The request is with the server. Meanwhile the session changes hands.
+    h.user = OTHER_USER;
+    view.rerender();
+    let result: T | undefined;
+    await act(async () => {
+      release();
+      result = await pending;
+    });
+    h.hold = null;
+    await waitFor(() => expect(view.result.current.status).not.toBe("loading"));
+    return result!;
+  }
+
+  async function expectNoKeyInMemory(view: Awaited<ReturnType<typeof mount>>) {
+    expect(view.result.current.isUnlocked).toBe(false);
+    await expect(view.result.current.encrypt({ any: "thing" })).rejects.toThrow("Vault is locked");
+  }
+
+  it("creating: the first account's key is stored for it, but is not left open for the second", async () => {
+    const view = await mount();
+    const begun = await begin(() => view.result.current.beginSetup(PASSWORD));
+
+    const result = await switchAccountDuring(view, () => begun.commit());
+    expect(result).toMatchObject({ ok: false, code: "not-authenticated" });
+    expect(view.result.current.status).toBe("needs-setup");
+    await expectNoKeyInMemory(view);
+  });
+
+  it("recovering: the key is not left open for the second account", async () => {
+    const first = await mount();
+    const phrase = await setUp(first);
+    first.unmount();
+    const view = await mount();
+    const recovery = await begin(() => view.result.current.beginRecovery(phrase, "second-master-password"));
+
+    const result = await switchAccountDuring(view, () => recovery.commit());
+    expect(result).toMatchObject({ ok: false, code: "not-authenticated" });
+    await expectNoKeyInMemory(view);
+  });
+
+  it("unlocking: the key is not left open for the second account", async () => {
+    const first = await mount();
+    await setUp(first);
+    first.unmount();
+    const view = await mount();
+    expect(view.result.current.status).toBe("needs-unlock");
+
+    const result = await switchAccountDuring(view, () => view.result.current.unlock(PASSWORD));
+    expect(result).toMatchObject({ ok: false });
+    await expectNoKeyInMemory(view);
   });
 });
 

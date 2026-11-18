@@ -465,3 +465,95 @@ test("a new Recovery Kit from the Backup page replaces the old one only when it 
   }
   expect(pageErrors).toEqual([]);
 });
+
+// ── The answer to a write is lost ───────────────────────────────────────────
+
+test("when the answer to a new kit is lost, the app never says the old kit still works: it checks, and if it cannot check it says so", async ({
+  page,
+  admin,
+  createUser,
+  pageErrors,
+}) => {
+  test.slow();
+  const user = await createUser({ premium: true });
+  const masterPassword = newPassword("Lost-Answer");
+  const oldWords = await createMasterPassword(page, user, masterPassword);
+  const before = await onlyRow(admin, user.id);
+  const masterKey = await unwrapMasterKey(masterPassword, passwordWrap(before));
+
+  await page.goto("/premium/backup");
+  await unlockWith(page, masterPassword);
+  await expect(backupHeading(page)).toBeVisible();
+  await askForNewKit(page, masterPassword);
+  await expect(newRecoveryKitTitle(page)).toBeVisible();
+
+  // The update reaches the server and is applied; only its answer is lost.
+  // And for now the row cannot be read back either.
+  let readsFail = true;
+  let applied = 0;
+  await page.route("**/rest/v1/user_vault_keys*", async (route) => {
+    const method = route.request().method();
+    if (method === "PATCH") {
+      await route.fetch();
+      applied += 1;
+      await route.abort("connectionfailed");
+    } else if (method === "GET" && readsFail) {
+      await route.abort("connectionfailed");
+    } else {
+      await route.fallback();
+    }
+  });
+
+  const newWords = await saveRecoveryKit(page, FINISH_AND_REPLACE);
+  const failure = page.getByTestId("recovery-kit-failure");
+  await expect(failure).toContainText("may or may not have gone through");
+  await expect(failure).toContainText("Keep the words on this screen AND any Recovery Kit and Master Password you had before");
+  expect(applied).toBe(1);
+
+  // On the server the new kit IS the kit, and the old words are dead. So the
+  // screen must not say the old kit keeps working, nor offer to keep it, nor
+  // call this a failed save.
+  const after = await onlyRow(admin, user.id);
+  expect((await unwrapMasterKey(newWords.join(" "), recoveryWrap(after))).equals(masterKey)).toBe(true);
+  await expect(unwrapMasterKey(oldWords.join(" "), recoveryWrap(after))).rejects.toThrow();
+  await expect(page.getByTestId("recovery-kit-pending-note")).toHaveCount(0);
+  await expect(page.getByText("keeps working", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Cancel and keep my current kit" })).toHaveCount(0);
+  await expect(page.getByText("Could not save.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("New Recovery Kit active.", { exact: false })).toHaveCount(0);
+  // The words are still on screen for the user to keep.
+  await expect(page.getByText(newWords[0], { exact: true }).first()).toBeVisible();
+
+  // The connection is back: pressing again settles it, with the same words.
+  await page.unroute("**/rest/v1/user_vault_keys*");
+  await page.getByRole("button", { name: FINISH_AND_REPLACE }).click();
+  await expect(page.getByText("New Recovery Kit active. The old words no longer work.").first()).toBeVisible();
+  await expect(backupHeading(page)).toBeVisible();
+  const settled = await onlyRow(admin, user.id);
+  expect((await unwrapMasterKey(newWords.join(" "), recoveryWrap(settled))).equals(masterKey)).toBe(true);
+
+  // Again, with the answer lost but the row readable: the app looks, finds
+  // its own kit stored, and says so at once.
+  await askForNewKit(page, masterPassword);
+  await expect(newRecoveryKitTitle(page)).toBeVisible();
+  readsFail = false;
+  await page.route("**/rest/v1/user_vault_keys*", async (route) => {
+    if (route.request().method() === "PATCH") {
+      await route.fetch();
+      await route.abort("connectionfailed");
+    } else {
+      await route.fallback();
+    }
+  });
+  const lastWords = await saveRecoveryKit(page, FINISH_AND_REPLACE);
+  await expect(page.getByText("New Recovery Kit active. The old words no longer work.").first()).toBeVisible();
+  await expect(backupHeading(page)).toBeVisible();
+  await expect(page.getByText("Could not save.", { exact: false })).toHaveCount(0);
+  await page.unroute("**/rest/v1/user_vault_keys*");
+
+  const last = await onlyRow(admin, user.id);
+  expect((await unwrapMasterKey(lastWords.join(" "), recoveryWrap(last))).equals(masterKey)).toBe(true);
+  await expect(unwrapMasterKey(newWords.join(" "), recoveryWrap(last))).rejects.toThrow();
+  expect(pick(last, PASSWORD_WRAP_COLUMNS)).toEqual(pick(before, PASSWORD_WRAP_COLUMNS));
+  expect(pageErrors).toEqual([]);
+});

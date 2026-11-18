@@ -7,6 +7,8 @@ export function recoveryKitErrorMessage(t: TranslationKeys, failure: VaultKeyFai
   switch (failure.code) {
     case 'not-saved':
       return k.errorNotSaved;
+    case 'outcome-unknown':
+      return k.outcomeUnknown;
     case 'already-set-up':
       return k.errorAlreadySetUp;
     case 'wrong-password':
