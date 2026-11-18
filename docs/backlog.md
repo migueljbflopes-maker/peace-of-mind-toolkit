@@ -59,7 +59,7 @@ next worked on.
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
 | A-07 | Remove frozen features from the build | A-03 | done |
 | A-08 | The magic-link sign-up test does not flake | A-06 | todo |
-| A-09 | Browser tests never run against another checkout's build | A-01 | todo |
+| A-09 | Browser tests never run against another checkout's build | A-01 | done |
 | A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
 | A-11 | Remove code that nothing renders | A-07 | todo |
 
@@ -281,6 +281,14 @@ serves this checkout's `dist/`; only the backend run has such a check
 Accepted when: a browser run fails with a clear message when the server on
 the port does not serve the build in this checkout's `dist/`, or picks a
 free port; a test covers it.
+Done 2026-11-18. It bit again, twice, while F-06 and F-30 were verified, and
+`CI=1` turned out not to prevent it: Playwright saw the other checkout's
+server answer before its own failed to bind, and ran tests against the wrong
+build. Now each checkout serves on its own port outside CI, derived from its
+path (`e2e/port.ts`; CI and the backend run stay on 4173, which the local
+stack is configured with; `E2E_PORT` overrides), and a server that already
+answers is never reused: the run stops with Playwright's "already used"
+error. Tests: `scripts/playwright-port.test.mjs`.
 
 **A-10.** `[DECISION]` Found by A-07. Left in place because kept code shares
 it or because removing it destroys data; each needs the owner to say remove
@@ -362,7 +370,7 @@ fix it in its own change, and never bend the test around it.
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
 | F-20 | The funnel's score stays within 0 to 100 and every risk category can be reached | A-01 | todo |
 | F-21 | Checkout opens from the funnel when Stripe.js has not loaded | A-01 | todo |
-| F-22 | The funnel resumes where the visitor left off | A-01 | todo |
+| F-22 | The funnel resumes where the visitor left off; part (b) is a `[DECISION]` | A-01 | todo |
 | F-23 | The visitor can go back one question in the funnel | A-01 | todo |
 | F-24 | The price has one source, and the price charged is checked against it | F-09 | todo |
 | F-25 | `[DECISION]` The funnel's sales claims: keep only what is true | A-01 | todo |
@@ -416,7 +424,7 @@ as stored on the local stack; the real `create-guest-checkout` refused by
 Stripe). Green in CI run 44306180323, on commit 6d42831, the last one to
 change a test (96 passed, the seven known failures among them; 2 flaky that
 passed on retry, neither in these files: the magic-link test of A-08 and
-`e2e/frozen-features.spec.ts:101`). Status stays `doing`, not done, and F-06 closes when F-22 is
+`e2e/frozen-features.spec.ts:101`). Status stays `doing`, not done, and F-06 closes when F-22 (a) is done and (b) is decided; it is
 done: F-22 does not wait for F-06, its tests are already here. Two
 acceptance points are open:
 
@@ -437,7 +445,9 @@ Found on the way, each with its own `test.fail`: F-20 (a score of 110/100;
 F-23 (Back leaves the funnel). Owner decision: F-25.
 
 How the funnel relates to the rest: nothing in the app links to
-`/riskfunnel`; it is reached only by a direct link (ads). The landing page
+`/riskfunnel`; it is reached only by a direct link. That is by design: the
+owner decided on 2026-11-18 that it is the landing page for paid traffic
+(Google Ads), see "Owner decisions". The landing page
 and every "risk check" link go to the free calculator, `/tools/risk`
 (`RiskCalculator`, `src/components/riskWizard`), which shares no code with
 the funnel, scores differently, and sells through `/pricing`.
@@ -847,7 +857,10 @@ while `getRiskLevel` (line 161) ends "Low" at 40. The country is asked for
 and never used. The three "quick checks (optional)" switches count as "no"
 when left alone (lines 147-149), adding 18 points and the reason "Water
 supply for 3+ days is essential" for a visitor who skipped them.
-The owner chooses the scale; the tests only require it to be coherent.
+Owner decision, 2026-11-18: the score never goes above 100 and good answers
+can be rated Low. Still to specify when this is worked on: which answers
+count as good and where the thresholds sit; whether the country is used or
+no longer asked; and that a switch left alone is not counted as "no".
 Accepted when: `the score never goes above the 100 it is shown out of` and
 `the best answers the funnel accepts are rated Low` in
 `e2e/risk-funnel.spec.ts` pass without `test.fail`. The tests that change
@@ -890,7 +903,11 @@ lives.
 Accepted when: `after a reload the visitor is on the question they had
 reached` and `coming back from Stripe's page without paying returns to the
 result, not to question 1` in `e2e/risk-funnel.spec.ts` pass without
-`test.fail`. With (a) done, F-06 can be closed if the owner decides (b) as
+`test.fail`. A fix for (a) that stores the step also changes `what the funnel keeps on
+the device, and where` (`e2e/risk-funnel.spec.ts`), which lists the exact
+keys and contents of `sessionStorage`: update that test with the fix, on
+purpose, and keep its rule that nothing outlives the tab.
+With (a) done, F-06 can be closed if the owner decides (b) as
 "a new tab starts empty".
 (b) `[DECISION]` A new tab. Where the answers are kept is for the owner and
 the privacy review: either `sessionStorage` only, as now, and then a closed
@@ -931,13 +948,28 @@ is recorded). The Checkout path charges whatever the Stripe price named by
 the secret `STRIPE_PRICE_ID_PREMIUM` says, in whatever currency it has, with
 promotion codes allowed. Change any one of these and the others keep saying
 €49. The purchase email says "€49" whatever was paid.
-Accepted when: the amount and currency are defined once per side (app,
-functions) and every text and call reads them; with the Stripe stand-in of
+Owner decision, 2026-11-18: the price must be changeable without a code
+change and shown from one source, so a constant in the code no longer meets
+this task. The price lives in one place read at run time (the Stripe price,
+or configuration the functions serve to the app), and the offer, the wallet
+amount, the emails and the recorded `amount_cents` all read it. What
+"dynamic" covers beyond that (per campaign, per country or currency, price
+tests) is not yet specified by the owner; design so that the price shown and
+the price charged cannot differ whichever is chosen.
+Accepted when: the amount and currency have that single source and every
+text and call reads it; with the Stripe stand-in of
 F-09, a test fails if the amount or currency of the Checkout price differs
 from the price shown on the offer.
 
-**F-25.** `[DECISION]` Found by F-06. The funnel makes claims that only the
-owner can stand behind. Under every question: "Over 4,000 active users who
+**F-25.** `[DECISION]` Found by F-06. Decision pending as of 2026-11-18: the
+owner asked why the claims should go and was answered the same day. The
+verifier of F-06 confirmed each claim is a hard-coded literal with no source
+in the code. Because the funnel is the landing page for Google Ads, the
+claims must also meet the ad platform's misrepresentation rules. Measuring
+conversions for those ads, the consent choice it needs and the privacy page
+text have no task yet; when they get one, the "before payment" test's list
+of third-party hosts and its analytics assertions change with it.
+The funnel makes claims that only the owner can stand behind. Under every question: "Over 4,000 active users who
 trust our preparedness guidance", "Excellent", five stars drawn in
 Trustpilot's green, "Based on 56,334 reviews", and four stock photographs
 from Unsplash as the users' faces (`shared.tsx:31-36, 309-332`). On the
@@ -1264,7 +1296,8 @@ the broken parts are F-20 to F-25):
 - After "START NOW" with a wallet, the button stays on "Preparing secure
   payment…" until the wallet sheet answers; if the sheet never opens there
   is no way out but closing the offer, which leaves the funnel.
-- The landing page never leads to this funnel, and the free calculator at
+- (By design since 2026-11-18: the funnel is for paid traffic.) The landing
+  page never leads to this funnel, and the free calculator at
   `/tools/risk` asks different questions and gives a different score for
   the same household.
 
