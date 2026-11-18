@@ -1,16 +1,26 @@
 /**
  * RecoveryKitPanel
  *
- * Mandatory backup screen shown immediately after first-time Master Password
- * setup. The user MUST either copy the phrase to clipboard or download it as
- * a TXT file AND tick the confirmation checkbox before they can proceed.
+ * Mandatory backup screen for new recovery words: after first-time Master
+ * Password setup, after a recovery, and when a new kit is created from the
+ * Backup page. The user MUST either copy the phrase to clipboard or download
+ * it as a TXT file AND tick the confirmation checkbox before they can proceed.
  *
  * Why mandatory: in a Zero-Knowledge system the recovery phrase is the only
  * fallback if the password is forgotten. Skipping this step would silently
  * lock the user out of their own data later.
+ *
+ * The words are not on the server while this panel is shown. `onConfirm`
+ * performs the write that makes them the account's kit (see the Recovery Kit
+ * rule in VaultKeyContext); if it fails the panel says so and stays, words
+ * and all, so the user can try again.
  */
 
 import { useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useLocale } from '@/i18n/useLocale';
+import type { VaultKeyFailure } from '@/contexts/VaultKeyContext';
+import { recoveryKitErrorMessage } from './recoveryKitMessages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -30,27 +40,65 @@ interface RecoveryKitPanelProps {
   recoveryPhrase: string;
   /** User email/identifier shown in the printable kit, for reference. */
   userLabel?: string;
-  /** Called once the user has both backed up AND acknowledged. */
-  onContinue: () => void;
+  /**
+   * What these words are for:
+   *  - 'setup'    first Master Password; confirming creates the key
+   *  - 'recovery' after "Forgot?"; confirming switches password and words
+   *  - 'renewal'  new kit for an unlocked vault; confirming retires the old words
+   */
+  mode: 'setup' | 'recovery' | 'renewal';
+  /**
+   * Called once the user has both backed up AND acknowledged. Stores the
+   * change; on success the caller moves on (this panel is unmounted).
+   */
+  onConfirm: () => Promise<{ ok: true } | VaultKeyFailure>;
+  /** Leave without storing anything. Offered only when given. */
+  onCancel?: () => void;
   isPt: boolean;
 }
 
 export function RecoveryKitPanel({
   recoveryPhrase,
   userLabel,
-  onContinue,
+  mode,
+  onConfirm,
+  onCancel,
   isPt,
 }: RecoveryKitPanelProps) {
+  const { t } = useLocale();
   const [revealed, setRevealed] = useState(true);
   const [copied, setCopied] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<VaultKeyFailure | null>(null);
 
   const words = useMemo(() => recoveryPhrase.split(/\s+/), [recoveryPhrase]);
 
   // Must have backed up at least once (copy OR download) AND acknowledged.
   const hasBackedUp = copied || downloaded;
-  const canContinue = hasBackedUp && acknowledged;
+  // After "another device got there first" these words can never be stored.
+  const dead = failure?.code === 'already-set-up';
+  const canContinue = hasBackedUp && acknowledged && !saving && !dead;
+
+  const pendingNote =
+    mode === 'setup'
+      ? t.recoveryKit.pendingSetup
+      : mode === 'recovery'
+        ? t.recoveryKit.pendingRecovery
+        : t.recoveryKit.pendingRenewal;
+
+  const handleConfirm = async () => {
+    if (!canContinue) return;
+    setSaving(true);
+    setFailure(null);
+    const result = await onConfirm();
+    if (result.ok !== true) {
+      setFailure(result);
+      setSaving(false);
+    }
+    // On success the caller unmounts this panel.
+  };
 
   const handleCopy = async () => {
     try {
@@ -133,7 +181,9 @@ export function RecoveryKitPanel({
             <AlertTriangle className="h-6 w-6 text-warning" />
           </div>
           <CardTitle className="text-2xl">
-            {isPt ? 'Guarde o seu Recovery Kit' : 'Save your Recovery Kit'}
+            {mode === 'setup'
+              ? isPt ? 'Guarde o seu Recovery Kit' : 'Save your Recovery Kit'
+              : t.recoveryKit.newKitTitle}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             {isPt
@@ -152,6 +202,9 @@ export function RecoveryKitPanel({
               {isPt
                 ? 'Não conseguimos voltar a mostrar estas palavras. Guarde-as num local seguro e offline (papel, gestor de passwords, cofre).'
                 : 'We cannot show these words again. Store them somewhere safe and offline (paper, password manager, safe).'}
+              <span className="block mt-2" data-testid="recovery-kit-pending-note">
+                {pendingNote}
+              </span>
             </AlertDescription>
           </Alert>
 
@@ -244,7 +297,7 @@ export function RecoveryKitPanel({
               checked={acknowledged}
               onChange={(e) => setAcknowledged(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-primary"
-              disabled={!hasBackedUp}
+              disabled={!hasBackedUp || saving}
             />
             <span className="text-sm text-foreground">
               {isPt
@@ -253,10 +306,36 @@ export function RecoveryKitPanel({
             </span>
           </label>
 
-          <Button className="w-full" onClick={onContinue} disabled={!canContinue}>
-            <ShieldCheck className="h-4 w-4 mr-2" />
-            {isPt ? 'Concluir e entrar no Cofre' : 'Finish and enter the Vault'}
+          {failure && (
+            <Alert variant="destructive" role="alert">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm leading-relaxed">
+                {recoveryKitErrorMessage(t, failure)}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Button className="w-full" onClick={handleConfirm} disabled={!canContinue}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                {t.recoveryKit.saving}
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {mode === 'renewal'
+                  ? t.recoveryKit.finishRenewal
+                  : isPt ? 'Concluir e entrar no Cofre' : 'Finish and enter the Vault'}
+              </>
+            )}
           </Button>
+
+          {onCancel && (
+            <Button type="button" variant="ghost" className="w-full" onClick={onCancel} disabled={saving}>
+              {t.recoveryKit.cancelRenewal}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>

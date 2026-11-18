@@ -3,14 +3,21 @@
  *
  * Three modes, driven by VaultKeyContext + local sub-state:
  *  - 'needs-setup'  → SetupForm → RecoveryKitPanel → unlocked
- *  - 'needs-unlock' → UnlockForm (with "Forgot password?" → RecoveryForm)
+ *  - 'needs-unlock' → UnlockForm (with "Forgot password?" → RecoveryForm →
+ *                     RecoveryKitPanel with new words → unlocked)
  *  - 'unlocked'     → null (the route guard renders the actual page)
+ *
+ * The Recovery Kit step (backlog F-10): while the kit panel is shown the
+ * status is still 'needs-setup' / 'needs-unlock', so MasterKeyGate keeps this
+ * screen mounted and no protected page renders. The words and the pending
+ * write live in this component's state only; the vault opens when the user
+ * confirms the kit and the write succeeds. Leaving the screen drops both.
  *
  * Loading and error states are also rendered here so callers can mount this
  * directly behind a route guard.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,23 +33,53 @@ import {
   ArrowLeft,
   LifeBuoy,
 } from 'lucide-react';
-import { useVaultKey } from '@/contexts/VaultKeyContext';
+import { useVaultKey, type PendingRecoveryKit, type VaultKeyFailure } from '@/contexts/VaultKeyContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/i18n/useLocale';
 import { toast } from 'sonner';
 import { RecoveryKitPanel } from './RecoveryKitPanel';
+import { recoveryKitErrorMessage } from './recoveryKitMessages';
 
 const MIN_PASSWORD_LENGTH = 12;
 
 export function MasterPasswordScreen() {
-  const { status, errorMessage, setup, unlock, recoverWithPhrase } = useVaultKey();
+  const { status, errorMessage, beginSetup, unlock, beginRecovery } = useVaultKey();
   const { user } = useAuth();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const isPt = locale === 'pt';
 
   // Sub-states for multi-step flows.
-  const [generatedPhrase, setGeneratedPhrase] = useState<string | null>(null);
+  // New recovery words waiting for the user to save them, with the write that
+  // makes them real. Memory only: a reload or leaving this screen drops it.
+  const [pendingKit, setPendingKit] = useState<
+    (PendingRecoveryKit & { mode: 'setup' | 'recovery' }) | null
+  >(null);
   const [unlockMode, setUnlockMode] = useState<'unlock' | 'recover'>('unlock');
+
+  // Words prepared for one account are never shown to another.
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    setPendingKit(null);
+    setUnlockMode('unlock');
+  }, [userId]);
+
+  const confirmKit = async (): Promise<{ ok: true } | VaultKeyFailure> => {
+    if (!pendingKit) return { ok: false, code: 'failed', error: 'No pending kit' };
+    const mode = pendingKit.mode;
+    const result = await pendingKit.commit();
+    if (result.ok === true) {
+      // Said only now: this is the moment the key is actually stored.
+      toast.success(mode === 'setup' ? t.recoveryKit.createdToast : t.recoveryKit.recoveredToast);
+      setPendingKit(null);
+      setUnlockMode('unlock');
+    } else if (result.code === 'already-set-up') {
+      // The account got a master password elsewhere: these words are void and
+      // the unlock form takes over. Keep the explanation on screen for a while.
+      toast.error(recoveryKitErrorMessage(t, result), { duration: 30_000 });
+      setPendingKit(null);
+    }
+    return result;
+  };
 
   if (status === 'loading') {
     return (
@@ -66,14 +103,15 @@ export function MasterPasswordScreen() {
     );
   }
 
-  // SETUP FLOW: form → kit panel
-  if (status === 'needs-setup' || (status === 'unlocked' && generatedPhrase)) {
-    if (generatedPhrase) {
+  // SETUP FLOW: form → kit panel. Still 'needs-setup' while the kit is shown.
+  if (status === 'needs-setup') {
+    if (pendingKit?.mode === 'setup') {
       return (
         <RecoveryKitPanel
-          recoveryPhrase={generatedPhrase}
+          recoveryPhrase={pendingKit.recoveryPhrase}
           userLabel={user?.email ?? undefined}
-          onContinue={() => setGeneratedPhrase(null)}
+          mode="setup"
+          onConfirm={confirmKit}
           isPt={isPt}
         />
       );
@@ -81,8 +119,8 @@ export function MasterPasswordScreen() {
     return (
       <SetupForm
         onSetup={async (pw) => {
-          const res = await setup(pw);
-          if (res.ok) setGeneratedPhrase(res.recoveryPhrase);
+          const res = await beginSetup(pw);
+          if (res.ok === true) setPendingKit({ ...res, mode: 'setup' });
           return res;
         }}
         isPt={isPt}
@@ -90,12 +128,27 @@ export function MasterPasswordScreen() {
     );
   }
 
-  // UNLOCK FLOW: unlock form ⇄ recovery form
+  // UNLOCK FLOW: unlock form ⇄ recovery form → kit panel with new words
   if (status === 'needs-unlock') {
+    if (pendingKit?.mode === 'recovery') {
+      return (
+        <RecoveryKitPanel
+          recoveryPhrase={pendingKit.recoveryPhrase}
+          userLabel={user?.email ?? undefined}
+          mode="recovery"
+          onConfirm={confirmKit}
+          isPt={isPt}
+        />
+      );
+    }
     if (unlockMode === 'recover') {
       return (
         <RecoveryForm
-          onRecover={recoverWithPhrase}
+          onRecover={async (phrase, pw) => {
+            const res = await beginRecovery(phrase, pw);
+            if (res.ok === true) setPendingKit({ ...res, mode: 'recovery' });
+            return res;
+          }}
           onBack={() => setUnlockMode('unlock')}
           isPt={isPt}
         />
@@ -121,11 +174,10 @@ function SetupForm({
   onSetup,
   isPt,
 }: {
-  onSetup: (
-    pw: string
-  ) => Promise<{ ok: true; recoveryPhrase: string } | { ok: false; error: string }>;
+  onSetup: (pw: string) => Promise<{ ok: true } | VaultKeyFailure>;
   isPt: boolean;
 }) {
+  const { t } = useLocale();
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [show, setShow] = useState(false);
@@ -145,10 +197,11 @@ function SetupForm({
     setBusy(true);
     const res = await onSetup(pw);
     setBusy(false);
-    if ('error' in res && !res.ok) {
-      toast.error(res.error);
+    if (res.ok !== true) {
+      toast.error(recoveryKitErrorMessage(t, res));
     } else {
-      toast.success(isPt ? 'Master Password criada.' : 'Master Password created.');
+      // Nothing is stored yet, so nothing is announced: the Recovery Kit
+      // step is next and the password is saved when that step is finished.
       setPw('');
       setPw2('');
     }
@@ -294,7 +347,7 @@ function UnlockForm({
     setBusy(true);
     const res = await onUnlock(pw);
     setBusy(false);
-    if (!res.ok) {
+    if (res.ok !== true) {
       setShake(true);
       setTimeout(() => setShake(false), 400);
       toast.error(isPt ? 'Master Password incorreta.' : 'Incorrect master password.');
@@ -386,13 +439,11 @@ function RecoveryForm({
   onBack,
   isPt,
 }: {
-  onRecover: (
-    phrase: string,
-    newPw: string
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onRecover: (phrase: string, newPw: string) => Promise<{ ok: true } | VaultKeyFailure>;
   onBack: () => void;
   isPt: boolean;
 }) {
+  const { t } = useLocale();
   const [phrase, setPhrase] = useState('');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
@@ -413,14 +464,11 @@ function RecoveryForm({
     setBusy(true);
     const res = await onRecover(phrase, pw);
     setBusy(false);
-    if (!res.ok) {
-      toast.error((res as { ok: false; error: string }).error);
+    if (res.ok !== true) {
+      toast.error(recoveryKitErrorMessage(t, res));
     } else {
-      toast.success(
-        isPt
-          ? 'Conta recuperada. Nova password ativa.'
-          : 'Account recovered. New password is active.'
-      );
+      // Not recovered yet: the new password becomes active when the new
+      // Recovery Kit, shown next, is confirmed.
       setPhrase('');
       setPw('');
       setPw2('');
@@ -453,6 +501,7 @@ function RecoveryForm({
                 ? 'Cole a sua frase de 24 palavras e defina uma nova Master Password.'
                 : 'Paste your 24-word phrase and set a new Master Password.'}
             </p>
+            <p className="text-xs text-muted-foreground">{t.recoveryKit.recoverNextStep}</p>
           </div>
         </CardHeader>
 
@@ -466,11 +515,16 @@ function RecoveryForm({
             </AlertDescription>
           </Alert>
 
+          <p className="text-xs text-muted-foreground leading-relaxed" data-testid="recovery-never-shown-note">
+            {t.recoveryKit.neverShownNote}
+          </p>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">
               {isPt ? 'Frase de recuperação (24 palavras)' : 'Recovery phrase (24 words)'}
             </label>
             <Textarea
+              aria-label={isPt ? 'Frase de recuperação (24 palavras)' : 'Recovery phrase (24 words)'}
               value={phrase}
               onChange={(e) => setPhrase(e.target.value)}
               placeholder={
@@ -532,6 +586,7 @@ function RecoveryForm({
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
               autoComplete="new-password"
+              aria-label={isPt ? 'Confirmar nova password' : 'Confirm new password'}
               disabled={busy}
               onKeyDown={(e) => e.key === 'Enter' && handle()}
             />

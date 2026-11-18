@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, Eye, EyeOff, Shield, AlertTriangle, ChevronRight, Copy, Download } from 'lucide-react';
 import { useLocale } from '@/i18n/useLocale';
-import { useVaultKey } from '@/contexts/VaultKeyContext';
+import { useVaultKey, type PendingRecoveryKit } from '@/contexts/VaultKeyContext';
+import { recoveryKitErrorMessage } from '@/components/security/recoveryKitMessages';
 import { toast } from 'sonner';
 
 interface Props {
@@ -17,13 +18,15 @@ interface Props {
  * Onboarding Step 1 — Master Password setup or unlock.
  *
  * Three sub-states, driven by VaultKeyContext.status:
- *  - 'needs-setup'    → create + confirm Master Password, then show Recovery Phrase
+ *  - 'needs-setup'    → create + confirm Master Password, then show Recovery Phrase.
+ *                       The key is stored only when the phrase is confirmed
+ *                       (the Recovery Kit rule in VaultKeyContext, backlog F-10).
  *  - 'needs-unlock'   → returning user must unlock with their Master Password
  *  - 'unlocked'       → success card, click to continue
  */
 export default function OnboardingStep1Vault({ onNext }: Props) {
   const { t, locale } = useLocale();
-  const { status, isUnlocked, setup, unlock } = useVaultKey();
+  const { status, isUnlocked, beginSetup, unlock } = useVaultKey();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,9 +34,14 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Recovery phrase shown right after first-time setup
-  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
+  // Recovery phrase shown right after the Master Password is chosen. Nothing
+  // is on the server yet: `pendingKit.commit()` stores the key, and runs when
+  // the user confirms having saved the phrase.
+  const [pendingKit, setPendingKit] = useState<PendingRecoveryKit | null>(null);
+  const recoveryPhrase = pendingKit?.recoveryPhrase ?? null;
   const [phraseAcknowledged, setPhraseAcknowledged] = useState(false);
+  const [storing, setStoring] = useState(false);
+  const [storeError, setStoreError] = useState('');
 
   const isPt = locale === 'pt';
   const L = {
@@ -152,16 +160,36 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
             <span>{L.recoveryAck}</span>
           </label>
 
+          <p className="text-xs text-muted-foreground">{t.recoveryKit.pendingSetup}</p>
+
+          {storeError && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{storeError}</AlertDescription>
+            </Alert>
+          )}
+
           <Button
             className="w-full"
             size="lg"
-            disabled={!phraseAcknowledged}
-            onClick={() => {
-              setRecoveryPhrase(null);
-              onNext();
+            disabled={!phraseAcknowledged || storing}
+            onClick={async () => {
+              if (!pendingKit) return;
+              setStoring(true);
+              setStoreError('');
+              const stored = await pendingKit.commit();
+              setStoring(false);
+              if (stored.ok === true) {
+                setPendingKit(null);
+                onNext();
+              } else {
+                setStoreError(recoveryKitErrorMessage(t, stored));
+                // Another device created a master password: these words are
+                // void. Drop them; the unlock form takes over below.
+                if (stored.code === 'already-set-up') setPendingKit(null);
+              }
             }}
           >
-            {t.common.continue}
+            {storing ? t.recoveryKit.saving : t.common.continue}
             <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         </CardContent>
@@ -189,11 +217,12 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
     setLoading(true);
     try {
       if (isSetup) {
-        const result = await setup(password);
+        const result = await beginSetup(password);
         if (result.ok === true) {
-          setRecoveryPhrase(result.recoveryPhrase);
+          setPhraseAcknowledged(false);
+          setPendingKit(result);
         } else {
-          setError(result.error);
+          setError(recoveryKitErrorMessage(t, result));
         }
       } else {
         const result = await unlock(password);
@@ -275,9 +304,9 @@ export default function OnboardingStep1Vault({ onNext }: Props) {
             </div>
           )}
 
-          {error && (
+          {(error || storeError) && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{error || storeError}</AlertDescription>
             </Alert>
           )}
 
