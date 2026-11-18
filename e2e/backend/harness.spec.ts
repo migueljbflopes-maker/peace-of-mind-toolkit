@@ -16,8 +16,12 @@ test.describe("a user created for one test", () => {
     await signInThroughUi(page, user);
 
     await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
-    await expect(page.getByText("Premium Feature")).toHaveCount(2);
-    await expect(page.getByRole("link", { name: /Unlock for/ })).toHaveCount(2);
+    // One locked card, the panic button. There were two until A-07 removed
+    // the expert chat, a frozen feature, and its locked card with it.
+    await expect(page.getByText("Premium Feature")).toHaveCount(1);
+    await expect(page.getByRole("link", { name: /Unlock for/ })).toHaveCount(1);
+    await expect(page.getByText("Emergency Panic Button")).toBeVisible();
+    await expect(page.getByText("Ask a Security Expert")).toHaveCount(0);
     await expect(page.getByText("Hold 3s to activate")).toHaveCount(0);
     expect(pageErrors).toEqual([]);
 

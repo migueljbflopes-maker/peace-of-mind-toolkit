@@ -21,9 +21,7 @@ export const translations = {
       calculatorsHub: 'Calculators Hub',
       riskCalculator: 'Risk Calculator',
       suppliesPlanner: '14-Day Supplies Planner',
-      products: 'Products',
       tips: 'Tips & Peace of Mind',
-      news: 'News',
       pricing: 'Pricing',
       dashboard: 'Dashboard',
       startFree: 'Start Free',
@@ -61,14 +59,12 @@ export const translations = {
         plans: 'Plans A & B (exit + emergency)',
         backup: 'Encrypted backup & restore',
         insights: 'Premium insights (personalized explanation + next steps)',
-        alerts: 'Real-time risk alerts (calm, personalized)',
       },
       shortcuts: {
         vault: 'Vault',
         plans: 'Plans A & B',
         redFolder: 'Red Folder Export',
         backup: 'Backup/Restore',
-        alerts: 'Alerts',
       },
     },
     // Vault page
@@ -375,47 +371,6 @@ export const translations = {
       dialogContinue: 'Show my new Recovery Kit',
       dialogChecking: 'Checking...',
     },
-    // Alerts
-    alerts: {
-      title: 'Alerts',
-      tabBriefing: 'Briefing',
-      tabAlerts: 'Alerts',
-      preferences: 'Alert Preferences',
-      enableAlerts: 'Enable alerts',
-      topics: 'Topics',
-      allTopics: 'All topics (none selected)',
-      regions: 'Regions',
-      severity: 'Severity Threshold',
-      majorOnly: 'Major only',
-      majorAndModerate: 'Major + Moderate',
-      frequency: 'Notification Frequency',
-      immediate: 'Immediate',
-      dailyDigest: 'Daily digest',
-      weeklyDigest: 'Weekly',
-      frequencyNote: 'In-app notifications. Email coming soon.',
-      savePreferences: 'Save preferences',
-      preferencesSaved: 'Preferences saved',
-      saveFailed: 'Failed to save preferences',
-      inbox: 'Alerts Inbox',
-      inboxDescription: 'Alerts are designed to reduce noise — just what matches your preferences.',
-      new: 'new',
-      noAlerts: 'No new alerts',
-      upToDate: "You're up to date.",
-      markAsSeen: 'Mark as seen',
-      markedAsSeen: 'Marked as seen',
-      blockedLink: 'Your browser blocked this link',
-      linkError: 'Unable to open link',
-      offlineBanner: 'Offline: alerts may be delayed.',
-      notLoggedIn: {
-        title: 'Alerts (Premium)',
-        body: 'Alerts are part of Premium — along with Vault and your printable plan. Log in to set your alert preferences.',
-        login: 'Log in',
-        viewPremium: 'View Premium (49€)',
-      },
-      notPremium: {
-        note: 'You can still use Weekly Briefing for free.',
-      },
-    },
     // Panic button landing page
     panic: {
       requiresConnection: 'Needs an internet connection: without one, the alert is not sent',
@@ -423,7 +378,12 @@ export const translations = {
     // Paywall modal
     paywall: {
       title: 'Unlock Premium',
-      description: 'Get your Personalized Resiliency Plan: printable offline PDF, encrypted Vault, Plans A & B, backup/restore, insights, and alerts.',
+      description: 'Get your Personalized Resiliency Plan: printable offline PDF, encrypted Vault, Plans A & B, backup/restore, and insights.',
+    },
+    // Offer shown after the risk check
+    riskOffer: {
+      redFolderTitle: 'Red Folder',
+      redFolderSubtitle: 'Printable offline PDF',
     },
     // Auth
     auth: {
@@ -560,9 +520,7 @@ export const translations = {
       calculatorsHub: 'Centro de Calculadoras',
       riskCalculator: 'Calculadora de Risco',
       suppliesPlanner: 'Planeador de Suprimentos 14 Dias',
-      products: 'Produtos',
       tips: 'Dicas & Tranquilidade',
-      news: 'Notícias',
       pricing: 'Preços',
       dashboard: 'Painel',
       startFree: 'Começar Grátis',
@@ -600,14 +558,12 @@ export const translations = {
         plans: 'Planos A & B (saída + emergência)',
         backup: 'Backup e restauro encriptado',
         insights: 'Insights premium (explicação personalizada + próximos passos)',
-        alerts: 'Alertas de risco em tempo real (calmos, personalizados)',
       },
       shortcuts: {
         vault: 'Cofre',
         plans: 'Planos A & B',
         redFolder: 'Export Red Folder',
         backup: 'Backup/Restauro',
-        alerts: 'Alertas',
       },
     },
     // Vault page
@@ -915,47 +871,6 @@ export const translations = {
       dialogContinue: 'Mostrar o meu novo Recovery Kit',
       dialogChecking: 'A verificar...',
     },
-    // Alerts
-    alerts: {
-      title: 'Alertas',
-      tabBriefing: 'Briefing',
-      tabAlerts: 'Alertas',
-      preferences: 'Preferências de Alertas',
-      enableAlerts: 'Ativar alertas',
-      topics: 'Tópicos',
-      allTopics: 'Todos os tópicos (nenhum selecionado)',
-      regions: 'Regiões',
-      severity: 'Limiar de Severidade',
-      majorOnly: 'Apenas major',
-      majorAndModerate: 'Major + Moderado',
-      frequency: 'Frequência de Notificações',
-      immediate: 'Imediato',
-      dailyDigest: 'Resumo diário',
-      weeklyDigest: 'Semanal',
-      frequencyNote: 'Notificações na app. Email em breve.',
-      savePreferences: 'Guardar preferências',
-      preferencesSaved: 'Preferências guardadas',
-      saveFailed: 'Falha ao guardar preferências',
-      inbox: 'Caixa de Alertas',
-      inboxDescription: 'Alertas desenhados para reduzir ruído — apenas o que corresponde às tuas preferências.',
-      new: 'novos',
-      noAlerts: 'Sem novos alertas',
-      upToDate: 'Estás atualizado.',
-      markAsSeen: 'Marcar como visto',
-      markedAsSeen: 'Marcado como visto',
-      blockedLink: 'O teu browser bloqueou este link',
-      linkError: 'Não foi possível abrir o link',
-      offlineBanner: 'Offline: alertas podem estar atrasados.',
-      notLoggedIn: {
-        title: 'Alertas (Premium)',
-        body: 'Alertas fazem parte do Premium — junto com o Cofre e o teu plano imprimível. Entra para definir as tuas preferências.',
-        login: 'Entrar',
-        viewPremium: 'Ver Premium (49€)',
-      },
-      notPremium: {
-        note: 'Podes continuar a usar o Weekly Briefing gratuitamente.',
-      },
-    },
     // Panic button landing page
     panic: {
       requiresConnection: 'Precisa de ligação à internet: sem ela, o alerta não é enviado',
@@ -963,7 +878,12 @@ export const translations = {
     // Paywall modal
     paywall: {
       title: 'Desbloquear Premium',
-      description: 'Obtém o teu Plano de Resiliência Personalizado: PDF offline imprimível, Cofre encriptado, Planos A & B, backup/restauro, insights e alertas.',
+      description: 'Obtém o teu Plano de Resiliência Personalizado: PDF offline imprimível, Cofre encriptado, Planos A & B, backup/restauro e insights.',
+    },
+    // Offer shown after the risk check
+    riskOffer: {
+      redFolderTitle: 'Red Folder',
+      redFolderSubtitle: 'PDF offline imprimível',
     },
     // Auth
     auth: {

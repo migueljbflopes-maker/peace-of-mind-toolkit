@@ -14,13 +14,11 @@ import ScrollToTop from "./components/ScrollToTop";
 
 // Eagerly loaded: high-traffic pages
 import Index from "./pages/Index";
-import Products from "./pages/Products";
 import Pricing from "./pages/Pricing";
 import Library from "./pages/Library";
 import Tips from "./pages/Tips";
 import RiskCalculator from "./pages/RiskCalculator";
 import SuppliesPlanner from "./pages/SuppliesPlanner";
-import WeeklyBriefing from "./pages/WeeklyBriefing";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
@@ -35,13 +33,11 @@ const RedFolder = lazy(() => import("./pages/premium/RedFolder"));
 const Backup = lazy(() => import("./pages/premium/Backup"));
 const Onboarding = lazy(() => import("./pages/premium/Onboarding"));
 const RiskAssessment = lazy(() => import("./pages/premium/RiskAssessment"));
-const Expert = lazy(() => import("./pages/premium/Expert"));
 const Panic = lazy(() => import("./pages/Panic"));
 const PanicSetup = lazy(() => import("./pages/panic/Setup"));
 const PanicTest = lazy(() => import("./pages/panic/Test"));
 const PanicHistory = lazy(() => import("./pages/panic/History"));
 const RiskFunnel = lazy(() => import("./pages/riskFunnel/RiskFunnel"));
-const RiskFunnel1 = lazy(() => import("./pages/riskFunnel/RiskFunnel1"));
 const PurchaseSuccess = lazy(() => import("./pages/PurchaseSuccess"));
 const Claim = lazy(() => import("./pages/Claim"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -50,7 +46,6 @@ const AdminIndex = lazy(() => import("./pages/admin/Index"));
 const AdminUsers = lazy(() => import("./pages/admin/Users"));
 const AdminAnalytics = lazy(() => import("./pages/admin/Analytics"));
 const AdminFeatures = lazy(() => import("./pages/admin/Features"));
-const AdminAffiliates = lazy(() => import("./pages/admin/Affiliates"));
 const AdminEmails = lazy(() => import("./pages/admin/Emails"));
 const AdminPrompts = lazy(() => import("./pages/admin/Prompts"));
 
@@ -99,13 +94,11 @@ const App = () => (
                 <Suspense fallback={<LazyFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/products" element={<Products />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/tips" element={<Tips />} />
                 <Route path="/tools/risk" element={<RiskCalculator />} />
                 <Route path="/tools/supplies" element={<SuppliesPlanner />} />
-                <Route path="/news/weekly" element={<WeeklyBriefing />} />
                 <Route path="/login" element={<Auth />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/dashboard" element={<Dashboard />} />
@@ -116,14 +109,12 @@ const App = () => (
                 <Route path="/premium/backup" element={<MasterKeyGate><Backup /></MasterKeyGate>} />
                 <Route path="/premium/onboarding" element={<Onboarding />} />
                 <Route path="/premium/risk" element={<RiskAssessment />} />
-                <Route path="/premium/expert" element={<Expert />} />
                 <Route path="/toolkit" element={<Navigate to="/pricing" replace />} />
                 <Route path="/panic" element={<Panic />} />
                 <Route path="/panic/setup" element={<PanicSetup />} />
                 <Route path="/panic/test" element={<PanicTest />} />
                 <Route path="/panic/history" element={<PanicHistory />} />
                 <Route path="/riskfunnel" element={<RiskFunnel />} />
-                <Route path="/riskfunnel1" element={<RiskFunnel1 />} />
                 <Route path="/purchase-success" element={<PurchaseSuccess />} />
                 <Route path="/claim" element={<Claim />} />
                 <Route path="/privacy" element={<Privacy />} />
@@ -132,7 +123,6 @@ const App = () => (
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
                 <Route path="/admin/features" element={<AdminFeatures />} />
-                <Route path="/admin/affiliates" element={<AdminAffiliates />} />
                 <Route path="/admin/emails" element={<AdminEmails />} />
                 <Route path="/admin/prompts" element={<AdminPrompts />} />
                 <Route path="*" element={<NotFound />} />
