@@ -55,6 +55,12 @@ jobs:
       # Builds the app against the local stack and runs both Playwright
       # projects: mobile-chrome (no backend) and backend.
       - run: npm run test:e2e:backend
+      # TEMPORARY, backlog A-08: the acceptance run. Removed again before merge.
+      - name: "A-08: magic-link sign-up, 20 times in a row, retries off"
+        run: >
+          npm run test:e2e:backend -- --project=backend
+          -g "signs up with a magic link from the email"
+          --repeat-each=20 --retries=0
       - name: Edge function logs
         if: failure()
         run: tail -n 200 supabase-functions.log || true
