@@ -140,7 +140,7 @@ fix it in its own change, and never bend the test around it.
 | F-03 | Plans A and B through the wizard | F-01 | todo |
 | F-04 | Red Folder PDF from the user's real data | F-02, F-03 | todo |
 | F-05 | Panic setup, test mode, and a check-in session | F-01 | todo |
-| F-06 | Risk funnel up to the payment screen | A-01 | todo |
+| F-06 | Risk funnel up to the payment screen | A-01 | doing |
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
 | F-08 | Edge functions boot on the local runtime as written | A-06 | done |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
@@ -148,6 +148,12 @@ fix it in its own change, and never bend the test around it.
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
 | F-12 | Edge functions are type-checked in CI | F-08 | todo |
 | F-13 | One way to start a function: `Deno.serve`, no `deno.land` imports | F-08 | todo |
+| F-20 | The funnel's score stays within 0 to 100 and every risk category can be reached | F-06 | todo |
+| F-21 | Checkout opens from the funnel when Stripe.js has not loaded | F-06 | todo |
+| F-22 | The funnel resumes where the visitor left off | F-06 | todo |
+| F-23 | The visitor can go back one question in the funnel | F-06 | todo |
+| F-24 | The price has one source, and the price charged is checked against it | F-09 | todo |
+| F-25 | [DECISION] The funnel's sales claims: keep only what is true | F-06 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -188,6 +194,53 @@ subscription duplicate is frozen.
 Accepted when: a browser test answers every funnel question, sees a result that
 matches the answers given, and reaches the payment screen with the right
 amount; leaving midway and returning resumes where the user left off.
+
+Tested by `e2e/risk-funnel.spec.ts` (22 tests, no backend needed: everything
+the funnel sends is answered at the network edge and the request is what is
+asserted) and `e2e/backend/risk-funnel.spec.ts` (2 tests: the analytics rows
+as stored on the local stack; the real `create-guest-checkout` refused by
+Stripe). Status is `doing`, not done, because two acceptance points are open:
+
+- "Resumes where the user left off" is not true: F-22. Three tests are marked
+  `test.fail` for it. What does hold, and is tested: after a reload in the
+  same tab the answers already given are still filled in.
+- "The payment screen with the right amount" is proven only as far as the app
+  goes. The payment screen is not ours: it is Stripe's hosted Checkout page,
+  or the phone's Apple Pay / Google Pay sheet. Proven: the offer shows €49;
+  the wallet sheet is asked for 4900 cents in EUR; with no wallet, the
+  browser is sent to the URL `create-guest-checkout` returned, and the app's
+  request for it is exactly `{ source: "riskfunnel" }`. Not proven by any
+  test: the amount on Stripe's page, which is whatever the Stripe price
+  behind the secret `STRIPE_PRICE_ID_PREMIUM` says (F-24).
+
+Found on the way, each with its own `test.fail`: F-20 (a score of 110/100;
+"Low" cannot be reached), F-21 (no checkout when Stripe.js does not load),
+F-23 (Back leaves the funnel). Owner decision: F-25.
+
+How the funnel relates to the rest: nothing in the app links to
+`/riskfunnel`; it is reached only by a direct link (ads). The landing page
+and every "risk check" link go to the free calculator, `/tools/risk`
+(`RiskCalculator`, `src/components/riskWizard`), which shares no code with
+the funnel, scores differently, and sells through `/pricing`.
+`StripeGuestWalletModal.tsx` and `ProductPopup` in `RiskFunnel.tsx` are used
+by nothing. The funnel has no email step: no address is asked for or sent
+before payment.
+
+What leaves the phone before payment (asserted in the last test of the
+spec): one `page_views` row (path, referrer, user agent, a random session
+id); twenty `feature_usage` rows saying which step was seen and completed;
+and, when "START NOW" is pressed, the risk level and score. None of the
+answers, and nothing to the AI function. Third parties contacted: Stripe.js
+is fetched when the funnel opens, and four stock photos are loaded from
+`images.unsplash.com` on every question. For phase S: the answers (city,
+postal code, "medical needs") sit unencrypted in `sessionStorage` under
+`resilient_risk_funnel` until the tab closes; `page_views` and
+`feature_usage` are not in a data inventory; and step 1 says "your answers
+stay private unless you choose to save", though there is nothing to save.
+
+Not covered: the edge functions and Stripe themselves (F-09), the purchase
+page after payment (F-07), 3-D Secure in the wallet path, a real phone
+wallet.
 
 **F-07.** Start from a completed purchase created directly in the database.
 Accepted when: a browser test for a guest purchase claims it into an account,
@@ -335,6 +388,104 @@ answering while they are bundled. F-08 left them alone because
 replacing them changes code, not only imports.
 Accepted when: no file under `supabase/functions` imports by URL, the test in
 `scripts/function-deps.test.mjs` forbids it, and the backend tests pass.
+
+**F-20.** Found by F-06. The result of the risk funnel can be impossible. A
+visitor in a high flat with children, an elderly relative and medical needs,
+with nothing prepared, is shown "Score: 110/100". And no visitor can be shown
+"Low": the best answers the funnel accepts give 53, "Moderate".
+Cause: `calculateScore` in `src/pages/riskFunnel/shared.tsx:120-159` caps
+exposure at 70 and the preparedness gap at 40 and adds them, so the total
+reaches 110. Exposure starts at 35, adds 10 for every visitor whatever the
+country or city (line 124) and at least 8 for the home, so the minimum is 53,
+while `getRiskLevel` (line 161) ends "Low" at 40. The country is asked for
+and never used. The three "quick checks (optional)" switches count as "no"
+when left alone (lines 147-149), adding 18 points and the reason "Water
+supply for 3+ days is essential" for a visitor who skipped them.
+The owner chooses the scale; the tests only require it to be coherent.
+Accepted when: `the score never goes above the 100 it is shown out of` and
+`the best answers the funnel accepts are rated Low` in
+`e2e/risk-funnel.spec.ts` pass without `test.fail`, and the expected scores
+in that file's table are updated by hand to the new rules.
+
+**F-21.** Found by F-06. When Stripe.js cannot be loaded (a content blocker,
+a network that blocks `js.stripe.com`, a connection that drops), pressing
+"START NOW" on the offer shows "Error opening checkout" every time, and the
+visitor cannot buy. The checkout they would get is a plain link to Stripe's
+page and needs no Stripe.js.
+Cause: `handleCheckout` in `src/pages/riskFunnel/RiskFunnel.tsx:269` awaits
+`stripePromise`, which rejects when the script fails to load; the rejection
+lands in the `catch` at line 283 before `create-guest-checkout` is called.
+Accepted when: `Stripe.js does not load (blocked or bad connection): the
+visitor can still go to Checkout` in `e2e/risk-funnel.spec.ts` passes without
+`test.fail`.
+
+**F-22.** Found by F-06; it is the open acceptance point of F-06. A visitor
+who leaves the funnel midway does not come back to where they were.
+Reloading the page returns to question 1 (the answers are still filled in,
+but every question has to be confirmed again and the waiting screens sat
+through). Closing the tab and opening the funnel again starts empty. Going
+to Stripe's page and pressing its back arrow returns to question 1, not to
+the result and the offer.
+Cause: the step is React state only (`RiskFunnel.tsx:82`); the answers are in
+`sessionStorage` (lines 88 and 215), which a new tab does not share; and
+`create-guest-checkout` sends Stripe the return address
+`/riskfunnel?purchase=cancel`, which the funnel never reads. There is also
+no "start over". Where the answers are kept is a privacy question too (see
+F-06): decide it together with phase S.
+Accepted when: `after a reload the visitor is on the question they had
+reached`, `closing the tab and opening the funnel again resumes with the
+answers` and `coming back from Stripe's page without paying returns to the
+result, not to question 1` in `e2e/risk-funnel.spec.ts` pass without
+`test.fail`; then F-06 can be closed.
+
+**F-23.** Found by F-06. There is no way back inside the funnel. A visitor
+who tapped the wrong answer cannot return to it: the screens have no Back
+button, and the browser's Back leaves the funnel for the page before it
+(for a visitor arriving from an ad, out of the site).
+Cause: the steps are not in the browser history and
+`FunnelQuestionsLayout` (`shared.tsx:613`) offers no control for it.
+Accepted when: `the browser's Back button returns to the previous question`
+in `e2e/risk-funnel.spec.ts` passes without `test.fail`.
+
+**F-24.** Found by F-06. The price is written in about thirty places and no
+test can say what a buyer is charged. The visitor sees "€49" (`priceNow={49}`
+in `RiskFunnel.tsx:307`, and as text in `RiskOfferModal.tsx:176-177`,
+`Pricing.tsx`, `translations.ts` as "49€", the FAQ, the Terms, the paywall
+and dashboard buttons, three email templates under `supabase/functions`).
+The wallet path charges `amount: 4900, currency: "eur"`, written once in the
+browser (`RiskFunnel.tsx:134-135`, what the wallet sheet shows) and again in
+`create-payment-intent/index.ts:55-56` (what is charged) and `:81-82` (what
+is recorded). The Checkout path charges whatever the Stripe price named by
+the secret `STRIPE_PRICE_ID_PREMIUM` says, in whatever currency it has, with
+promotion codes allowed. Change any one of these and the others keep saying
+€49. The purchase email says "€49" whatever was paid.
+Accepted when: the amount and currency are defined once per side (app,
+functions) and every text and call reads them; with the Stripe stand-in of
+F-09, a test fails if the amount or currency of the Checkout price differs
+from the price shown on the offer.
+
+**F-25.** [DECISION] Found by F-06. The funnel makes claims that only the
+owner can stand behind. Under every question: "Over 4,000 active users who
+trust our preparedness guidance", "Excellent", five stars drawn in
+Trustpilot's green, "Based on 56,334 reviews", and four stock photographs
+from Unsplash as the users' faces (`shared.tsx:31-36, 309-332`). On the
+offer: "Discount expires in 10:00", a countdown that restarts every time the
+offer is opened and, at zero, disables the buy button (`RiskOfferModal.tsx`,
+`disabled={loading || secondsLeft === 0}`) while the price stays €49; a
+crossed-out "€120" that was never the price (`priceWas={120}`); "Works
+offline after purchase", which phase B has not yet made true; "Consult
+experts for guidance". The analysing screen shows "Checking location
+context" while nothing is checked, and the first reason on every result is
+"Location in <city> presents specific risks" whatever the city.
+Needed from the owner: for each claim, the evidence, or the decision to
+remove or reword it. The invariant "what the app says about privacy and
+offline matches what the code does" covers the offline line; the rest is
+consumer law (invented reviews and false urgency are unfair commercial
+practices in the EU) and belongs with the legal review in the owner
+checklist.
+Accepted when: every claim on the funnel and the offer is either backed by
+a source the owner names or gone, and a test asserts the removed texts are
+absent.
 
 ## Phase P: a panic button that tells the truth
 
@@ -559,6 +710,31 @@ Noted by F-01 while walking sign-up and the master password on a phone
   settings dialog are Portuguese.
 - Signing out drops the user on the marketing home page with no word that
   they were signed out.
+
+Noted by F-06 while walking the risk funnel on a phone (not fixed there;
+the broken parts are F-20 to F-25):
+
+- Closing the offer (the X, or a tap outside it) sends the visitor to the
+  home page. The result behind it cannot be read again, and the only button
+  on the result, "View Results & Get Ready", opens the offer, not results.
+- The offer has two close buttons on top of each other in the same corner.
+- Three waiting screens (2.5 s, 2.5 s and 4.3 s) pretend to work; the first
+  two can be skipped, the "Analyzing your risk..." one cannot.
+- The funnel has no language switch and no navigation: the language is the
+  phone's. In English the postal code label reads "Postal Code (opcional)".
+  In Portuguese the country list is in English ("Spain", "Germany"), the
+  score line reads "Score:", and the price is written "€49" where the rest
+  of the app writes "49€".
+- A city made only of spaces is accepted; the result then reads "Location in
+  presents specific risks".
+- The three switches on the kit question have no accessible name, and the
+  answer buttons do not say which one is selected (colour only).
+- After "START NOW" with a wallet, the button stays on "Preparing secure
+  payment…" until the wallet sheet answers; if the sheet never opens there
+  is no way out but closing the offer, which leaves the funnel.
+- The landing page never leads to this funnel, and the free calculator at
+  `/tools/risk` asks different questions and gives a different score for
+  the same household.
 
 ## Owner checklist
 
