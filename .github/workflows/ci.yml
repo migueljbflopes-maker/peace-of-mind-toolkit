@@ -27,7 +27,6 @@ jobs:
         with:
           deno-version: 2.1.4
       - name: Every edge function resolves from its lockfile
-        continue-on-error: true
         run: npm run functions:check-locks
 
       # Backlog A-06: a local Supabase stack for the "backend" browser tests.
