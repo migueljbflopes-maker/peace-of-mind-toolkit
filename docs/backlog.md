@@ -80,7 +80,8 @@ setting one is F-01.
 Limits. Function calls to Stripe, Resend and OpenAI are not intercepted: with
 the dummy keys the provider refuses them, and browser tests mock the function's
 response instead (F-09 for tests that need the function itself to run). The
-functions served are a copy with rewritten imports (F-08). Locally the backend
+functions served were a copy with rewritten imports until F-08; they are now
+`supabase/functions` itself. Locally the backend
 project needs Docker; without it `npm run verify` runs `mobile-chrome` only
 and says so, and the backend tests are verified by CI.
 Not verified: running the stack on a developer machine (brought up in CI
@@ -111,10 +112,12 @@ fix it in its own change, and never bend the test around it.
 | F-05 | Panic setup, test mode, and a check-in session | F-01 | todo |
 | F-06 | Risk funnel up to the payment screen | A-01 | todo |
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
-| F-08 | Edge functions boot on the local runtime as written | A-06 | todo |
+| F-08 | Edge functions boot on the local runtime as written | A-06 | doing |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
 | F-10 | The Recovery Kit is shown after the master password is created | F-01 | todo |
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
+| F-12 | Edge functions are type-checked in CI | F-08 | todo |
+| F-13 | One way to start a function: `Deno.serve`, no `deno.land` imports | F-08 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -186,6 +189,51 @@ backend tests pass; and, after the deploy that follows the merge, a call to at
 least one deployed function returns its expected answer rather than a 5xx.
 `[HUMAN]` for that last check: nobody but the owner can reach the hosted
 project. Give the owner the exact request to run and the answer to expect.
+Doing; everything but the `[HUMAN]` check is finished. Each function has a
+`deno.json` naming its packages at exact npm versions (`supabase-js` 2.57.2,
+`stripe` 18.5.0, `resend` 4.0.0) and a `deno.lock` with every transitive
+package; nothing is imported from esm.sh. The five functions that imported
+`supabase-js@2` unpinned (`panic-trigger`, `panic-confirm`, `panic-cancel`,
+`run-ai-job`, `admin-manage-user`) now run 2.57.2 like the rest. CI serves
+`supabase/functions` itself, checks every lockfile with Deno
+(`npm run functions:check-locks`) and calls every function once
+(`e2e/backend/functions-boot.spec.ts`); the copy script is deleted. The deploy
+workflow now uses the CLI version CI tests with and stops if Docker is
+missing, because bundling on Supabase's side ignores the lockfiles. How it
+works and how to change a version: README, "Edge function dependencies".
+After each deploy the workflow now asks every deployed function for a CORS
+preflight (`scripts/smoke-deployed-functions.mjs`, no side effects) and the
+run fails if any does not boot; functions whose gateway requires a signed-in
+caller are reported as "not shown" rather than counted as booted. The
+workflow also takes a list of function names (`only`), to deploy a change to
+one function before all of them.
+Order for the first deploy: one function of a frozen feature through `only`,
+from the branch; if its check passes, merge, which redeploys all 31 and checks
+them all.
+If a function does not boot: its body names `BOOT_ERROR` or `WORKER_ERROR`.
+Reverting the merge commit on `main` redeploys the previous sources, but that
+is not a sure way back, because those sources resolve their dependencies again
+at that moment, which is the fault this task removes; Supabase keeps no
+earlier version of a function to return to. The safer answer is the
+function's log in the Supabase dashboard and a fix forward.
+Optional checks the owner can run by hand, none of which writes, sends or
+charges: `POST` with no `Authorization` header to `panic-trigger`,
+`panic-confirm` and `panic-cancel` under
+`https://fnzbetsgumaamshcopbd.supabase.co/functions/v1/` should answer 401
+`{"error":"Unauthorized"}`, which shows the Supabase client is constructed.
+Verified in CI: with a wrong integrity hash in one `deno.lock`, the runtime
+that serves the functions refuses to boot that function (`failed reading
+lockfile ... Integrity check failed`), so `functions serve` does resolve from
+the lockfile. With the same fault in `panic-trigger` only (CI run 44280854825),
+the readiness probe passed and `functions-boot.spec.ts` failed for that one
+function with `panic-trigger answered 503: {"code":"BOOT_ERROR",...}` while
+the other 30 passed: the boot test does catch a function that cannot start.
+Not verified until the first deploy runs: the deploy itself, the deploy
+workflow changes and the deployed functions. Not verified at all: that the bundle
+the deploy uploads holds exactly the locked versions. That is inferred: the
+deploy of 2026-11-10 bundled with the same runtime image (edge-runtime
+1.78.1) that CI serves with, and in that runtime's source `bundle` finds the
+lockfile the same way `serve` does.
 
 **F-09.** Found by A-06. The functions call `api.stripe.com`,
 `api.resend.com` and `api.openai.com` at fixed addresses, so a test that needs
@@ -235,6 +283,24 @@ Accepted when: "signed out, the vault address offers a way to sign in instead
 of an empty page" in `e2e/backend/signup-master-password.spec.ts` passes with
 its `test.fail` removed, extended to the other four routes; after signing in
 from there the user is returned to the route they asked for.
+
+**F-12.** Found by F-08. Nothing type-checks the edge functions: CI resolves
+their imports (`deno cache --frozen`) and boots them, but a call with the
+wrong arguments is only found when that line runs. With the packages now
+coming from npm with their types, `deno check` can run per function.
+Accepted when: CI runs `deno check` on every function and fails on a type
+error; the errors it finds on the first run are fixed or listed as new tasks.
+
+**F-13.** Found by F-08. Seventeen functions start with `serve` from
+`deno.land/std` 0.168.0 or 0.190.0, which Deno has retired in favour of the
+built-in `Deno.serve` that the other fourteen use, and `generate-risk-insights`
+loads an XMLHttpRequest polyfill from `deno.land/x` that drags in a 2021
+standard library. They are exact versions and their hashes are locked, so
+nothing floats, but a deploy of those functions depends on `deno.land`
+answering while they are bundled. F-08 left them alone because
+replacing them changes code, not only imports.
+Accepted when: no file under `supabase/functions` imports by URL, the test in
+`scripts/function-deps.test.mjs` forbids it, and the backend tests pass.
 
 ## Phase P: a panic button that tells the truth
 
