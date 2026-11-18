@@ -47,28 +47,15 @@ async function latestMailLink(request: APIRequestContext, to: string): Promise<s
   return link;
 }
 
-/** Records where the auth server sends the browser each time a sign-in link is followed. */
-function recordVerifyRedirects(page: Page): string[] {
-  const redirects: string[] = [];
-  page.on("response", (response) => {
-    if (!response.url().includes("/auth/v1/verify")) return;
-    redirects.push(`${response.status()} ${response.headers()["location"] ?? "(no location)"}`);
-    if (response.status() < 300 || response.status() > 399) {
-      // DIAGNOSTIC (A-12): what answers here when it is not a redirect.
-      const request = response.request();
-      response
-        .text()
-        .catch((error) => `(no body: ${error})`)
-        .then((body) =>
-          console.log(
-            `[A-12 diag] ${request.method()} ${response.url()} -> ${response.status()} ` +
-              `fromSW=${response.fromServiceWorker()} nav=${request.isNavigationRequest()} ` +
-              `type=${request.resourceType()} headers=${JSON.stringify(response.headers())} body=${body.slice(0, 600)}`,
-          ),
-        );
-    }
-  });
-  return redirects;
+/**
+ * Follows a sign-in link outside the browser, without following the redirect,
+ * and returns "status location": where the auth server sends whoever opens it.
+ * (Inside the browser the redirect cannot be observed once the app's service
+ * worker is installed: the navigation is then reported as the page it ends on.)
+ */
+async function authServerAnswer(request: APIRequestContext, link: string): Promise<string> {
+  const response = await request.get(link, { maxRedirects: 0 });
+  return `${response.status()} ${response.headers()["location"] ?? "(no location)"}`;
 }
 
 /** The redirect of a refused link, with the parts of it that say why. */
@@ -137,8 +124,6 @@ test.describe("signed out", () => {
     const user = await createUser({ premium: true });
     const inserted = await admin.from("user_vault_keys").insert(await wrappedKeyRow(user.id, "master-Callback-12"));
     expect(inserted.error).toBeNull();
-    const redirects = recordVerifyRedirects(page);
-
     // A magic link asked for from a gated page.
     await page.goto(GATED_ROUTE);
     await signInCardButton(page).click();
@@ -155,8 +140,6 @@ test.describe("signed out", () => {
     await page.goto(link);
     await expect(page).toHaveURL(endsWith(GATED_ROUTE), { timeout: 20_000 });
     await expect(unlockTitle(page)).toBeVisible();
-    expect(redirects).toHaveLength(1);
-    expect(refusal(redirects[0])).toMatchObject({ inQuery: null, inFragment: null, hasTokens: true });
 
     // Signed out again on this phone (the mail is still in the inbox).
     await page.evaluate(() => {
@@ -165,18 +148,18 @@ test.describe("signed out", () => {
       }
     });
 
-    // The SAME link, opened again.
-    await page.goto(link);
-    expect(redirects).toHaveLength(2);
-    console.log(`[A-12] a sign-in link used twice: the auth server answers ${redirects[1]}`);
-    await page.waitForTimeout(1_500);
-    console.log(`[A-12 diag] page at ${page.url()} shows ${JSON.stringify((await page.locator("body").innerText()).slice(0, 400))}`);
-    const second = refusal(redirects[1]);
+    // What the auth server answers for the SAME link now.
+    const answer = await authServerAnswer(request, link);
+    console.log(`[A-12] a sign-in link used twice: the auth server answers ${answer}`);
+    const second = refusal(answer);
+    expect(second.status).toBe(303);
     expect(second.path).toBe("/auth/callback");
     expect(second.returnUrl).toBe(GATED_ROUTE);
     expect(second.hasTokens).toBe(false);
     expect(second.inFragment ?? second.inQuery, "the auth server names the reason").toBe("otp_expired");
 
+    // And the same link opened again on the phone.
+    await page.goto(link);
     const alert = await expectExpiredLinkMessage(page, `?return_url=${GATED_ROUTE_ENCODED}`);
 
     // "Get a new link": the sign-in page, on the form that sends one, still
@@ -193,12 +176,12 @@ test.describe("signed out", () => {
   test("a sign-in link followed after its time has passed is reported as expired", async ({
     page,
     admin,
+    request,
     createUser,
     baseURL,
     pageErrors,
   }) => {
     const user = await createUser();
-    const redirects = recordVerifyRedirects(page);
 
     // The link the auth server would mail, made without the mail.
     const generated = await admin.auth.admin.generateLink({
@@ -223,14 +206,15 @@ test.describe("signed out", () => {
         `where user_id = '${user.id}'; end if; end $$`,
     );
 
-    await page.goto(link);
-    expect(redirects).toHaveLength(1);
-    console.log(`[A-12] a sign-in link past its expiry: the auth server answers ${redirects[0]}`);
-    const answer = refusal(redirects[0]);
+    const location = await authServerAnswer(request, link);
+    console.log(`[A-12] a sign-in link past its expiry: the auth server answers ${location}`);
+    const answer = refusal(location);
+    expect(answer.status).toBe(303);
     expect(answer.path).toBe("/auth/callback");
     expect(answer.hasTokens).toBe(false);
     expect(answer.inFragment ?? answer.inQuery, "the auth server names the reason").toBe("otp_expired");
 
+    await page.goto(link);
     await expectExpiredLinkMessage(page, `?return_url=${GATED_ROUTE_ENCODED}`);
     expect(pageErrors).toEqual([]);
   });
@@ -257,10 +241,9 @@ test("already signed in, a used link leaves the visitor signed in as before, on 
   const first = await request.get(link, { maxRedirects: 0 });
   expect(first.headers()["location"] ?? "", "the first use of the link signs in").toContain("access_token=");
 
-  const redirects = recordVerifyRedirects(page);
+  expect(refusal(await authServerAnswer(request, link))).toMatchObject({ hasTokens: false, inFragment: "otp_expired" });
+
   await page.goto(link);
-  expect(redirects).toHaveLength(1);
-  expect(refusal(redirects[0]).hasTokens).toBe(false);
 
   // Still the seeded user, on the return address, told what happened.
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
