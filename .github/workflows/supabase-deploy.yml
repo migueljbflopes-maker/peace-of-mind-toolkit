@@ -12,6 +12,12 @@ on:
         description: Deploy edge functions too
         type: boolean
         default: true
+      only:
+        description: >-
+          Deploy only these functions (names separated by spaces) and skip the
+          migrations. For trying a change on one function before all of them.
+        type: string
+        default: ""
   push:
     branches: [main]
     paths:
@@ -42,6 +48,7 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "${{ steps.ref.outputs.ref }}"
       - name: Apply migrations
+        if: github.event_name == 'push' || inputs.only == ''
         run: supabase db push --remote --yes
       # Without Docker the CLI falls back to bundling on Supabase's side, and
       # sends the sources without the deno.lock files: the dependencies of the
@@ -51,4 +58,18 @@ jobs:
         run: docker info > /dev/null
       - name: Deploy edge functions
         if: github.event_name == 'push' || inputs.functions
-        run: supabase functions deploy --project-ref "${{ steps.ref.outputs.ref }}" --yes
+        env:
+          ONLY: ${{ inputs.only }}
+        # $ONLY is deliberately unquoted: it is a list of names.
+        run: supabase functions deploy $ONLY --project-ref "${{ steps.ref.outputs.ref }}" --yes
+      # Every deployed function is asked for a CORS preflight, which has no
+      # side effects. A function that does not boot fails the run (F-08).
+      - uses: actions/setup-node@v4
+        if: github.event_name == 'push' || inputs.functions
+        with:
+          node-version: 22
+      - name: The deployed functions boot
+        if: github.event_name == 'push' || inputs.functions
+        env:
+          ONLY: ${{ inputs.only }}
+        run: node scripts/smoke-deployed-functions.mjs "${{ steps.ref.outputs.ref }}" $ONLY

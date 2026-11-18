@@ -106,3 +106,8 @@ Deno 2.1 (`deno upgrade --version 2.1.4`), the version the edge runtime of
 the pinned CLI embeds; `scripts/function-deps.test.mjs` checks the
 declarations without Deno. A new function needs a `deno.json` and a
 `deno.lock` too, or the unit tests fail.
+
+After a deploy, the `Supabase deploy` workflow checks that every deployed
+function boots (`scripts/smoke-deployed-functions.mjs`: one CORS preflight
+each, no side effects) and fails if one does not. To try a change on one
+function first, run the workflow by hand with its name in `only`.

@@ -201,31 +201,32 @@ package; nothing is imported from esm.sh. The five functions that imported
 workflow now uses the CLI version CI tests with and stops if Docker is
 missing, because bundling on Supabase's side ignores the lockfiles. How it
 works and how to change a version: README, "Edge function dependencies".
-Waits for the owner: the merge redeploys all functions to production. Then
-check three functions; none of these requests writes, sends or charges.
-1. Open `https://fnzbetsgumaamshcopbd.supabase.co/functions/v1/panic-trigger`
-   in a browser. Booted: the page shows `{"error":"Method not allowed"}`
-   (status 405).
-2. `curl -i -X POST https://fnzbetsgumaamshcopbd.supabase.co/functions/v1/stripe-webhook -d "{}"`.
-   Booted: `HTTP/2 400` and `{"error":"Missing Stripe signature"}`. This is
-   the function that loads all three packages.
-3. `curl -i -X POST https://fnzbetsgumaamshcopbd.supabase.co/functions/v1/checkin-start -H "Content-Type: application/json" -d "{}"`.
-   Booted: `HTTP/2 401` and `{"error":"No authorization header"}`.
-   (`No authorization header` or a 500 naming missing environment variables
-   in check 2 still mean the function booted; the second is a secret that is
-   not set, a different problem.)
-Not booted: status 500 or 503 and a body naming `BOOT_ERROR` or
-`WORKER_ERROR`. Then revert the merge commit on `main`: that redeploys the
-previous sources. It is not a sure way back, because those sources resolve
-their dependencies again at that moment, which is the fault this task
-removes; Supabase keeps no earlier version of a function to return to. The
-safer answer to a failed boot is the function's log in the Supabase dashboard
-and a fix forward.
+After each deploy the workflow now asks every deployed function for a CORS
+preflight (`scripts/smoke-deployed-functions.mjs`, no side effects) and the
+run fails if any does not boot; functions whose gateway requires a signed-in
+caller are reported as "not shown" rather than counted as booted. The
+workflow also takes a list of function names (`only`), to deploy a change to
+one function before all of them.
+Order for the first deploy: one function of a frozen feature through `only`,
+from the branch; if its check passes, merge, which redeploys all 31 and checks
+them all.
+If a function does not boot: its body names `BOOT_ERROR` or `WORKER_ERROR`.
+Reverting the merge commit on `main` redeploys the previous sources, but that
+is not a sure way back, because those sources resolve their dependencies again
+at that moment, which is the fault this task removes; Supabase keeps no
+earlier version of a function to return to. The safer answer is the
+function's log in the Supabase dashboard and a fix forward.
+Optional checks the owner can run by hand, none of which writes, sends or
+charges: `POST` with no `Authorization` header to `panic-trigger`,
+`panic-confirm` and `panic-cancel` under
+`https://fnzbetsgumaamshcopbd.supabase.co/functions/v1/` should answer 401
+`{"error":"Unauthorized"}`, which shows the Supabase client is constructed.
 Verified in CI: with a wrong integrity hash in one `deno.lock`, the runtime
 that serves the functions refuses to boot that function (`failed reading
 lockfile ... Integrity check failed`), so `functions serve` does resolve from
 the lockfile.
-Not verified: the deploy itself and the deployed functions; that the bundle
+Not verified until the first deploy runs: the deploy itself, the deploy
+workflow changes and the deployed functions. Not verified at all: that the bundle
 the deploy uploads holds exactly the locked versions. That is inferred: the
 deploy of 2026-11-10 bundled with the same runtime image (edge-runtime
 1.78.1) that CI serves with, and in that runtime's source `bundle` finds the
