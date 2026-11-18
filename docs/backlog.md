@@ -380,8 +380,10 @@ Tested by `e2e/risk-funnel.spec.ts` (22 tests, no backend needed: everything
 the funnel sends is answered at the network edge and the request is what is
 asserted) and `e2e/backend/risk-funnel.spec.ts` (2 tests: the analytics rows
 as stored on the local stack; the real `create-guest-checkout` refused by
-Stripe). Green in CI: see the pull request of F-06 (#15) for the run of its
-last commit. Status stays `doing`, not done, and F-06 closes when F-22 is
+Stripe). Green in CI run 44306180323, on commit 6d42831, the last one to
+change a test (96 passed, the seven known failures among them; 2 flaky that
+passed on retry, neither in these files: the magic-link test of A-08 and
+`e2e/frozen-features.spec.ts:101`). Status stays `doing`, not done, and F-06 closes when F-22 is
 done: F-22 does not wait for F-06, its tests are already here. Two
 acceptance points are open:
 
