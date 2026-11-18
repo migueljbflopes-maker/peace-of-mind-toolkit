@@ -166,7 +166,7 @@ fix it in its own change, and never bend the test around it.
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
-| F-30 | A return address whose query string holds an encoded slash survives sign-in | F-11 | todo |
+| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -437,8 +437,27 @@ A return address that contains `%2F` after decoding is treated as a redirect
 loop and replaced by `/dashboard`. An address whose own query string holds an
 encoded slash (`/premium/plans/wizard?next=%2Fx`) is therefore lost at
 sign-in. No route in the app builds such an address today.
-Accepted when: a test signs in from such an address and is returned to it,
-and the loop guard still stops `/login?return_url=/login...`.
+**Open redirect, found by the verifier of F-11 and reproduced in the build
+(2026-11-18). Fix this first; it is a security defect.** `sanitizeReturnUrl`
+in `src/pages/Auth.tsx:25-39` only requires a leading `/`:
+- `/login?return_url=//example.com` renders "Back to where I was" with
+  `href="//example.com"`.
+- `/login?return_url=/\example.com` does the same, and for a visitor who is
+  already signed in the page navigates to `http://example.com/` by itself.
+- `javascript:` and `https://` are refused. The copy of the function in
+  `AuthCallback.tsx` blocks `//` but not `/\`.
+A link to the real site can therefore send a signed-in user to a look-alike
+page. There must be one function, used by both pages, that accepts only a
+path on this origin (resolve against the origin and compare, rather than
+matching prefixes).
+Accepted when: one shared function with unit tests covering `//host`,
+`/\host`, encoded forms of both, `javascript:`, absolute URLs, control
+characters and a normal path with query; browser tests that
+`/login?return_url=//example.com` and `/login?return_url=/\example.com`
+never produce a link or a navigation off the site, signed out and signed in;
+a test signs in from an address whose query holds an encoded slash and is
+returned to it; the loop guard still stops `/login?return_url=/login...`;
+and return after a magic-link sign-in is walked once (it has no test).
 
 **F-12.** Found by F-08. Nothing type-checks the edge functions: CI resolves
 their imports (`deno cache --frozen`) and boots them, but a call with the
@@ -661,7 +680,16 @@ that also detects "connected but the server is unreachable".
 Accepted when: no direct read of `navigator.onLine` remains outside the hook;
 the hook has unit tests for online, offline and unreachable.
 
-**B-03.** Accepted when: a browser test signs in online, goes offline, reopens
+**B-03.** Measured by the verifier of F-11 in a real build: offline with a
+stored session whose access token has expired, a signed-in user gets the
+sign-in card after 3 seconds and it stays (before F-11 it was a blank page);
+offline with a valid token, the master password screen shows "Security error
+TypeError: Failed to fetch". So today the vault cannot be unlocked offline at
+all, and the auth loading timeout treats "could not refresh" as "signed out".
+Also from that review: a unit test should pin that a signed-in user never
+sees the sign-in card for one render, or the comment in `MasterKeyGate.tsx`
+claiming it should go.
+Accepted when: a browser test signs in online, goes offline, reopens
 the app in a new tab, unlocks the vault with the password and reads a saved
 section. An edit made offline syncs after reconnecting.
 
