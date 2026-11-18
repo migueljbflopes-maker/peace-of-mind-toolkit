@@ -25,6 +25,9 @@ interface MasterKeyGateProps {
 
 export function MasterKeyGate({ children, fallback }: MasterKeyGateProps) {
   const { isUnlocked, status } = useVaultKey();
+  // `isUnlocked` turns true only once the Recovery Kit step is confirmed and
+  // the key is stored (backlog F-10): until then MasterPasswordScreen stays
+  // mounted, holding the words, and no protected page renders.
   if (isUnlocked) return <>{children}</>;
   // Don't show the password screen to an anonymous user — let the parent
   // route's auth gate take over (it will redirect to /login).

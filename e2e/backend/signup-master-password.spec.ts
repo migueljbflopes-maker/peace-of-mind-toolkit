@@ -1,10 +1,29 @@
-import fs from "node:fs";
 import type { APIRequestContext, Page } from "@playwright/test";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { findUserByEmail } from "../../scripts/seed-local.mjs";
 import { test, expect, signInThroughUi } from "./fixtures";
+import {
+  type VaultKeyRow,
+  bytes,
+  createButton,
+  expectNeverSent,
+  expectNoTraceOf,
+  fillNewMasterPassword,
+  openVault,
+  passwordWrap,
+  recordRequests,
+  recoveryKitTitle,
+  recoveryWrap,
+  saveRecoveryKit,
+  storedAbout,
+  unlockTitle,
+  unlockWith,
+  unwrapMasterKey,
+  vaultKeyRows,
+  wrappedKeyRow,
+} from "./vault-keys";
 
 // Backlog F-01: sign up, sign in, set the master password.
+// (The Recovery Kit beyond the step after creation: recovery-kit.spec.ts.)
 //
 // The journey is walked as a new user on a phone walks it, through the real
 // screens. The account is created through the sign-up form, never by the
@@ -48,76 +67,6 @@ test.afterEach(async ({ admin }) => {
   }
   signedUpEmails.clear();
 });
-
-// ── What the server holds ───────────────────────────────────────────────────
-
-type VaultKeyRow = Record<string, string | number | null>;
-
-async function vaultKeyRows(admin: SupabaseClient, userId: string): Promise<VaultKeyRow[]> {
-  const { data, error } = await admin.from("user_vault_keys").select("*").eq("user_id", userId);
-  expect(error).toBeNull();
-  return data ?? [];
-}
-
-const bytes = (b64: string | number | null) => Buffer.from(String(b64), "base64");
-
-/**
- * The scheme of src/utils/crypto.ts, redone outside the app: PBKDF2-SHA256
- * turns a secret and a salt into a key, and AES-GCM under that key wraps the
- * 256-bit master key. Returns the master key, or throws when the secret is
- * not the one the blob was wrapped with.
- */
-async function unwrapMasterKey(
-  secret: string,
-  wrapped: { blob: string; iv: string; salt: string; iterations: number },
-): Promise<Buffer> {
-  const subtle = globalThis.crypto.subtle;
-  const base = await subtle.importKey("raw", new TextEncoder().encode(secret), "PBKDF2", false, ["deriveKey"]);
-  const kek = await subtle.deriveKey(
-    { name: "PBKDF2", salt: bytes(wrapped.salt), iterations: wrapped.iterations, hash: "SHA-256" },
-    base,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["decrypt"],
-  );
-  return Buffer.from(await subtle.decrypt({ name: "AES-GCM", iv: bytes(wrapped.iv) }, kek, bytes(wrapped.blob)));
-}
-
-/** A user_vault_keys row for a master password, made the way the app makes it. */
-async function wrappedKeyRow(userId: string, masterPassword: string) {
-  const subtle = globalThis.crypto.subtle;
-  const masterKey = globalThis.crypto.getRandomValues(new Uint8Array(32));
-  const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const base = await subtle.importKey("raw", new TextEncoder().encode(masterPassword), "PBKDF2", false, [
-    "deriveKey",
-  ]);
-  const kek = await subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 250_000, hash: "SHA-256" },
-    base,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt"],
-  );
-  const blob = await subtle.encrypt({ name: "AES-GCM", iv }, kek, masterKey);
-  return {
-    user_id: userId,
-    encrypted_master_key: Buffer.from(blob).toString("base64"),
-    iv: Buffer.from(iv).toString("base64"),
-    salt: Buffer.from(salt).toString("base64"),
-    kdf_iterations: 250_000,
-    version: 1,
-  };
-}
-
-/** Every way a secret could sit readable in a stored row. */
-function expectNoTraceOf(secret: string, stored: unknown) {
-  const haystack = JSON.stringify(stored).toLowerCase();
-  const raw = Buffer.from(secret, "utf8");
-  for (const form of [secret, raw.toString("base64"), raw.toString("base64url"), raw.toString("hex")]) {
-    expect(haystack).not.toContain(form.toLowerCase());
-  }
-}
 
 // ── Steps a user takes ──────────────────────────────────────────────────────
 
@@ -164,48 +113,9 @@ async function tapVaultSetupOnDashboard(page: Page) {
   await step.click();
 }
 
-async function fillNewMasterPassword(page: Page, masterPassword: string) {
-  await page.getByPlaceholder("Minimum 12 characters").fill(masterPassword);
-  await page.getByLabel("Confirm Master Password").fill(masterPassword);
-  await page.getByRole("checkbox", { name: /I understand that if I lose both/ }).check();
-}
-
-const createButton = (page: Page) => page.getByRole("button", { name: "Create and generate Recovery Kit" });
-const unlockTitle = (page: Page) => page.getByText("Unlock the Vault", { exact: true });
-const recoveryKitTitle = (page: Page) => page.getByText("Save your Recovery Kit", { exact: true });
-/** The first screen of the vault for a premium user with nothing saved yet. */
-const openVault = (page: Page) => page.getByText("Step 1 of 7", { exact: true });
-
-async function unlockWith(page: Page, masterPassword: string) {
-  await page.getByPlaceholder("Master Password").fill(masterPassword);
-  await page.getByRole("button", { name: "Unlock", exact: true }).click();
-}
-
 async function signOutFromPhoneMenu(page: Page) {
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await page.getByRole("button", { name: "Log out" }).click();
-}
-
-/** Saves the Recovery Kit as the screen demands and returns the 24 words. */
-async function saveRecoveryKit(page: Page): Promise<string[]> {
-  const finish = page.getByRole("button", { name: "Finish and enter the Vault" });
-  const confirm = page.getByRole("checkbox", { name: /I confirm I have saved the recovery phrase/ });
-  // Neither the tick box nor the way on works before the kit is saved.
-  await expect(finish).toBeDisabled();
-  await expect(confirm).toBeDisabled();
-
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download (.txt)" }).click(),
-  ]);
-  const kit = fs.readFileSync(await download.path(), "utf8");
-  const words = [...kit.matchAll(/^\d{2}\.\s+([a-z]+)$/gm)].map((m) => m[1]);
-  expect(words).toHaveLength(24);
-
-  await expect(finish).toBeDisabled();
-  await confirm.check();
-  await finish.click();
-  return words;
 }
 
 async function latestMailLink(request: APIRequestContext, to: string): Promise<string> {
@@ -240,13 +150,9 @@ test("a new user signs up, sets a master password, signs out, signs in again and
   const accountPassword = `acct-${Math.random().toString(36).slice(2, 10)}-pw`;
   const masterPassword = `master-${Math.random().toString(36).slice(2, 10)}-Horse-Staple`;
 
-  // "Password never leaves your device": nothing the page sends may carry it.
-  const sentWithMasterPassword: string[] = [];
-  page.on("request", (request) => {
-    if (request.url().includes(masterPassword) || (request.postData() ?? "").includes(masterPassword)) {
-      sentWithMasterPassword.push(`${request.method()} ${request.url()}`);
-    }
-  });
+  // "Password never leaves your device": nothing the page sends may carry it,
+  // nor the words of the Recovery Kit.
+  const sent = recordRequests(page);
 
   let userId = "";
 
@@ -298,17 +204,20 @@ test("a new user signs up, sets a master password, signs out, signs in again and
   let recoveryWords: string[] = [];
   let storedRow: VaultKeyRow = {};
 
-  await test.step("sets the master password and enters the vault", async () => {
+  await test.step("sets the master password, saves the Recovery Kit and enters the vault", async () => {
     await fillNewMasterPassword(page, masterPassword);
     await createButton(page).click();
-    await expect(page.getByText("Master Password created.", { exact: true })).toBeVisible();
 
-    // The Recovery Kit screen is promised next. Today it never appears
-    // (backlog F-10); the test after this one asserts it and is marked as a
-    // known failure. Here the kit is saved when it is shown, so this journey
-    // keeps passing once F-10 is fixed.
-    await expect(recoveryKitTitle(page).or(openVault(page))).toBeVisible();
-    if (await recoveryKitTitle(page).isVisible()) recoveryWords = await saveRecoveryKit(page);
+    // Step 2 of 2, as promised: the Recovery Kit, before anything else.
+    await expect(recoveryKitTitle(page)).toBeVisible();
+    await expect(openVault(page)).toHaveCount(0);
+    // Until the kit is saved nothing is stored, and the app does not say
+    // the master password was created.
+    await expect(page.getByText("Master Password created.", { exact: true })).toHaveCount(0);
+    expect(await vaultKeyRows(admin, userId)).toEqual([]);
+
+    recoveryWords = await saveRecoveryKit(page);
+    await expect(page.getByText("Master Password created.", { exact: true })).toBeVisible();
     await expect(openVault(page)).toBeVisible();
   });
 
@@ -331,36 +240,25 @@ test("a new user signs up, sets a master password, signs out, signs in again and
     expect(storedRow.recovery_salt).not.toBe(storedRow.salt);
     expect(storedRow.recovery_encrypted_master_key).not.toBe(storedRow.encrypted_master_key);
 
-    // Neither secret is readable in the key row, the profile or the auth user.
-    const profile = await admin.from("user_profiles").select("*").eq("user_id", userId);
-    const authUser = await admin.auth.admin.getUserById(userId);
-    for (const stored of [storedRow, profile.data, authUser.data.user]) {
-      expectNoTraceOf(masterPassword, stored);
-      if (recoveryWords.length) expectNoTraceOf(recoveryWords.join(" "), stored);
-    }
+    // Neither secret is readable in the key row, the profile, the vault or
+    // the auth user.
+    expect(recoveryWords).toHaveLength(24);
+    const stored = await storedAbout(admin, userId);
+    expectNoTraceOf(masterPassword, stored);
+    expectNoTraceOf(recoveryWords.join(" "), stored);
 
     // The key column really is wrapped by the master password: only the right
     // password opens it, and the Recovery Kit opens the same key.
-    const byPassword = {
-      blob: String(storedRow.encrypted_master_key),
-      iv: String(storedRow.iv),
-      salt: String(storedRow.salt),
-      iterations: Number(storedRow.kdf_iterations),
-    };
+    const byPassword = passwordWrap(storedRow);
     const masterKey = await unwrapMasterKey(masterPassword, byPassword);
     expect(masterKey).toHaveLength(32);
     await expect(unwrapMasterKey(`${masterPassword}x`, byPassword)).rejects.toThrow();
     await expect(unwrapMasterKey(accountPassword, byPassword)).rejects.toThrow();
     await expect(unwrapMasterKey("", byPassword)).rejects.toThrow();
-    if (recoveryWords.length) {
-      const byKit = await unwrapMasterKey(recoveryWords.join(" "), {
-        blob: String(storedRow.recovery_encrypted_master_key),
-        iv: String(storedRow.recovery_iv),
-        salt: String(storedRow.recovery_salt),
-        iterations: 250_000,
-      });
-      expect(byKit.equals(masterKey)).toBe(true);
-    }
+    const byKit = await unwrapMasterKey(recoveryWords.join(" "), recoveryWrap(storedRow));
+    expect(byKit.equals(masterKey)).toBe(true);
+    // The kit is its own secret: the master password does not open its wrap.
+    await expect(unwrapMasterKey(masterPassword, recoveryWrap(storedRow))).rejects.toThrow();
     expectNoTraceOf(masterKey.toString("base64"), storedRow);
   });
 
@@ -406,7 +304,8 @@ test("a new user signs up, sets a master password, signs out, signs in again and
     expect(await vaultKeyRows(admin, userId)).toEqual([storedRow]);
   });
 
-  expect(sentWithMasterPassword).toEqual([]);
+  expectNeverSent(sent, masterPassword, "the master password");
+  expectNeverSent(sent, recoveryWords.join(" "), "the Recovery Kit");
   expect(pageErrors).toEqual([]);
 });
 
@@ -418,10 +317,6 @@ test("after creating a master password the Recovery Kit must be saved before the
   createUser,
   pageErrors,
 }) => {
-  test.fail(
-    true,
-    "Backlog F-10: the vault opens the moment the key is stored, so the Recovery Kit screen is never shown.",
-  );
   const user = await createUser({ premium: true });
   const masterPassword = `master-${Math.random().toString(36).slice(2, 10)}-Kit-Check`;
   await signInThroughUi(page, user);
@@ -435,6 +330,9 @@ test("after creating a master password the Recovery Kit must be saved before the
   await expect(recoveryKitTitle(page)).toBeVisible();
   await expect(page.getByText("We cannot show these words again.", { exact: false })).toBeVisible();
   await expect(openVault(page)).toHaveCount(0);
+  // The screen says what leaving now means, and it is true: nothing is stored yet.
+  await expect(page.getByText("Your Master Password is not saved until you finish this step.", { exact: false })).toBeVisible();
+  expect(await vaultKeyRows(admin, user.id)).toEqual([]);
 
   const words = await saveRecoveryKit(page);
   await expect(openVault(page)).toBeVisible();
@@ -442,13 +340,10 @@ test("after creating a master password the Recovery Kit must be saved before the
   // The words handed to the user open the key the server holds, and are not on the server.
   const [row] = await vaultKeyRows(admin, user.id);
   expectNoTraceOf(words.join(" "), row);
-  const masterKey = await unwrapMasterKey(words.join(" "), {
-    blob: String(row.recovery_encrypted_master_key),
-    iv: String(row.recovery_iv),
-    salt: String(row.recovery_salt),
-    iterations: 250_000,
-  });
+  const masterKey = await unwrapMasterKey(words.join(" "), recoveryWrap(row));
   expect(masterKey).toHaveLength(32);
+  // The same key the master password opens.
+  expect((await unwrapMasterKey(masterPassword, passwordWrap(row))).equals(masterKey)).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 
