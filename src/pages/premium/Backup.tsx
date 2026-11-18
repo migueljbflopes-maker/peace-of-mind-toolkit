@@ -6,7 +6,9 @@ import { Archive, Upload, Download, Shield, WifiOff, HelpCircle, AlertTriangle, 
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useLocale } from '@/i18n/useLocale';
 import { useAuth } from '@/hooks/useAuth';
-import { useVaultKey } from '@/contexts/VaultKeyContext';
+import { useVaultKey, type PendingRecoveryKit } from '@/contexts/VaultKeyContext';
+import { RecoveryKitPanel } from '@/components/security/RecoveryKitPanel';
+import { RecoveryKitRenewalCard } from '@/components/security/RecoveryKitRenewalCard';
 import { PremiumLockedState } from '@/components/PremiumLockedState';
 import { LoginGateCard } from '@/components/LoginGateCard';
 import {
@@ -35,6 +37,9 @@ export default function Backup() {
   const [localData, setLocalData] = useState<LocalDataSummary | null>(null);
   const [backupInfo, setBackupInfo] = useState<BackupInfo | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  // A new Recovery Kit being saved (backlog F-10). The words exist in this
+  // state only; the server is updated when the user confirms the panel.
+  const [pendingKit, setPendingKit] = useState<PendingRecoveryKit | null>(null);
 
   // Track online status
   useEffect(() => {
@@ -141,6 +146,32 @@ export default function Backup() {
         <Navbar />
         <main className="flex-1 container-wide section-padding py-8">
           <LoginGateCard feature={t.backup.title} />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (pendingKit) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1">
+          <RecoveryKitPanel
+            recoveryPhrase={pendingKit.recoveryPhrase}
+            userLabel={user.email ?? undefined}
+            mode="renewal"
+            onConfirm={async () => {
+              const result = await pendingKit.commit();
+              if (result.ok === true) {
+                toast.success(t.recoveryKit.renewedToast);
+                setPendingKit(null);
+              }
+              return result;
+            }}
+            onCancel={() => setPendingKit(null)}
+            isPt={locale === 'pt'}
+          />
         </main>
         <Footer />
       </div>
@@ -275,6 +306,9 @@ export default function Backup() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Recovery Kit */}
+              <RecoveryKitRenewalCard onReady={setPendingKit} />
 
               {/* How It Works Dialog */}
               <div className="text-center">
