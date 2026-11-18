@@ -25,6 +25,7 @@ work, with tests, before wiring real payments, email and AI.
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
 | A-07 | Remove frozen features from the build | A-03 | todo |
+| A-08 | The magic-link sign-up test does not flake | A-06 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -55,6 +56,35 @@ Accepted when: it reports zero errors and CI runs it as a required step.
 Accepted when: `docs/edge-functions.md` lists every function with who may call
 it and how the function enforces that; each function that should require a user
 has a test proving an unauthenticated call is rejected.
+Found while reviewing F-08 (2026-11-18), to be fixed here, each with a test:
+- `checkin-cron` (lines 114-126): no caller check, service role. Anyone can
+  POST to it and advance `missed_count` for every overdue session, which
+  sends emergency emails to contacts. **This must be closed before
+  `RESEND_API_KEY` is set on the hosted project** (see the owner checklist).
+- `send-scheduled-emails`: not in `config.toml`, no caller check, service
+  role, sends the queued emails.
+- The six `ingest-*` functions: no caller check, service-role writes.
+- `set-guest-email` (lines 35-80): unauthenticated; anyone holding a claim
+  code can overwrite `payer_email` on a purchase in `created` or `paid`.
+- `generate-plan-wizard` (lines 108-133) and `generate-risk-insights` (lines
+  84-91): sign-in is optional, so anonymous callers skip the rate limit and
+  reach OpenAI.
+For S-01 (logs and plaintext flows): `checkin-cron` logs recipients, names
+and the first 200 characters of the email when no Resend key is set, and
+sends contact name and email and the user's name to Resend;
+`checkin-respond:59` logs the check-in token; `set-guest-email`,
+`complete-guest-purchase`, `complete-express-purchase`, `stripe-webhook` and
+`admin-manage-user` log email addresses; `generate-plan-wizard:218` logs the
+raw model response. For S-04: no function that calls an AI provider checks
+consent.
+
+**A-08.** `e2e/backend/signup-master-password.spec.ts:524` (magic-link
+sign-up) failed once and passed on retry in CI run 44281457084:
+`toHaveURL(/\/dashboard$/)` timed out after 5 seconds on the way through
+`/auth/callback`. A test that sometimes fails gets ignored.
+Accepted when: the cause is found (slow callback, or a real race in
+`AuthCallback.tsx`) and fixed where it lies; the test passes 20 times in a
+row in CI with retries off.
 
 **A-06.** Unblocks all of phase F. Run Supabase locally (CLI) in CI, seed a premium test user, and give
 Playwright a signed-in fixture. Add a way to run edge function tests.
@@ -112,7 +142,7 @@ fix it in its own change, and never bend the test around it.
 | F-05 | Panic setup, test mode, and a check-in session | F-01 | todo |
 | F-06 | Risk funnel up to the payment screen | A-01 | todo |
 | F-07 | After purchase: premium unlock, claim, onboarding | A-06 | todo |
-| F-08 | Edge functions boot on the local runtime as written | A-06 | doing |
+| F-08 | Edge functions boot on the local runtime as written | A-06 | done |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
 | F-10 | The Recovery Kit is shown after the master password is created | F-01 | todo |
 | F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
@@ -228,12 +258,16 @@ the lockfile. With the same fault in `panic-trigger` only (CI run 44280854825),
 the readiness probe passed and `functions-boot.spec.ts` failed for that one
 function with `panic-trigger answered 503: {"code":"BOOT_ERROR",...}` while
 the other 30 passed: the boot test does catch a function that cannot start.
-Not verified until the first deploy runs: the deploy itself, the deploy
-workflow changes and the deployed functions. Not verified at all: that the bundle
-the deploy uploads holds exactly the locked versions. That is inferred: the
-deploy of 2026-11-10 bundled with the same runtime image (edge-runtime
-1.78.1) that CI serves with, and in that runtime's source `bundle` finds the
-lockfile the same way `serve` does.
+Deployed on 2026-11-18. First `ingest-news` alone (run 44282761765, bundle
+860 kB against 102 kB before, so the npm packages are in it), then
+`stripe-webhook` alone, which loads all three packages (run 44283562741, 2.8
+MB), then all 31 on merge (run 44284113137): `31 booted, 0 not shown, 0
+failed`. The seven functions whose gateway requires a signed-in caller
+answered the preflight too.
+Not verified: that the uploaded bundles hold exactly the locked transitive
+versions (inferred from the shared runtime image and the bundle sizes); any
+call beyond module load on the hosted project. The owner can still run the
+three `POST` checks above.
 
 **F-09.** Found by A-06. The functions call `api.stripe.com`,
 `api.resend.com` and `api.openai.com` at fixed addresses, so a test that needs
@@ -535,6 +569,8 @@ Things only the owner can do. Each unblocks the task named.
       `index.html`, and app routes fall back to `index.html` (A-02)
 - [x] Mark each feature keep or freeze (A-03)
 - [ ] SMS provider account and key; verified email sending domain (P-02)
+- [ ] Do not set `RESEND_API_KEY` on the hosted project until A-05 has
+      closed `checkin-cron` and `send-scheduled-emails` to outside callers
 - [ ] Real-phone airplane mode test, iPhone and Android (B-05)
 - [ ] Legal review of the privacy policy and of the panic button terms, which
       must say the app does not replace emergency services (S-05)
