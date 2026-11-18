@@ -1,4 +1,5 @@
-import { test, expect, type Page, type Route } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 // Backlog A-08: following a magic link must never leave the visitor on
 // "Signing you in..." for good.

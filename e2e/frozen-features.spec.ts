@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { FROZEN_FUNCTIONS, FROZEN_ROUTES, FROZEN_STRINGS } from "../scripts/frozen-features.mjs";
 
 // Backlog A-07. The features the owner froze in A-03 are not in the build:

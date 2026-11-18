@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 // Backlog B-01. The service worker precaches the app shell on the first
 // visit, so the app opens with no network afterwards.

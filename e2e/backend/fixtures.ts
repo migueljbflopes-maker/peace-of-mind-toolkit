@@ -1,11 +1,16 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { stackFromEnv } from "../../scripts/local-supabase.mjs";
 import { createAdminClient, ensureUser, findUserByEmail } from "../../scripts/seed-local.mjs";
 import { PREMIUM_USER } from "../../scripts/test-users.mjs";
+import { test as base, expect } from "../fixtures";
 
 // Fixtures for browser tests that need a backend (backlog A-06, phase F).
 // Import `test` and `expect` from this file, not from @playwright/test.
+//
+// It extends e2e/fixtures.ts, the fixtures of every browser test, which is
+// where `blockedRequests` comes from: a page under test cannot reach anything
+// outside this machine, here as in the tests without a backend.
 //
 // A test in e2e/backend starts already signed in as the seeded premium user
 // (the session saved by auth.setup.ts). To start signed out:
@@ -41,13 +46,6 @@ interface TestFixtures {
   /** Uncaught exceptions of the page, collected from the start of the test. */
   pageErrors: string[];
   /**
-   * Requests the page tried to make to anything but this machine. They are
-   * aborted, so a browser test cannot reach Stripe, OpenAI, Google or the
-   * hosted Supabase project. A test that needs such a response mocks it with
-   * `page.route(...)`, which takes precedence over this guard.
-   */
-  blockedRequests: string[];
-  /**
    * Creates a fresh confirmed user for this test and deletes it afterwards
    * (every table references auth.users with ON DELETE CASCADE).
    */
@@ -59,8 +57,6 @@ interface TestFixtures {
    */
   clientFor: (user: Pick<TestUser, "email" | "password">) => Promise<SupabaseClient>;
 }
-
-const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   stack: [
@@ -92,21 +88,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await provide(errors);
-    },
-    { auto: true },
-  ],
-
-  blockedRequests: [
-    async ({ context }, provide) => {
-      const blocked: string[] = [];
-      await context.route(
-        (url) => /^https?:$/.test(url.protocol) && !LOCAL_HOSTS.has(url.hostname),
-        async (route) => {
-          blocked.push(route.request().url());
-          await route.abort("blockedbyclient");
-        },
-      );
-      await provide(blocked);
     },
     { auto: true },
   ],

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 // Backlog F-11: signed out, the routes behind the master password gate offer
 // sign-in instead of an empty page. Needs no backend: nobody signs in here.

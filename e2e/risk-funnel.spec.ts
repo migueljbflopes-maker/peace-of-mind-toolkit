@@ -1,4 +1,5 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test as base, expect } from "./fixtures";
 import {
   FUNNEL_URL,
   TEXT,
@@ -55,7 +56,10 @@ interface Net {
   functionCalls: FunctionCall[];
   /** Any other request to the Supabase API (auth, other tables). */
   otherSupabase: string[];
-  /** Requests to any other machine than this one. Aborted unless a test answers them. */
+  /**
+   * Requests to any other machine than this one. Aborted unless a test answers
+   * them: this is `blockedRequests` of e2e/fixtures.ts, the same list.
+   */
   thirdParty: string[];
   /** Raw bodies of every request that had one, to search for leaked answers. */
   bodies: string[];
@@ -77,7 +81,6 @@ interface StripeStubState {
 
 type Wallet = null | { applePay?: boolean; googlePay?: boolean };
 
-const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const SUPABASE_PATH = /^\/(rest|auth|functions|realtime|storage)\/v1\//;
 const CORS = {
   "access-control-allow-origin": "*",
@@ -134,8 +137,15 @@ const test = base.extend<{
   ],
 
   net: [
-    async ({ context }, provide) => {
-      const net: Net = { tracked: [], functionCalls: [], otherSupabase: [], thirdParty: [], bodies: [] };
+    // `blockedRequests` first: its route is then the one asked after this one.
+    async ({ context, blockedRequests }, provide) => {
+      const net: Net = {
+        tracked: [],
+        functionCalls: [],
+        otherSupabase: [],
+        thirdParty: blockedRequests,
+        bodies: [],
+      };
 
       await context.route(
         (url) => /^https?:$/.test(url.protocol),
@@ -171,10 +181,8 @@ const test = base.extend<{
             return route.fulfill({ status: 500, headers: CORS, contentType: "application/json", body: "{}" });
           }
 
-          if (!LOCAL_HOSTS.has(url.hostname)) {
-            net.thirdParty.push(request.url());
-            return route.abort("blockedbyclient");
-          }
+          // This machine's own files go through; anything for another machine
+          // is aborted and recorded by the guard every browser test has.
           return route.fallback();
         },
       );

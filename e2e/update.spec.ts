@@ -1,4 +1,5 @@
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { startAppServer, type AppServer } from "./helpers/appServer";
 
 // Backlog B-01, updates. A new version is downloaded in the background and
