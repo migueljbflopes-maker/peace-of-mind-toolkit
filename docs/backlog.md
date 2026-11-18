@@ -24,7 +24,7 @@ work, with tests, before wiring real payments, email and AI.
 | A-04 | Lint to zero errors, then gate CI on lint | A-01 | todo |
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
-| A-07 | Remove frozen features from the build | A-03 | doing |
+| A-07 | Remove frozen features from the build | A-03 | done |
 | A-08 | The magic-link sign-up test does not flake | A-06 | todo |
 | A-09 | Browser tests never run against another checkout's build | A-01 | todo |
 | A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
@@ -134,8 +134,11 @@ hosted project's settings.
 every feature marked freeze in A-03. Keep the code recoverable from git history.
 Accepted when: the build contains no frozen route; no reference to
 `ai.gateway.lovable.dev` or `LOVABLE_API_KEY` remains; `npm run verify` passes.
-Doing; everything but the deletion on the hosted project is finished, and
-that can only happen in the deploy that follows the merge.
+Done: the acceptance is met in CI run 44293941004 (100 unit tests, 21
+functions boot, 58 browser tests on both projects). One thing is left that
+only the deploy following the merge can do and show, the deletion of the ten
+functions from the hosted project: see "Hosted project" below for what that
+run must print.
 Removed. News ingestion and alerts: the six `ingest-*` functions, the alert
 preferences and inbox components and hooks (nothing rendered them), the
 `alerts` texts. Weekly briefing: `/news/weekly` (a "coming soon" page) and
