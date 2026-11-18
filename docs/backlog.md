@@ -327,7 +327,7 @@ fix it in its own change, and never bend the test around it.
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
-| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | done |
+| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | todo |
 | F-40 | Return addresses that are written but never read | F-30 | todo |
 | F-41 | The claim code is encoded where it is put into an address | F-30 | todo |
 | F-42 | The frozen-features page test does not wait for the network to go quiet | A-07 | todo |
@@ -622,7 +622,8 @@ never produce a link or a navigation off the site, signed out and signed in;
 a test signs in from an address whose query holds an encoded slash and is
 returned to it; the loop guard still stops `/login?return_url=/login...`;
 and return after a magic-link sign-in is walked once (it has no test).
-Done. `safeReturnPath` in `src/lib/returnUrl.ts` is the one function; the two
+Implemented; not done, because the magic-link test is not reliably green
+(below). `safeReturnPath` in `src/lib/returnUrl.ts` is the one function; the two
 copies of `sanitizeReturnUrl` are gone and `Auth.tsx` and `AuthCallback.tsx`
 (the only readers of `return_url`) call it. The rule: the value starts with
 exactly one `/`; holds no backslash and no control character (browsers turn
@@ -652,15 +653,19 @@ a magic link read from Mailpit, returns to
 signing in. Green in CI run 44301375644 (127 passed; none of these on a
 retry; the one flaky test was F-42); the commits after it merge main and edit
 this file.
-Flaky, and it is A-08: in the next run, 44303170764, the magic-link test here
+What keeps this open, and it is A-08: the magic-link test here
 (`e2e/backend/return-url.spec.ts`, "a magic link asked for from a page
-returns to that page") failed once and passed on retry. The link was
-followed, the tokens were taken from the address (it ends in a bare `#`), and
-the page was still on `/auth/callback?return_url=…` after 20 seconds, so it
-is a hang and not slowness: longer than the callback's own ten-second
-"timed out" fallback, which changes the message and not the address. The
-return address in that URL was the right one. A-08 should count this test
-as well as the sign-up one.
+returns to that page") passed first time in runs 44301375644, failed once and
+passed on retry in 44303170764, and failed twice in 44305134959, which is
+therefore red. Each time the link was followed, the tokens were taken from
+the address (it ends in a bare `#`), and the page was still on
+`/auth/callback?return_url=…` after 20 seconds, so it is a hang and not
+slowness: longer than the callback's own ten-second "timed out" fallback,
+which changes the message and not the address. The return address in that
+URL was the right one each time, and nothing F-30 changed runs before the
+session exists. The test now prints what the page shows and its console when
+this happens (`[A-08]` in the log). To close F-30: fix A-08, then re-run this
+branch; A-08 should count this test as well as the sign-up one.
 Not covered: the signed-in and magic-link tests were not seen failing on the
 old pages (no Docker locally; the unit and signed-out tests were); only
 Chromium was used. Other

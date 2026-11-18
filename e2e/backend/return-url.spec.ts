@@ -273,10 +273,23 @@ test.describe("signing in", () => {
     expect(redirectTo.pathname).toBe("/auth/callback");
     expect(redirectTo.searchParams.get("return_url")).toBe(ROUTE_WITH_ENCODED_SLASH);
 
+    const consoleLines: string[] = [];
+    page.on("console", (message) => consoleLines.push(`${message.type()}: ${message.text()}`));
     await page.goto(link);
 
     // Through /auth/callback and back to the page, signed in.
-    await expect(page).toHaveURL(endsWith(ROUTE_WITH_ENCODED_SLASH), { timeout: 20_000 });
+    try {
+      await expect(page).toHaveURL(endsWith(ROUTE_WITH_ENCODED_SLASH), { timeout: 20_000 });
+    } catch (error) {
+      // Backlog A-08: the callback sometimes never leaves. Say what the user
+      // is looking at when it happens, then fail as before.
+      console.log(
+        `[A-08] still on ${page.url()}\n[A-08] the page shows: ${JSON.stringify(
+          await page.locator("body").innerText(),
+        )}\n[A-08] console:\n${consoleLines.join("\n")}`,
+      );
+      throw error;
+    }
     await expect(unlockTitle(page)).toBeVisible();
     await expect(signInCardButton(page)).toHaveCount(0);
     expect(new URL(page.url()).searchParams.get("next")).toBe("/x");
