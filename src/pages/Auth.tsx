@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { z } from 'zod';
+import { DEFAULT_RETURN_PATH, safeReturnPath } from '@/lib/returnUrl';
 
 const emailSchema = z.string().trim().email({ message: 'Please enter a valid email address' }).max(255);
 const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters' });
@@ -21,28 +22,11 @@ const passwordSchema = z.string().min(6, { message: 'Password must be at least 6
 type AuthMode = 'login' | 'signup';
 type AuthMethod = 'magic-link' | 'password';
 
-// Sanitize return_url to prevent redirect loops
-const sanitizeReturnUrl = (url: string): string => {
-  // Block login/auth pages to prevent loops
-  if (url.startsWith('/login') || url.startsWith('/auth')) {
-    return '/dashboard';
-  }
-  // Block already-encoded URLs (indicates loop)
-  if (url.includes('%2F') || url.includes('%252F')) {
-    return '/dashboard';
-  }
-  // Must start with / and not be empty
-  if (!url || !url.startsWith('/')) {
-    return '/dashboard';
-  }
-  return url;
-};
-
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const rawReturnUrl = searchParams.get('return_url') || '/dashboard';
-  const returnUrl = sanitizeReturnUrl(rawReturnUrl);
+  // The only address this page navigates or links to after sign-in (F-30).
+  const returnUrl = safeReturnPath(searchParams.get('return_url'));
   
   const { t } = useLocale();
   const { toast } = useToast();
@@ -433,7 +417,7 @@ export default function Auth() {
                 </div>
               )}
               
-              {returnUrl !== '/dashboard' && (
+              {returnUrl !== DEFAULT_RETURN_PATH && (
                 <div className="mt-6 pt-4 border-t border-border">
                   <Link 
                     to={returnUrl}

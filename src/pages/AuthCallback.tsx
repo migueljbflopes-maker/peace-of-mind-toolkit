@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { safeReturnPath } from '@/lib/returnUrl';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -11,27 +12,6 @@ export default function AuthCallback() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const processedRef = useRef(false);
-
-  // Validate and sanitize return URL (security + loop prevention)
-  const sanitizeReturnUrl = (url: string): string => {
-    // Block login/auth pages to prevent loops
-    if (!url || url.startsWith('/login') || url.startsWith('/auth')) {
-      return '/dashboard';
-    }
-    // Block already-encoded URLs (indicates loop)
-    if (url.includes('%2F') || url.includes('%252F')) {
-      return '/dashboard';
-    }
-    // Must start with / and not //
-    if (!url.startsWith('/') || url.startsWith('//')) {
-      return '/dashboard';
-    }
-    // Block javascript/data URLs
-    if (url.toLowerCase().includes('javascript:') || url.toLowerCase().includes('data:')) {
-      return '/dashboard';
-    }
-    return url;
-  };
 
   useEffect(() => {
     // Prevent double-processing in React Strict Mode
@@ -70,7 +50,7 @@ export default function AuthCallback() {
           
           if (data.session) {
             setStatus('success');
-            const safeReturnUrl = sanitizeReturnUrl(searchParams.get('return_url') || '/dashboard');
+            const safeReturnUrl = safeReturnPath(searchParams.get('return_url'));
             
             // Clear hash from URL before redirect
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -93,7 +73,7 @@ export default function AuthCallback() {
         
         if (data.session) {
           setStatus('success');
-          const safeReturnUrl = sanitizeReturnUrl(searchParams.get('return_url') || '/dashboard');
+          const safeReturnUrl = safeReturnPath(searchParams.get('return_url'));
           
           setTimeout(() => {
             navigate(safeReturnUrl, { replace: true });
@@ -105,7 +85,7 @@ export default function AuthCallback() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
           if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
             setStatus('success');
-            const safeReturnUrl = sanitizeReturnUrl(searchParams.get('return_url') || '/dashboard');
+            const safeReturnUrl = safeReturnPath(searchParams.get('return_url'));
             
             setTimeout(() => {
               navigate(safeReturnUrl, { replace: true });
