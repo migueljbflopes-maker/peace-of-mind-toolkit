@@ -327,7 +327,10 @@ fix it in its own change, and never bend the test around it.
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
-| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | todo |
+| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | done |
+| F-40 | Return addresses that are written but never read | F-30 | todo |
+| F-41 | The claim code is encoded where it is put into an address | F-30 | todo |
+| F-42 | The frozen-features page test does not wait for the network to go quiet | A-07 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -619,6 +622,72 @@ never produce a link or a navigation off the site, signed out and signed in;
 a test signs in from an address whose query holds an encoded slash and is
 returned to it; the loop guard still stops `/login?return_url=/login...`;
 and return after a magic-link sign-in is walked once (it has no test).
+Done. `safeReturnPath` in `src/lib/returnUrl.ts` is the one function; the two
+copies of `sanitizeReturnUrl` are gone and `Auth.tsx` and `AuthCallback.tsx`
+(the only readers of `return_url`) call it. The rule: the value starts with
+exactly one `/`; holds no backslash and no control character (browsers turn
+`\` into `/` and delete tabs and newlines before reading an address);
+resolved against the app's origin by the URL parser it stays on that origin
+and its path does not begin with `//` (what `/.//host` becomes, and what the
+router would then follow); its path is not `/login` or under `/auth`, in any
+letter case; and all of that still holds after the path is percent-decoded
+until it stops changing (undecodable, or more than five layers deep, is
+refused). Anything else gives `/dashboard`. The query string and hash are
+kept as given, which is what lets `?next=%2Fx` through. Each reader decodes
+the value once (`URLSearchParams`); the magic-link callback is not a second
+decode, because `signInWithMagicLink` encodes once more before it.
+Tests: `src/lib/returnUrl.test.ts` (93 cases; 48 failed on the old
+behaviour, among them `//host`, `/\host`, `/%5Chost`, the control characters
+and the encoded slash in a query); `e2e/return-url.spec.ts`, signed out, no
+backend (21 tests, 13 failed on the old pages): twelve hostile addresses give
+no "back" link, no link the plain sign-in page does not have, and no request
+or navigation to the other site; the encoded-slash address is kept from the
+sign-in card to the way back; the sign-in page is never offered as the way
+back; `e2e/backend/return-url.spec.ts` (33 tests): signed in, `/login` and
+`/auth/callback` go to the dashboard for the same twelve addresses, with
+nothing in `blockedRequests` for the other site; signing in by password on a
+hostile address lands on the dashboard; signing in by password, and once by
+a magic link read from Mailpit, returns to
+`/premium/plans/wizard?next=%2Fx&plan=B`; the loop guard, signed in and
+signing in. Green in CI run 44301375644 (127 passed; none of these on a
+retry; the one flaky test was F-42); the commits after it merge main and edit
+this file.
+Not covered: the signed-in and magic-link tests were not seen failing on the
+old pages (no Docker locally; the unit and signed-out tests were); only
+Chromium was used. Other
+redirect surfaces, read and left alone because none reads `return_url`: the
+Stripe success and cancel addresses are built in the edge functions from
+`APP_URL` (the client sends only `source`); `stripe.confirmPayment` and every
+`emailRedirectTo` start from `window.location.origin`; `/claim` and
+`/purchase-success` send their query parameters to edge functions and never
+navigate to them. Found on the way: F-40, F-41, F-42.
+
+**F-40.** Found by F-30. Three places name an address to come back to and
+nothing reads it, so the user lands somewhere else:
+`PreparednessJourney.tsx:327` sends to `/pricing?return_url=…` and the pricing
+page never reads it; `panic/Test.tsx:41` and `panic/History.tsx:87` redirect
+to `/login` with `state.returnUrl`, which the sign-in page ignores (it reads
+only the query string), so signing in from there ends on the dashboard; a
+password sign-up that needs email confirmation returns to `/`
+(`AuthContext.tsx`, `emailRedirectTo`), not to the address in `return_url`.
+Accepted when: each either returns the user to the address, through
+`safeReturnPath` and nothing else, or stops naming one; a browser test for
+each that is kept.
+
+**F-41.** Found by F-30. The claim code from `/claim?claim=…` (or from
+`localStorage`) is put into addresses without encoding:
+`Claim.tsx:110` and `StripeGuestWalletModal.tsx:112,155,336,361`
+(`${origin}/claim?claim=${claimCode}`), and
+`/purchase-success?claim_code=${claimCode}` in the risk funnels. The origin
+is fixed, so this cannot leave the site, but a code containing `&` or `#`
+changes the address that is built. Accepted when: every such place uses
+`encodeURIComponent`, with a unit test.
+
+**F-42.** Seen in CI run 44301375644 on the F-30 branch:
+`e2e/frozen-features.spec.ts:101` timed out at
+`page.waitForLoadState("networkidle")` after 30 seconds and passed on retry.
+Accepted when: the test waits for what it reads instead of for the network,
+and passes 20 times in a row in CI with retries off.
 
 **F-12.** Found by F-08. Nothing type-checks the edge functions: CI resolves
 their imports (`deno cache --frozen`) and boots them, but a call with the
