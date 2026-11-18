@@ -316,7 +316,7 @@ fix it in its own change, and never bend the test around it.
 | F-08 | Edge functions boot on the local runtime as written | A-06 | done |
 | F-09 | Tests can stand in for Stripe, Resend and OpenAI inside edge functions | A-06 | todo |
 | F-10 | The Recovery Kit is shown after the master password is created | F-01 | done |
-| F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | todo |
+| F-11 | Signed out, the routes behind the master password gate offer sign-in | F-01 | done |
 | F-12 | Edge functions are type-checked in CI | F-08 | todo |
 | F-13 | One way to start a function: `Deno.serve`, no `deno.land` imports | F-08 | todo |
 | F-14 | `[DECISION]` Accounts that never saw their Recovery Kit are led to create one | F-10 | todo |
@@ -324,6 +324,7 @@ fix it in its own change, and never bend the test around it.
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
+| F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -566,6 +567,55 @@ Accepted when: "signed out, the vault address offers a way to sign in instead
 of an empty page" in `e2e/backend/signup-master-password.spec.ts` passes with
 its `test.fail` removed, extended to the other four routes; after signing in
 from there the user is returned to the route they asked for.
+Done. `MasterKeyGate` handles the visitor itself; `src/App.tsx` is unchanged.
+While the session is being restored it shows a spinner; signed out, the
+navigation bar, a card "Sign in to continue" (`LoginGateCard`, strings in
+`signedOutGate`) and the footer; the card leads to
+`/login?return_url=<path and query>` and the sign-in page returns there. A
+card and not an immediate redirect, because that is what the five pages were
+written to do. The page is not mounted for a signed-out visitor, so each
+page's own `LoginGateCard` branch stays unreachable on these routes. Who is
+signed in is read from auth, not from the key status, which follows auth one
+render late. The order for a signed-in user is unchanged (master password
+before the paywall, as noted in Phase U).
+Tests: `src/components/security/MasterKeyGate.signedOut.test.tsx` (signed
+out, loading, signing in); `e2e/signed-out-gate.spec.ts` (the five routes in
+the real build, no backend); in `e2e/backend/signup-master-password.spec.ts`
+the F-11 test, unmarked, over the five routes, and five tests that sign in
+from the card and are returned to the route (the wizard with a query
+string), asked to unlock, and let in. Green in CI run 44295362073, first
+attempt (72 passed, none on a retry); the commit after it only edits this
+file.
+Not covered: the return after a magic-link sign-in; Portuguese not read by a
+native speaker on the screen. Found on the way: F-30.
+
+**F-30.** Found by F-11, by reading `sanitizeReturnUrl` in
+`src/pages/Auth.tsx` and `src/pages/AuthCallback.tsx`; not walked in a test.
+A return address that contains `%2F` after decoding is treated as a redirect
+loop and replaced by `/dashboard`. An address whose own query string holds an
+encoded slash (`/premium/plans/wizard?next=%2Fx`) is therefore lost at
+sign-in. No route in the app builds such an address today.
+**Open redirect, found by the verifier of F-11 and reproduced in the build
+(2026-11-18). Fix this first; it is a security defect.** `sanitizeReturnUrl`
+in `src/pages/Auth.tsx:25-39` only requires a leading `/`:
+- `/login?return_url=//example.com` renders "Back to where I was" with
+  `href="//example.com"`.
+- `/login?return_url=/\example.com` does the same, and for a visitor who is
+  already signed in the page navigates to `http://example.com/` by itself.
+- `javascript:` and `https://` are refused. The copy of the function in
+  `AuthCallback.tsx` blocks `//` but not `/\`.
+A link to the real site can therefore send a signed-in user to a look-alike
+page. There must be one function, used by both pages, that accepts only a
+path on this origin (resolve against the origin and compare, rather than
+matching prefixes).
+Accepted when: one shared function with unit tests covering `//host`,
+`/\host`, encoded forms of both, `javascript:`, absolute URLs, control
+characters and a normal path with query; browser tests that
+`/login?return_url=//example.com` and `/login?return_url=/\example.com`
+never produce a link or a navigation off the site, signed out and signed in;
+a test signs in from an address whose query holds an encoded slash and is
+returned to it; the loop guard still stops `/login?return_url=/login...`;
+and return after a magic-link sign-in is walked once (it has no test).
 
 **F-12.** Found by F-08. Nothing type-checks the edge functions: CI resolves
 their imports (`deno cache --frozen`) and boots them, but a call with the
@@ -788,7 +838,16 @@ that also detects "connected but the server is unreachable".
 Accepted when: no direct read of `navigator.onLine` remains outside the hook;
 the hook has unit tests for online, offline and unreachable.
 
-**B-03.** Accepted when: a browser test signs in online, goes offline, reopens
+**B-03.** Measured by the verifier of F-11 in a real build: offline with a
+stored session whose access token has expired, a signed-in user gets the
+sign-in card after 3 seconds and it stays (before F-11 it was a blank page);
+offline with a valid token, the master password screen shows "Security error
+TypeError: Failed to fetch". So today the vault cannot be unlocked offline at
+all, and the auth loading timeout treats "could not refresh" as "signed out".
+Also from that review: a unit test should pin that a signed-in user never
+sees the sign-in card for one render, or the comment in `MasterKeyGate.tsx`
+claiming it should go.
+Accepted when: a browser test signs in online, goes offline, reopens
 the app in a new tab, unlocks the vault with the password and reads a saved
 section. An edit made offline syncs after reconnecting.
 

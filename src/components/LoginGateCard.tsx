@@ -8,9 +8,11 @@ interface LoginGateCardProps {
   className?: string;
   compact?: boolean;
   feature?: string;
+  /** Replaces the default "create a free account to save your progress" line. */
+  description?: string;
 }
 
-export function LoginGateCard({ className, compact = false, feature }: LoginGateCardProps) {
+export function LoginGateCard({ className, compact = false, feature, description }: LoginGateCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLocale();
@@ -48,7 +50,7 @@ export function LoginGateCard({ className, compact = false, feature }: LoginGate
           </div>
           <CardTitle className="text-base">{feature || t.auth.saveAndContinue}</CardTitle>
         </div>
-        <CardDescription>{t.auth.saveAndContinueDesc}</CardDescription>
+        <CardDescription>{description ?? t.auth.saveAndContinueDesc}</CardDescription>
       </CardHeader>
       <CardContent>
         <Button onClick={handleLogin} className="w-full">

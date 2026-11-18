@@ -426,6 +426,11 @@ export const translations = {
       saveAndContinueDesc: 'Create a free account to save your progress across devices.',
       loginOrCreate: 'Log in / Create account',
     },
+    // Signed out on a route behind the master password gate (backlog F-11)
+    signedOutGate: {
+      title: 'Sign in to continue',
+      description: 'This page is part of your account. Sign in to open it.',
+    },
     // Onboarding
     onboarding: {
       title: 'Premium Setup',
@@ -920,6 +925,11 @@ export const translations = {
       saveAndContinue: 'Guardar & continuar depois',
       saveAndContinueDesc: 'Cria uma conta gratuita para guardar o teu progresso entre dispositivos.',
       loginOrCreate: 'Entrar / Criar conta',
+    },
+    // Sem sessão numa rota atrás da Master Password (backlog F-11)
+    signedOutGate: {
+      title: 'Inicia sessão para continuar',
+      description: 'Esta página faz parte da tua conta. Inicia sessão para a abrires.',
     },
     // Onboarding
     onboarding: {

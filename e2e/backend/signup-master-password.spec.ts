@@ -401,18 +401,89 @@ test("a wrong master password is refused with a clear message and the right one 
 
 // ── Signed out ──────────────────────────────────────────────────────────────
 
+// Backlog F-11. Every route behind the master password gate (src/App.tsx).
+const GATED_ROUTES = [
+  "/premium/vault",
+  "/premium/plans",
+  "/premium/plans/wizard?plan=B&from=pricing",
+  "/premium/red-folder",
+  "/premium/backup",
+];
+
+const endsWith = (route: string) => new RegExp(`${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+const signInCardButton = (page: Page) => page.getByRole("button", { name: "Log in / Create account" });
+const signInCardTitle = (page: Page) => page.getByRole("heading", { name: "Sign in to continue" });
+
 test("signed out, the vault address offers a way to sign in instead of an empty page", async ({
   page,
   pageErrors,
 }) => {
-  test.fail(true, "Backlog F-11: signed out, the routes behind the master password gate render an empty page.");
-  await page.goto("/premium/vault");
-  // Either the vault's own sign-in card or the sign-in page.
-  await expect(page.getByRole("button", { name: /Log in \/ Create account|Send magic link/ })).toBeVisible();
-  await expect(openVault(page)).toHaveCount(0);
-  await expect(unlockTitle(page)).toHaveCount(0);
+  for (const route of GATED_ROUTES) {
+    await test.step(route, async () => {
+      await page.goto(route);
+      // Either the vault's own sign-in card or the sign-in page.
+      await expect(page.getByRole("button", { name: /Log in \/ Create account|Send magic link/ })).toBeVisible();
+      await expect(openVault(page)).toHaveCount(0);
+      await expect(unlockTitle(page)).toHaveCount(0);
+      // It is the card, on the address that was asked for, under the normal
+      // navigation bar; and no master password is asked of a visitor.
+      await expect(page).toHaveURL(endsWith(route));
+      await expect(page.getByRole("button", { name: "Toggle menu" })).toBeVisible();
+      await expect(signInCardTitle(page)).toBeVisible();
+      await expect(signInCardButton(page)).toBeVisible();
+      await expect(page.getByText("Create your Master Password")).toHaveCount(0);
+    });
+  }
   expect(pageErrors).toEqual([]);
 });
+
+for (const route of GATED_ROUTES) {
+  test(`signing in from ${route} returns to it, and only then is the master password asked for`, async ({
+    page,
+    admin,
+    createUser,
+    pageErrors,
+  }) => {
+    const user = await createUser({ premium: true });
+    const masterPassword = `master-${Math.random().toString(36).slice(2, 10)}-Come-Back`;
+    const inserted = await admin.from("user_vault_keys").insert(await wrappedKeyRow(user.id, masterPassword));
+    expect(inserted.error).toBeNull();
+
+    await page.goto(route);
+    await signInCardButton(page).click();
+    await expect(page).toHaveURL(endsWith(`/login?return_url=${encodeURIComponent(route)}`));
+
+    // Signs in on the page the card led to (not by opening /login afresh).
+    await page.getByRole("tab", { name: "Password" }).click();
+    await page.locator("#password-email").fill(user.email);
+    await page.locator("#password").fill(user.password);
+    const [response] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/auth/v1/token") && r.request().method() === "POST"),
+      page.locator("form").filter({ has: page.locator("#password") }).locator('button[type="submit"]').click(),
+    ]);
+    expect(response.status(), `sign-in was refused: ${await response.text()}`).toBe(200);
+
+    // Back on the address that was asked for, query string and all; signed in,
+    // so the gate now asks for the master password and shows nothing else.
+    await expect(page).toHaveURL(endsWith(route));
+    await expect(unlockTitle(page)).toBeVisible();
+    await expect(signInCardButton(page)).toHaveCount(0);
+    await expect(openVault(page)).toHaveCount(0);
+
+    // A reload restores the session: the sign-in card must not come back.
+    await page.reload();
+    await expect(unlockTitle(page)).toBeVisible();
+    await expect(page).toHaveURL(endsWith(route));
+    await expect(signInCardTitle(page)).toHaveCount(0);
+
+    // The master password opens the page that was asked for, under its bar.
+    await unlockWith(page, masterPassword);
+    await expect(unlockTitle(page)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Toggle menu" })).toBeVisible();
+    await expect(signInCardTitle(page)).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+  });
+}
 
 // ── Magic link ──────────────────────────────────────────────────────────────
 
