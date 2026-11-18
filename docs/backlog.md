@@ -327,12 +327,12 @@ fix it in its own change, and never bend the test around it.
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
 | F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
-| F-20 | The funnel's score stays within 0 to 100 and every risk category can be reached | F-06 | todo |
-| F-21 | Checkout opens from the funnel when Stripe.js has not loaded | F-06 | todo |
-| F-22 | The funnel resumes where the visitor left off | F-06 | todo |
-| F-23 | The visitor can go back one question in the funnel | F-06 | todo |
+| F-20 | The funnel's score stays within 0 to 100 and every risk category can be reached | A-01 | todo |
+| F-21 | Checkout opens from the funnel when Stripe.js has not loaded | A-01 | todo |
+| F-22 | The funnel resumes where the visitor left off | A-01 | todo |
+| F-23 | The visitor can go back one question in the funnel | A-01 | todo |
 | F-24 | The price has one source, and the price charged is checked against it | F-09 | todo |
-| F-25 | `[DECISION]` The funnel's sales claims: keep only what is true | F-06 | todo |
+| F-25 | `[DECISION]` The funnel's sales claims: keep only what is true | A-01 | todo |
 | F-30 | The return address after sign-in cannot leave the site, and survives an encoded slash | F-11 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
@@ -380,9 +380,10 @@ Tested by `e2e/risk-funnel.spec.ts` (22 tests, no backend needed: everything
 the funnel sends is answered at the network edge and the request is what is
 asserted) and `e2e/backend/risk-funnel.spec.ts` (2 tests: the analytics rows
 as stored on the local stack; the real `create-guest-checkout` refused by
-Stripe). Green in CI run 44299277160 (96 passed, the seven known failures
-among them). Status is `doing`, not done, because two acceptance points are
-open:
+Stripe). Green in CI: see the pull request of F-06 (#15) for the run of its
+last commit. Status stays `doing`, not done, and F-06 closes when F-22 is
+done: F-22 does not wait for F-06, its tests are already here. Two
+acceptance points are open:
 
 - "Resumes where the user left off" is not true: F-22. Three tests are marked
   `test.fail` for it. What does hold, and is tested: after a reload in the
@@ -814,8 +815,14 @@ supply for 3+ days is essential" for a visitor who skipped them.
 The owner chooses the scale; the tests only require it to be coherent.
 Accepted when: `the score never goes above the 100 it is shown out of` and
 `the best answers the funnel accepts are rated Low` in
-`e2e/risk-funnel.spec.ts` pass without `test.fail`, and the expected scores
-in that file's table are updated by hand to the new rules.
+`e2e/risk-funnel.spec.ts` pass without `test.fail`. The tests that change
+with the fix, all in that file, and no others: those two; and, if the rules
+change the numbers, the three `...: the result shown is the one the answers
+give` tests and `on a Portuguese phone`, whose expected score, level and
+reasons come from the `CASES` table and are to be worked out again by hand
+from the new rules. `the connection drops before the analysing screen` reads
+the same table. No other test names a score: the two that check the
+analytics row compare what is sent with what is shown.
 
 **F-21.** Found by F-06. When Stripe.js cannot be loaded (a content blocker,
 a network that blocks `js.stripe.com`, a connection that drops), pressing
@@ -840,13 +847,28 @@ Cause: the step is React state only (`RiskFunnel.tsx:82`); the answers are in
 `sessionStorage` (lines 88 and 215), which a new tab does not share; and
 `create-guest-checkout` sends Stripe the return address
 `/riskfunnel?purchase=cancel`, which the funnel never reads. There is also
-no "start over". Where the answers are kept is a privacy question too (see
-F-06): decide it together with phase S.
+no "start over".
+Two parts, so that the first needs no decision:
+(a) Same tab: reload, and return from Stripe. Keeping the step next to the
+answers in `sessionStorage` is enough and changes nothing about where data
+lives.
 Accepted when: `after a reload the visitor is on the question they had
-reached`, `closing the tab and opening the funnel again resumes with the
-answers` and `coming back from Stripe's page without paying returns to the
+reached` and `coming back from Stripe's page without paying returns to the
 result, not to question 1` in `e2e/risk-funnel.spec.ts` pass without
-`test.fail`; then F-06 can be closed.
+`test.fail`. With (a) done, F-06 can be closed if the owner decides (b) as
+"a new tab starts empty".
+(b) `[DECISION]` A new tab. Where the answers are kept is for the owner and
+the privacy review: either `sessionStorage` only, as now, and then a closed
+tab starts empty and that is the intended behaviour; or storage that
+outlives the tab, which keeps a city, a postal code and "medical needs" on
+the device in plain text until removed. The two tests follow the decision:
+with the first, `closing the tab and opening the funnel again resumes with
+the answers` is rewritten to expect an empty start and loses its
+`test.fail`; with the second it passes as written, and the last lines of
+`what the funnel keeps on the device, and where`, which today require that
+nothing of the answers is in `localStorage`, are rewritten to say what is
+kept, for how long, and that "start over" removes it.
+Accepted when: the decision is recorded here and both tests agree with it.
 
 **F-23.** Found by F-06. There is no way back inside the funnel. A visitor
 who tapped the wrong answer cannot return to it: the screens have no Back
@@ -857,11 +879,16 @@ Cause: the steps are not in the browser history and
 Accepted when: `the browser's Back button returns to the previous question`
 in `e2e/risk-funnel.spec.ts` passes without `test.fail`.
 
-**F-24.** Found by F-06. The price is written in about thirty places and no
-test can say what a buyer is charged. The visitor sees "€49" (`priceNow={49}`
-in `RiskFunnel.tsx:307`, and as text in `RiskOfferModal.tsx:176-177`,
-`Pricing.tsx`, `translations.ts` as "49€", the FAQ, the Terms, the paywall
-and dashboard buttons, three email templates under `supabase/functions`).
+**F-24.** Found by F-06. The price is written out again and again, and no
+test can say what a buyer is charged. On main after A-07,
+`grep -rnE "€ ?49|49 ?€|4900|priceNow|priceWas" src supabase/functions`
+gives 47 lines in 26 files (generated types left out; a handful are
+comments or the crossed-out €120). The visitor sees "€49": `priceNow={49}`
+in `RiskFunnel.tsx:307`, with the same default in `RiskOfferModal.tsx:44`
+and as text at `:176-177`; `Pricing.tsx`; `translations.ts` as "49€" (lines
+51-53 and 550-552); the FAQ, the Terms, the paywall and dashboard buttons,
+the free calculator and the supplies planner; the admin email preview; and
+three email templates under `supabase/functions`.
 The wallet path charges `amount: 4900, currency: "eur"`, written once in the
 browser (`RiskFunnel.tsx:134-135`, what the wallet sheet shows) and again in
 `create-payment-intent/index.ts:55-56` (what is charged) and `:81-82` (what
@@ -883,8 +910,7 @@ offer: "Discount expires in 10:00", a countdown that restarts every time the
 offer is opened and, at zero, disables the buy button (`RiskOfferModal.tsx`,
 `disabled={loading || secondsLeft === 0}`) while the price stays €49; a
 crossed-out "€120" that was never the price (`priceWas={120}`); "Works
-offline after purchase", which phase B has not yet made true; "Consult
-experts for guidance". The analysing screen shows "Checking location
+offline after purchase", which phase B has not yet made true. The analysing screen shows "Checking location
 context" while nothing is checked, and the first reason on every result is
 "Location in <city> presents specific risks" whatever the city.
 Needed from the owner: for each claim, the evidence, or the decision to

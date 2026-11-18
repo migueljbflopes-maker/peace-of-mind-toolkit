@@ -664,27 +664,42 @@ test.describe("leaving midway and returning", () => {
   const SELECTED = /(^|\s)border-primary(\s|$)/;
 
   test("after a reload the answers given so far are still filled in", async ({ page }) => {
+    // Three questions answered, the third not yet confirmed.
     await page.goto(FUNNEL_URL);
-    await answerFirstHalf(page, a);
-    await expect(heading(page, TEXT.en.interstitial1)).toBeVisible();
+    await answerLocation(page, a);
+    await nextButton(page).click();
+    await answerHome(page, a);
+    await nextButton(page).click();
+    await answerHousehold(page, a);
 
     await page.reload();
 
-    // Wherever the visitor lands, going forward shows the earlier answers.
-    await expect(heading(page, TEXT.en.q1)).toBeVisible();
-    await expect(page.getByRole("combobox")).toHaveText("Portugal");
-    await expect(page.getByPlaceholder(TEXT.en.cityPlaceholder)).toHaveValue(a.city);
-    await expect(page.getByPlaceholder(TEXT.en.postalPlaceholder)).toHaveValue(a.postalCode!);
-    await nextButton(page).click();
-    await expect(page.getByRole("button", { name: "Apartment" })).toHaveClass(SELECTED);
-    await expect(page.getByRole("button", { name: "5+" })).toHaveClass(SELECTED);
-    await nextButton(page).click();
+    // This test does not say on which question the visitor lands (that is
+    // F-22): it starts from whichever of the three is shown and goes forward
+    // from there, and on each one it meets the earlier answer must be there.
+    const q1 = heading(page, TEXT.en.q1);
+    const q2 = heading(page, TEXT.en.q2);
+    const q3 = heading(page, TEXT.en.q3);
+    await expect(q1.or(q2).or(q3)).toBeVisible();
+
+    if (await q1.isVisible()) {
+      await expect(page.getByRole("combobox")).toHaveText("Portugal");
+      await expect(page.getByPlaceholder(TEXT.en.cityPlaceholder)).toHaveValue(a.city);
+      await expect(page.getByPlaceholder(TEXT.en.postalPlaceholder)).toHaveValue(a.postalCode!);
+      await nextButton(page).click();
+      await expect(q2).toBeVisible();
+    }
+    if (await q2.isVisible()) {
+      await expect(page.getByRole("button", { name: "Apartment" })).toHaveClass(SELECTED);
+      await expect(page.getByRole("button", { name: "5+" })).toHaveClass(SELECTED);
+      await expect(page.getByRole("button", { name: "House" })).not.toHaveClass(SELECTED);
+      await nextButton(page).click();
+    }
+    await expect(q3).toBeVisible();
     for (const tag of ["Kids", "Elderly", "Medical needs", "Living alone"]) {
       await expect(page.getByRole("button", { name: tag })).toHaveClass(SELECTED);
     }
     await expect(page.getByRole("button", { name: "Pets" })).not.toHaveClass(SELECTED);
-    await nextButton(page).click();
-    await expect(page.getByRole("button", { name: "Never" })).toHaveClass(SELECTED);
   });
 
   test("after a reload the visitor is on the question they had reached", async ({ page }) => {
@@ -860,6 +875,7 @@ test.describe("on a Portuguese phone", () => {
 test("before payment: who is contacted, and what is sent", async ({ page, net, pageErrors }) => {
   const a = WORST_CASE;
   await walkToResult(page, a);
+  const shown = await readResult(page);
   const offer = await openOffer(page);
   await offer.getByRole("button", { name: TEXT.en.offerCta }).click();
   await expect(page.getByText(TEXT.en.checkoutError)).toBeVisible();
@@ -910,9 +926,11 @@ test("before payment: who is contacted, and what is sent", async ({ page, net, p
   // Which step was seen and which was completed: no answers.
   expect(of("step_view")).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(step));
   expect(of("step_complete")).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9].map(step));
-  // The one row derived from the answers: the result, when "START NOW" is pressed.
+  // The one row derived from the answers: the result, when "START NOW" is
+  // pressed. What is sent is what the visitor was shown, whatever that is.
+  expect(shown.level).toBe("High");
   expect(usage.filter((row) => row.action === "checkout_click").map((row) => row.metadata)).toEqual([
-    { funnel: "riskfunnel", risk_level: "high", score: 110 },
+    { funnel: "riskfunnel", risk_level: shown.level.toLowerCase(), score: shown.score },
   ]);
   expect(usage).toHaveLength(10 + 9 + 1);
 

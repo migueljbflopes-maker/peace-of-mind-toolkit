@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { TEXT, type Answers, walkToResult } from "../helpers/riskFunnel";
+import { TEXT, type Answers, readResult, walkToResult } from "../helpers/riskFunnel";
 
 // Backlog F-06, the part that needs a real backend. The funnel itself is
 // tested in e2e/risk-funnel.spec.ts with the network answered by the test;
@@ -37,6 +37,7 @@ test("a visitor's walk through the funnel stores which steps were seen, and none
   // "START NOW" ends in the error message (backlog F-21) and no function is
   // called. The analytics rows are written all the same.
   await walkToResult(page, ANSWERS);
+  const shown = await readResult(page);
   await page.getByRole("button", { name: TEXT.en.viewResults }).click();
   const offer = page.getByRole("dialog");
   await offer.getByRole("button", { name: TEXT.en.offerCta }).click();
@@ -63,9 +64,11 @@ test("a visitor's walk through the funnel stores which steps were seen, and none
     expect(row.user_id).toBeNull();
   }
   const click = (usage.data ?? []).filter((row) => row.action === "checkout_click");
-  // exposure 35 + 10 + 12 + 8 + 10 + 12 = 87, capped at 70; gap 12 + 8 + 6 +
-  // 4 + 4 + 8 = 42, capped at 40.
-  expect(click.map((row) => row.metadata)).toEqual([{ funnel: "riskfunnel", risk_level: "high", score: 110 }]);
+  // The result stored is the result the visitor was shown, whatever it is.
+  expect(shown.level).toBe("High");
+  expect(click.map((row) => row.metadata)).toEqual([
+    { funnel: "riskfunnel", risk_level: shown.level.toLowerCase(), score: shown.score },
+  ]);
 
   const views = await admin.from("page_views").select("*").eq("session_id", sessionId);
   expect(views.error).toBeNull();
