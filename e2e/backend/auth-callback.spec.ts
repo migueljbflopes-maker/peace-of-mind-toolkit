@@ -53,6 +53,20 @@ function recordVerifyRedirects(page: Page): string[] {
   page.on("response", (response) => {
     if (!response.url().includes("/auth/v1/verify")) return;
     redirects.push(`${response.status()} ${response.headers()["location"] ?? "(no location)"}`);
+    if (response.status() < 300 || response.status() > 399) {
+      // DIAGNOSTIC (A-12): what answers here when it is not a redirect.
+      const request = response.request();
+      response
+        .text()
+        .catch((error) => `(no body: ${error})`)
+        .then((body) =>
+          console.log(
+            `[A-12 diag] ${request.method()} ${response.url()} -> ${response.status()} ` +
+              `fromSW=${response.fromServiceWorker()} nav=${request.isNavigationRequest()} ` +
+              `type=${request.resourceType()} headers=${JSON.stringify(response.headers())} body=${body.slice(0, 600)}`,
+          ),
+        );
+    }
   });
   return redirects;
 }
@@ -155,6 +169,8 @@ test.describe("signed out", () => {
     await page.goto(link);
     expect(redirects).toHaveLength(2);
     console.log(`[A-12] a sign-in link used twice: the auth server answers ${redirects[1]}`);
+    await page.waitForTimeout(1_500);
+    console.log(`[A-12 diag] page at ${page.url()} shows ${JSON.stringify((await page.locator("body").innerText()).slice(0, 400))}`);
     const second = refusal(redirects[1]);
     expect(second.path).toBe("/auth/callback");
     expect(second.returnUrl).toBe(GATED_ROUTE);
