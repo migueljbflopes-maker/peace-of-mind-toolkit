@@ -165,6 +165,7 @@ fix it in its own change, and never bend the test around it.
 | F-15 | One set of rules and words for the master password everywhere it is created | F-10 | todo |
 | F-16 | The vault locks itself after a period of inactivity (required before launch) | F-10 | todo |
 | F-17 | An abandoned Recovery Kit file cannot be mistaken for a real one | F-10 | todo |
+| F-18 | Recovery Kit: small follow-ups from the second review of F-10 | F-10 | todo |
 
 **F-01.** Accepted when: a browser test creates an account, lands signed in,
 sets a master password, signs out, signs in again and unlocks with that
@@ -510,6 +511,27 @@ same day.
 Accepted when: a browser test abandons a kit step after saving the file and
 shows, from the file alone or from the app, that the file is not a live kit;
 and a file from a finished step is identifiable as the live one.
+
+**F-18.** From the verifier's second review of F-10 (2026-11-18); none of it
+blocked the merge.
+- A write that is still in flight when the read-back happens is reported as
+  "could not save" and then lands. It cannot be ruled out from the device.
+  The notes are hedged for it, but renewing a kit still offers "Cancel and
+  keep my current kit" in that case. Decide the wording or drop the offer
+  after any failed save.
+- `RecoveryKitPanel.tsx:98` clears the failure when a retry starts, so the
+  "keeps working" note and a disabled cancel button show again while saving.
+  Keep the unknown state until a save settles.
+- The "could not confirm" message does not say what to do if the connection
+  never comes back: keep both and check later.
+- Renewal has no account re-check after its read-back (`VaultKeyContext.tsx`
+  about line 527); add it for consistency.
+- No test asserts that onboarding hides its note on a save error
+  (`OnboardingStep1Vault.tsx:178`).
+- The corrected `vault.setup.warning` in Portuguese uses "você" in a block
+  that otherwise uses "tu"; all Portuguese strings of the kit screens need a
+  read by a native speaker (the owner).
+Accepted when: each point has a test or a recorded decision.
 
 ## Phase P: a panic button that tells the truth
 
