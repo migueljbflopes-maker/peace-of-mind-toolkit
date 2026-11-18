@@ -24,8 +24,11 @@ work, with tests, before wiring real payments, email and AI.
 | A-04 | Lint to zero errors, then gate CI on lint | A-01 | todo |
 | A-05 | `[PRIVACY]` Edge function authorization audit | A-01 | todo |
 | A-06 | Local Supabase test harness with a signed-in test user | A-01 | done |
-| A-07 | Remove frozen features from the build | A-03 | todo |
+| A-07 | Remove frozen features from the build | A-03 | done |
 | A-08 | The magic-link sign-up test does not flake | A-06 | todo |
+| A-09 | Browser tests never run against another checkout's build | A-01 | todo |
+| A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
+| A-11 | Remove code that nothing renders | A-07 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -51,8 +54,10 @@ subscription funnel `RiskFunnel1`.
 **A-04.** `npx eslint .` reports 36 errors today.
 Accepted when: it reports zero errors and CI runs it as a required step.
 
-**A-05.** There are 31 edge functions. `supabase/config.toml` sets
-`verify_jwt = false` on 24 of them, `true` on one, and does not list six.
+**A-05.** There are 21 edge functions (31 before A-07 removed the ten of the
+frozen features). `supabase/config.toml` sets `verify_jwt = false` on 17 of
+them, `true` on one, and does not list three (`complete-express-purchase`,
+`generate-risk-insights`, `send-scheduled-emails`).
 Accepted when: `docs/edge-functions.md` lists every function with who may call
 it and how the function enforces that; each function that should require a user
 has a test proving an unauthenticated call is rejected.
@@ -63,7 +68,13 @@ Found while reviewing F-08 (2026-11-18), to be fixed here, each with a test:
   `RESEND_API_KEY` is set on the hosted project** (see the owner checklist).
 - `send-scheduled-emails`: not in `config.toml`, no caller check, service
   role, sends the queued emails.
-- The six `ingest-*` functions: no caller check, service-role writes.
+- ~~The six `ingest-*` functions: no caller check, service-role writes.~~
+  Removed by A-07, with `expert-chat` and the three subscription functions;
+  they stay callable on the hosted project until the deploy that follows the
+  merge of A-07 has deleted them (see A-07).
+- `run-ai-job`: kept, because the onboarding step that drafts plans A and B
+  calls it (`src/lib/aiPlanDraft.ts`). It has not been reviewed here; it
+  calls OpenAI and belongs in this audit and in S-04.
 - `set-guest-email` (lines 35-80): unauthenticated; anyone holding a claim
   code can overwrite `payer_email` on a purchase in `created` or `paid`.
 - `generate-plan-wizard` (lines 108-133) and `generate-risk-insights` (lines
@@ -136,6 +147,156 @@ hosted project's settings.
 every feature marked freeze in A-03. Keep the code recoverable from git history.
 Accepted when: the build contains no frozen route; no reference to
 `ai.gateway.lovable.dev` or `LOVABLE_API_KEY` remains; `npm run verify` passes.
+Done: the acceptance is met in CI run 44298847936, on the branch merged with
+main as of F-11 (171 unit tests; 21 functions resolve from their lockfiles
+and boot; 73 browser tests passed on both projects and one, the magic-link
+sign-up of A-08, failed once and passed on retry). The commit after that run
+changes only this file. One thing is left that
+only the deploy following the merge can do and show, the deletion of the ten
+functions from the hosted project: see "Hosted project" below for what that
+run must print.
+Removed. News ingestion and alerts: the six `ingest-*` functions, the alert
+preferences and inbox components and hooks (nothing rendered them), the
+`alerts` texts. Weekly briefing: `/news/weekly` (a "coming soon" page) and
+its links. Expert chat: `/premium/expert`, the dashboard card and its locked
+twin, the `expert-chat` function, the dummy gateway key of the test harness.
+Amazon products: `/products`, the product links and "Amazon" buttons of the
+supplies planner, `/admin/affiliates`. Subscription funnel: `/riskfunnel1`
+and `create-subscription-checkout`, `create-subscription-setup`,
+`complete-subscription-setup`. Ten functions, 31 down to 21.
+Kept, having looked: `run-ai-job`, `ai_prompts` and `/admin/prompts` (the
+onboarding step that drafts plans A and B calls `run-ai-job`; the plan wizard
+and the risk insights read their prompts from `ai_prompts`);
+`generate-plan-wizard` and `generate-risk-insights` (OpenAI, no news data, so
+"insights" stays in the copy); `riskFunnel/shared.tsx` (every export is used
+by the one-time funnel); Library and Tips (static content in `src/data`, no
+backend); every Stripe function of the one-time funnel. No dependency in
+`package.json` was used by the frozen features only.
+Database: nothing dropped, no migration edited or added. The tables
+`news_items`, `news_sources`, `news_domain_allowlist`, `weekly_briefings`,
+`alert_preferences`, `expert_questions` and `affiliate_links` keep their
+rows; nothing under `src/` reads them, and `admin-manage-user` still deletes
+a user's rows from them. The only scheduled job is the hourly
+`send-scheduled-emails`, which is kept; no job ever called a removed
+function, and a test now fails if a migration schedules a function that does
+not exist.
+Claims changed with the code: the premium feature list and the paywall text
+no longer promise alerts (English and Portuguese); "consult experts" is gone
+from the offer shown after the risk check, where the Red Folder takes its
+place (texts in `translations.ts`, both languages), and from the landing
+page, where the whole line went: what was left of it, "Safe Triggers / Share
+your plan automatically", is not something any code does (the missed
+check-in email carries a name and a scenario; the panic functions send
+nothing), and nothing schedules the check-in job yet (P-05), so no wording
+of it could be backed today; the FAQ no longer lists weekly briefings as a
+free feature; the privacy page no longer says the app fetches from GDACS,
+USGS and ReliefWeb, and its date is now November 2026.
+Hosted project: deleting a directory does not delete the deployed function,
+and several of the ten have no caller check. The deploy workflow now has a
+step that runs `scripts/prune-deployed-functions.mjs`: it lists the deployed
+functions through the Management API, deletes exactly those with no
+directory under `supabase/functions`, prints each, and lists again to check.
+Its safeguards, each with a test:
+- It runs from `main` only (`github.ref == 'refs/heads/main'`), after a full
+  deploy whose functions booted, never with `only` set. A manual run checks
+  out the branch it is started from; from a branch behind main the step would
+  have deleted the functions main had since gained.
+  `scripts/deploy-workflow.test.mjs` evaluates the `if:` of every step for
+  every event, branch and input.
+- Every directory under `supabase/functions` not starting with `_` is
+  protected, with or without an `index.ts`.
+- It deletes nothing and fails the run if the deployed list cannot be read,
+  is not a list of functions, lacks a function the deploy just uploaded
+  (wrong project, partial answer), or holds a name that differs from a
+  directory only by case. Names are compared exactly; the API's upper-case
+  slugs are accepted, because refusing them would leave the step unable to
+  run for good on a project that has one.
+- It fails if a delete is refused, or if the list read afterwards still
+  shows the function or cannot be trusted.
+Dry run: the workflow input `prune_dry_run` does only this: check out,
+read the project ref, and run the script with `--dry-run`, which makes one
+GET and prints what would be deleted. No link, migration, deploy or
+deletion; it may run from any branch. Run it from the task branch before
+merging: it must print `21 functions in supabase/functions, 10 deployed
+function(s) not among them` and ten `would delete` lines, the ten functions
+named in A-05 and above, and nothing else.
+In the deploy run after the merge, expect `21 booted, 0 not shown, 0 failed`,
+then the same count line, ten `deleted` lines and `the project now has
+exactly the 21 functions of the repository`. If that step fails, the ten are
+still callable: delete them in the Supabase dashboard (Edge Functions) or
+re-run the workflow from main.
+Tests: `scripts/frozen-features.test.mjs` (sources: routes, functions,
+configuration, calls, tables, the gateway, cron), `e2e/frozen-features.spec.ts`
+(the build: each removed address shows the not-found page, no page links to
+one, no frozen name or claim is in the scripts),
+`e2e/backend/frozen-features.spec.ts` (the signed-in dashboard),
+`scripts/prune-deployed-functions.test.mjs` and
+`scripts/deploy-workflow.test.mjs`. The lists
+they read are in `scripts/frozen-features.mjs`. Main chunk 1,048 kB before,
+1,020 kB after (gzip 301 to 293); precache 3,229 to 3,172 KiB.
+Not verified: the Management API calls against the real project (address
+and `Authorization: Bearer` header are those the CLI uses; the request and
+response shapes are from the API reference); that the access token of the
+workflow may delete functions. What is left over is A-10.
+
+**A-09.** Found by A-07. Outside CI, Playwright reuses whatever answers on
+port 4173 (`reuseExistingServer`). With two checkouts on one machine, a
+`npm run verify` in one silently tested the preview server of the other and
+reported its failures and passes. Nothing checks that the server under test
+serves this checkout's `dist/`; only the backend run has such a check
+(`e2e/global-setup.ts`). `CI=1` avoids it by refusing a taken port.
+Accepted when: a browser run fails with a clear message when the server on
+the port does not serve the build in this checkout's `dist/`, or picks a
+free port; a test covers it.
+
+**A-10.** `[DECISION]` Found by A-07. Left in place because kept code shares
+it or because removing it destroys data; each needs the owner to say remove
+or keep.
+- `stripe-webhook` and `complete-guest-purchase` still handle subscription
+  events and subscription checkouts (`customer.subscription.*`, status
+  `subscription_active` and the like). No funnel creates a subscription any
+  more. If a subscription was ever sold, these branches are what records its
+  cancellation; if none was, they are dead code in the payment path. Also
+  the Stripe price `price_1Sp2vlGudTqpziaHp7oKKuyY` named by the removed
+  funnel: archive it in Stripe if unused.
+- `/admin/analytics` has an A/B tab comparing `riskfunnel` with
+  `riskfunnel1` from `feature_usage`. It only reads history now.
+- The seven tables of the frozen features and their rows (listed in A-07),
+  the `expert_chat_system` row of `ai_prompts` (still shown and editable in
+  `/admin/prompts`) and the `expert_chat` row of `ai_rate_config`. Dropping
+  is irreversible; S-01 must list them while they exist, and S-06 must
+  delete from them.
+- `LOVABLE_API_KEY` and any other secret of a removed feature still set on
+  the hosted project: remove it in the Supabase dashboard.
+- Jobs set up outside the migrations: check `cron.job` on the hosted
+  database (`select jobname, schedule, command from cron.job`) for any job
+  that calls a removed function, and unschedule it. The migrations schedule
+  only `send-scheduled-emails`; the hosted database was not looked at.
+- From the privacy review of A-07, data of the frozen features that users
+  can no longer see or manage:
+  - `expert_questions`: the questions and answers are plaintext free text
+    with a category that can be medical. `user_id` has no foreign key, so
+    the rows survive the deletion of the auth user, and there is no longer
+    a screen where a user can see them. Decide: delete, export on request,
+    or keep until the feature returns; S-06 must cover the table either way.
+  - `alert_preferences` and `weekly_briefings`: how long they are kept.
+  - The `expert_chat` rows in `ai_rate_limits` (per-user counters).
+  - `guest_purchases` rows whose source is `riskfunnel1*`.
+  - Two `localStorage` keys that nothing clears any more:
+    `resilient_amazon_market` and `resilient_alerts_last`.
+
+**A-11.** Found by A-07 while tracing what renders what. Nothing imports
+these, on any route: `BugInOutSection`, `ConsoleLogOverlay`,
+`FeaturesSection`, `NavLink`, `PremiumLockedCards`, `PricingTeaser`,
+`QuickEntryStrip`, `StripeGuestWalletModal`, `SyncStatusIndicator`,
+`TipsPreview`, `ValueSection`, `components/plans/*`, `hooks/use-mobile`,
+`useDashboardReadiness`, `usePlansSync`, `lib/requireLogin`, `App.css`, four
+images in `src/assets`; and the package `@hookform/resolvers`. Some carry
+copy and calls to edge functions that no test sees
+(`StripeGuestWalletModal` calls `set-guest-email`). `create-checkout-session`
+is called from the Pricing page only.
+Accepted when: each is deleted or wired to a route on purpose, and
+`npm run verify` passes.
 
 ## Phase F: the core features and funnels work
 
@@ -920,6 +1081,30 @@ payload contains no field listed as sensitive in the inventory.
 **S-05.** The app says "Only ciphertext is stored. We cannot read your data."
 Accepted when: every privacy and offline claim in `translations.ts`,
 `Privacy.tsx` and the landing page is traceable to a line of the inventory.
+Found by the privacy review of A-07; all of it predates that change and
+none was fixed there. In `src/pages/Privacy.tsx`:
+- **Required before launch.** Lines 165-169 say "anonymized inputs" and "no
+  personally identifiable information" go to "our AI provider". The plan
+  wizard sends the neighbourhood, the medication list, mobility constraints
+  and the safe locations; the risk insights call sends city and country;
+  and OpenAI is not named.
+- 195-196: Google Fonts is not listed among the third parties (see B-06).
+- 191: "session tokens (essential cookies)", while the session is kept in
+  `localStorage`.
+- 128-130, and `Terms.tsx` 96-106: "personal passphrase" that "cannot be
+  recovered", while the app has a master password and a Recovery Kit.
+- 134-135: "explicit consent before the Vault", and no such screen exists.
+- 160: Resend is said to send "emergency alerts"; no panic function sends
+  anything (P-02).
+- 221: "cloud backups: 90 days after account deletion"; no code was found
+  that does this.
+- 69: "password (optional)".
+- The data table, 66-102, omits plans, check-in sessions, location
+  snapshots, AI jobs and feature usage.
+Elsewhere: `src/pages/panic/Setup.tsx:641`, "Your Panic Button will share
+only what you select here", while no code shares plan content; and
+`src/components/FAQ.tsx` lines 13 and 28 (every core feature offline;
+"encrypted end-to-end").
 
 **S-06.** Accepted when: a test deletes an account and finds no row for that
 user in any table and no local data on the device.

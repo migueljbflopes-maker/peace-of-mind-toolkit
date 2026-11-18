@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Info,
   Timer,
-  Radar,
+  FileText,
   Lock,
   Siren,
   Sparkles,
@@ -47,7 +47,7 @@ export function RiskOfferModal({
   offerBadge,
   pricingVariant = 'standard',
 }: RiskOfferModalProps) {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const initialSeconds = useMemo(() => minutes * 60, [minutes]);
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
 
@@ -74,12 +74,12 @@ export function RiskOfferModal({
 
   const features = locale === 'pt' ? [
     { title: "Plano 72h", subtitle: "Passos e checklists personalizados", icon: Timer },
-    { title: "Segurança & Orientação", subtitle: "Consultar especialistas", icon: Radar },
+    { title: t.riskOffer.redFolderTitle, subtitle: t.riskOffer.redFolderSubtitle, icon: FileText },
     { title: "Vault", subtitle: "Cofre encriptado para documentos,\ncontactos e instruções", icon: Lock },
     { title: "Botão Pânico", subtitle: "Alertar pessoas-chave e partilhar\ninformação crítica", icon: Siren },
   ] : [
     { title: "72h Plan", subtitle: "Personalized steps and checklists", icon: Timer },
-    { title: "Safety & Guidance", subtitle: "Consult experts for guidance", icon: Radar },
+    { title: t.riskOffer.redFolderTitle, subtitle: t.riskOffer.redFolderSubtitle, icon: FileText },
     { title: "Vault", subtitle: "Encrypted vault for documents,\ncontacts, and instructions", icon: Lock },
     { title: "Panic Button", subtitle: "Alert key people instantly and share\ncritical information", icon: Siren },
   ];

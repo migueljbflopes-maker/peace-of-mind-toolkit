@@ -18,7 +18,6 @@ export function getLoginRedirectPath(
 export const DRAFT_KEYS = {
   RISK_ASSESSMENT: 'draft_risk_assessment',
   SUPPLIES_PLAN: 'draft_supplies_plan',
-  WEEKLY_BRIEFING: 'draft_weekly_briefing',
 } as const;
 
 /**

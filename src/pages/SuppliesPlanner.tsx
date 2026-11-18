@@ -21,7 +21,6 @@ import {
   Cat,
   Baby,
   Pill,
-  ShoppingBag,
   ExternalLink,
   Loader2,
   RefreshCw,
@@ -82,7 +81,6 @@ interface SupplyItem {
   unit: string;
   perPerson?: boolean;
   perDay?: boolean;
-  hasRecommendation?: boolean;
 }
 
 interface SupplyCategory {
@@ -97,63 +95,23 @@ interface CheckedState {
   [itemId: string]: boolean;
 }
 
-interface ProductRecommendation {
-  title: string;
-  reason: string;
-  href: string;
-}
-
 // Storage keys
 const DRAFT_KEY = "resilient_supplies_quiz_draft";
 const STATE_KEY = "resilient_supplies_state";
 
-// Product recommendations map
-const productRecommendations: Record<string, ProductRecommendation[]> = {
-  "water-container": [
-    { title: "Collapsible water container", reason: "Easy to store when empty", href: "/products?q=water+container" },
-  ],
-  "water-purification": [
-    { title: "Water purification tablets", reason: "Lightweight backup option", href: "/products?q=water+purification" },
-  ],
-  "power-bank": [
-    { title: "High-capacity power bank", reason: "Keep devices charged for days", href: "/products?q=power+bank" },
-  ],
-  "flashlight": [
-    { title: "LED headlamp", reason: "Hands-free lighting", href: "/products?q=headlamp" },
-  ],
-  "solar-charger": [
-    { title: "Portable solar charger", reason: "Renewable power source", href: "/products?q=solar+charger" },
-  ],
-  "radio": [
-    { title: "Emergency crank radio", reason: "No batteries needed", href: "/products?q=emergency+radio" },
-  ],
-  "first-aid-kit": [
-    { title: "Comprehensive first aid kit", reason: "All essentials in one", href: "/products?q=first+aid+kit" },
-  ],
-  "multi-tool": [
-    { title: "Quality multi-tool", reason: "Dozens of uses in one tool", href: "/products?q=multi+tool" },
-  ],
-  "batteries": [
-    { title: "Battery variety pack", reason: "For all your devices", href: "/products?q=batteries" },
-  ],
-  "camping-stove": [
-    { title: "Portable camping stove", reason: "Reliable cooking backup", href: "/products?q=camping+stove" },
-  ],
-};
-
 // Hard-to-source items
 const hardToSourceItems = [
-  { id: "hts-water-container", name: "Water storage containers", hasRecommendation: true, recKey: "water-container" },
-  { id: "hts-water-filter", name: "Water filter / purification", hasRecommendation: true, recKey: "water-purification" },
-  { id: "hts-power-bank", name: "Power bank (high capacity)", hasRecommendation: true, recKey: "power-bank" },
-  { id: "hts-headlamp", name: "Headlamp / lantern", hasRecommendation: true, recKey: "flashlight" },
-  { id: "hts-batteries", name: "Battery charger + spare batteries", hasRecommendation: true, recKey: "batteries" },
-  { id: "hts-radio", name: "Emergency radio", hasRecommendation: true, recKey: "radio" },
-  { id: "hts-first-aid", name: "First aid kit + add-ons", hasRecommendation: true, recKey: "first-aid-kit" },
-  { id: "hts-cash", name: "Cash envelope (organizer)", hasRecommendation: false },
-  { id: "hts-doc-pouch", name: "Waterproof document pouch", hasRecommendation: false },
-  { id: "hts-toolkit", name: "Basic tool kit", hasRecommendation: true, recKey: "multi-tool" },
-  { id: "hts-pet-carrier", name: "Pet supplies container / carrier", hasRecommendation: false, conditional: "pets" },
+  { id: "hts-water-container", name: "Water storage containers" },
+  { id: "hts-water-filter", name: "Water filter / purification" },
+  { id: "hts-power-bank", name: "Power bank (high capacity)" },
+  { id: "hts-headlamp", name: "Headlamp / lantern" },
+  { id: "hts-batteries", name: "Battery charger + spare batteries" },
+  { id: "hts-radio", name: "Emergency radio" },
+  { id: "hts-first-aid", name: "First aid kit + add-ons" },
+  { id: "hts-cash", name: "Cash envelope (organizer)" },
+  { id: "hts-doc-pouch", name: "Waterproof document pouch" },
+  { id: "hts-toolkit", name: "Basic tool kit" },
+  { id: "hts-pet-carrier", name: "Pet supplies container / carrier", conditional: "pets" },
 ];
 
 // Supply categories data
@@ -164,8 +122,8 @@ const supplyCategories: SupplyCategory[] = [
     icon: Droplets,
     items: [
       { id: "water-bottles", name: "Bottled water", baseQuantity: 3, unit: "liters", perPerson: true, perDay: true },
-      { id: "water-purification", name: "Water purification tablets", baseQuantity: 1, unit: "pack", hasRecommendation: true },
-      { id: "water-container", name: "Water storage container", baseQuantity: 1, unit: "container", hasRecommendation: true },
+      { id: "water-purification", name: "Water purification tablets", baseQuantity: 1, unit: "pack" },
+      { id: "water-container", name: "Water storage container", baseQuantity: 1, unit: "container" },
     ],
   },
   {
@@ -186,7 +144,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "Cooking & Utilities",
     icon: Flame,
     items: [
-      { id: "camping-stove", name: "Camping stove or portable burner", baseQuantity: 1, unit: "unit", hasRecommendation: true },
+      { id: "camping-stove", name: "Camping stove or portable burner", baseQuantity: 1, unit: "unit" },
       { id: "fuel", name: "Fuel canisters", baseQuantity: 2, unit: "canisters" },
       { id: "matches", name: "Matches/lighter (waterproof)", baseQuantity: 2, unit: "packs" },
       { id: "can-opener", name: "Manual can opener", baseQuantity: 1, unit: "unit" },
@@ -211,7 +169,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "First Aid & Medical Basics",
     icon: Heart,
     items: [
-      { id: "first-aid-kit", name: "First aid kit", baseQuantity: 1, unit: "kit", hasRecommendation: true },
+      { id: "first-aid-kit", name: "First aid kit", baseQuantity: 1, unit: "kit" },
       { id: "pain-relievers", name: "Pain relievers (ibuprofen/paracetamol)", baseQuantity: 1, unit: "box" },
       { id: "bandages", name: "Bandages & gauze", baseQuantity: 1, unit: "pack" },
       { id: "antiseptic", name: "Antiseptic wipes/spray", baseQuantity: 1, unit: "bottle" },
@@ -224,11 +182,11 @@ const supplyCategories: SupplyCategory[] = [
     name: "Power & Lighting",
     icon: Zap,
     items: [
-      { id: "flashlight", name: "Flashlight/headlamp", baseQuantity: 1, unit: "unit", perPerson: true, hasRecommendation: true },
-      { id: "batteries", name: "Extra batteries", baseQuantity: 8, unit: "batteries", hasRecommendation: true },
-      { id: "power-bank", name: "Power bank (charged)", baseQuantity: 1, unit: "unit", hasRecommendation: true },
+      { id: "flashlight", name: "Flashlight/headlamp", baseQuantity: 1, unit: "unit", perPerson: true },
+      { id: "batteries", name: "Extra batteries", baseQuantity: 8, unit: "batteries" },
+      { id: "power-bank", name: "Power bank (charged)", baseQuantity: 1, unit: "unit" },
       { id: "candles", name: "Candles", baseQuantity: 6, unit: "candles" },
-      { id: "solar-charger", name: "Solar charger (optional)", baseQuantity: 1, unit: "unit", hasRecommendation: true },
+      { id: "solar-charger", name: "Solar charger (optional)", baseQuantity: 1, unit: "unit" },
     ],
   },
   {
@@ -236,7 +194,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "Communication",
     icon: Radio,
     items: [
-      { id: "radio", name: "Battery/crank radio", baseQuantity: 1, unit: "unit", hasRecommendation: true },
+      { id: "radio", name: "Battery/crank radio", baseQuantity: 1, unit: "unit" },
       { id: "whistle", name: "Emergency whistle", baseQuantity: 1, unit: "unit", perPerson: true },
       { id: "contacts-list", name: "Printed emergency contacts", baseQuantity: 1, unit: "list" },
       { id: "phone-charger", name: "Phone charger cable", baseQuantity: 1, unit: "cable" },
@@ -270,7 +228,7 @@ const supplyCategories: SupplyCategory[] = [
     name: "Tools & Repair",
     icon: Wrench,
     items: [
-      { id: "multi-tool", name: "Multi-tool/Swiss army knife", baseQuantity: 1, unit: "unit", hasRecommendation: true },
+      { id: "multi-tool", name: "Multi-tool/Swiss army knife", baseQuantity: 1, unit: "unit" },
       { id: "duct-tape", name: "Duct tape", baseQuantity: 1, unit: "roll" },
       { id: "rope", name: "Rope/paracord (10m)", baseQuantity: 1, unit: "length" },
       { id: "work-gloves", name: "Work gloves", baseQuantity: 1, unit: "pair" },
@@ -1060,22 +1018,6 @@ const SuppliesPlanner = () => {
     }
   };
 
-  // Product recommendation link
-  const ProductLink = ({ itemId }: { itemId: string }) => {
-    const recs = productRecommendations[itemId];
-    if (!recs || recs.length === 0) return null;
-    
-    return (
-      <button
-        onClick={() => navigate(recs[0].href)}
-        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
-      >
-        <ShoppingBag className="h-3 w-3" />
-        <span>Products</span>
-      </button>
-    );
-  };
-
   // Wizard screen
   if (!showResults) {
     return (
@@ -1305,7 +1247,6 @@ const SuppliesPlanner = () => {
                               </label>
                               
                               <div className="flex items-center gap-2">
-                                {item.hasRecommendation && <ProductLink itemId={item.id} />}
                                 <Badge 
                                   variant={isChecked ? "secondary" : "outline"} 
                                   className={cn(
@@ -1361,18 +1302,6 @@ const SuppliesPlanner = () => {
                       )}>
                         {item.name}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/products?q=${encodeURIComponent(item.name)}`);
-                        }}
-                        className="h-5 px-1.5 text-[10px] gap-0.5 text-amber-700 hover:text-amber-900 hover:bg-amber-100"
-                      >
-                        <ShoppingBag className="h-3 w-3" />
-                        Amazon
-                      </Button>
                     </div>
                   );
                 })}

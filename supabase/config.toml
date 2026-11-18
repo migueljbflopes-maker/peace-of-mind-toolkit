@@ -1,23 +1,5 @@
 project_id = "fnzbetsgumaamshcopbd"
 
-[functions.ingest-news]
-verify_jwt = false
-
-[functions.ingest-signals-usgs]
-verify_jwt = false
-
-[functions.ingest-signals-gdacs]
-verify_jwt = false
-
-[functions.ingest-context-reliefweb]
-verify_jwt = false
-
-[functions.ingest-headlines-gdelt]
-verify_jwt = false
-
-[functions.ingest-headlines-googlenews]
-verify_jwt = false
-
 [functions.run-ai-job]
 verify_jwt = false
 
@@ -67,9 +49,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.generate-plan-wizard]
-verify_jwt = false
-
-[functions.expert-chat]
 verify_jwt = false
 
 [functions.admin-manage-user]
