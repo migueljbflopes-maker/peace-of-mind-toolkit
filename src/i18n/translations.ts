@@ -122,7 +122,7 @@ export const translations = {
       setup: {
         title: 'Create Your Vault',
         subtitle: 'Choose a passphrase to encrypt your sensitive data.',
-        warning: 'Important: If you forget your passphrase, we cannot recover your data. Write it down in a safe place.',
+        warning: 'Important: we cannot reset your Master Password. If you forget it, the Recovery Kit you save in the next step is the only way back in. Lose both and your data cannot be recovered.',
         createPassphrase: 'Create Passphrase',
         passphrasePlaceholder: 'Enter a strong passphrase (min 6 chars)',
         confirmPassphrase: 'Confirm Passphrase',
@@ -321,6 +321,55 @@ export const translations = {
       noDataToBackup: 'No data to backup. Add data to your Vault or Plans first.',
       requiresInternet: 'Requires internet to upload encrypted backup.',
       restoreRequiresInternet: 'Requires internet to download backup.',
+    },
+    // Recovery Kit (the 24 words) — master password screens and Backup page
+    recoveryKit: {
+      newKitTitle: 'Save your new Recovery Kit',
+      pendingSetup:
+        'Your Master Password is not saved until you finish this step. If you leave or reload this page before pressing the finish button, nothing is kept and you start again with new words. Once you have pressed it, keep these words: they are your kit, even if the connection drops.',
+      pendingRecovery:
+        'Your new Master Password is not active until you finish this step. If you leave before pressing the finish button, nothing changes: the words you just entered still work and you can start again. Once you have pressed it, keep both sets of words until the vault opens.',
+      pendingRenewal:
+        'Your current Recovery Kit keeps working until you finish this step. Once you press the finish button, only these new words work; keep both kits until this screen says the new one is active.',
+      outcomeUnknown:
+        'We could not confirm whether this was saved: the connection dropped at the wrong moment, so it may or may not have gone through. Keep the words on this screen AND any Recovery Kit and Master Password you had before. Do not leave or reload this page. Check your connection and press the button again: it finishes safely either way.',
+      voidKitNotice:
+        'A Master Password was already created for this account on another device or tab. The Recovery Kit you were just shown was NOT saved and its words will never work. If you copied or downloaded it, delete it. Unlock with the existing Master Password; you can create a new kit under Backup & Restore.',
+      ariaRecoveryPhrase: 'Recovery phrase (24 words)',
+      ariaConfirmNewPassword: 'Confirm new password',
+      ariaConfirmMasterPassword: 'Confirm Master Password',
+      finishRenewal: 'Finish and replace my Recovery Kit',
+      cancelRenewal: 'Cancel and keep my current kit',
+      saving: 'Saving...',
+      createdToast: 'Master Password created.',
+      recoveredToast:
+        'Account recovered. Your new Master Password and your new Recovery Kit are active. The old words no longer work.',
+      renewedToast: 'New Recovery Kit active. The old words no longer work.',
+      recoverNextStep:
+        'Next you will save a new Recovery Kit. The words you enter here stop working once you finish.',
+      neverShownNote:
+        'An earlier version of this app created the Master Password without showing the Recovery Kit. If you were never shown 24 words, you do not have a kit and there is nothing to enter here: unlock with your Master Password, then create a kit under Backup & Restore.',
+      errorNotSaved:
+        'Could not save. Check your connection and try again. Your words stay on this screen until you leave it.',
+      errorAlreadySetUp:
+        'A Master Password was already created for this account on another device or tab. The words shown here were NOT saved and will not work: discard them, then unlock with the existing Master Password.',
+      errorWrongPassword: 'Incorrect master password.',
+      errorWrongPhrase: 'These words do not open this account. Check them and try again.',
+      errorInvalidPhrase: 'This is not a valid recovery phrase. Enter the 24 words from your kit, separated by spaces.',
+      errorNoKit: 'This account has no Recovery Kit on file, so it cannot be recovered with words.',
+      errorSignedOut: 'You are signed out. Log in and start again.',
+      errorGeneric: 'Something went wrong. Nothing was changed. Try again.',
+      cardTitle: 'Recovery Kit',
+      cardDescription:
+        'The 24 words that let you back in if you forget your Master Password. Create a new kit if you lost yours or were never shown one (an earlier version of this app skipped that step).',
+      cardReplaces: 'A new kit replaces the current one: the old words stop working when you finish.',
+      cardButton: 'Create a new Recovery Kit',
+      dialogTitle: 'Confirm your Master Password',
+      dialogDescription:
+        'Enter your Master Password to create a new Recovery Kit. It is checked on this device and never sent.',
+      dialogPasswordLabel: 'Master Password',
+      dialogContinue: 'Show my new Recovery Kit',
+      dialogChecking: 'Checking...',
     },
     // Panic button landing page
     panic: {
@@ -562,7 +611,7 @@ export const translations = {
       setup: {
         title: 'Cria o Teu Cofre',
         subtitle: 'Escolhe uma frase-passe para encriptar os teus dados sensíveis.',
-        warning: 'Importante: Se esqueceres a tua frase-passe, não conseguimos recuperar os teus dados. Guarda-a num lugar seguro.',
+        warning: 'Importante: não conseguimos repor a sua Master Password. Se a esquecer, o Recovery Kit que guarda no passo seguinte é a única forma de voltar a entrar. Se perder os dois, os seus dados não podem ser recuperados.',
         createPassphrase: 'Criar Frase-Passe',
         passphrasePlaceholder: 'Introduz uma frase-passe forte (mín 6 chars)',
         confirmPassphrase: 'Confirmar Frase-Passe',
@@ -761,6 +810,56 @@ export const translations = {
       noDataToBackup: 'Sem dados para backup. Adiciona dados ao Cofre ou Planos primeiro.',
       requiresInternet: 'Requer internet para enviar backup encriptado.',
       restoreRequiresInternet: 'Requer internet para descarregar backup.',
+    },
+    // Recovery Kit (as 24 palavras) — ecrãs da Master Password e página de Backup
+    recoveryKit: {
+      newKitTitle: 'Guarde o seu novo Recovery Kit',
+      pendingSetup:
+        'A sua Master Password só fica guardada quando concluir este passo. Se sair ou recarregar a página antes de carregar no botão de concluir, nada fica guardado e recomeça com palavras novas. Depois de carregar, guarde estas palavras: são o seu kit, mesmo que a ligação falhe.',
+      pendingRecovery:
+        'A sua nova Master Password só fica ativa quando concluir este passo. Se sair antes de carregar no botão de concluir, nada muda: as palavras que acabou de introduzir continuam a funcionar e pode recomeçar. Depois de carregar, guarde os dois conjuntos de palavras até o cofre abrir.',
+      pendingRenewal:
+        'O seu Recovery Kit atual continua a funcionar até concluir este passo. Depois de carregar no botão de concluir, só estas palavras novas funcionam; guarde os dois kits até este ecrã dizer que o novo está ativo.',
+      outcomeUnknown:
+        'Não foi possível confirmar se isto ficou guardado: a ligação falhou no momento errado, por isso pode ter ficado guardado ou não. Guarde as palavras deste ecrã E qualquer Recovery Kit e Master Password que já tinha. Não saia nem recarregue esta página. Verifique a ligação e carregue de novo no botão: termina em segurança nos dois casos.',
+      voidKitNotice:
+        'Já foi criada uma Master Password para esta conta noutro dispositivo ou separador. O Recovery Kit que acabou de ver NÃO foi guardado e as suas palavras nunca vão funcionar. Se o copiou ou descarregou, apague-o. Desbloqueie com a Master Password existente; pode criar um novo kit em Backup & Restauro.',
+      ariaRecoveryPhrase: 'Frase de recuperação (24 palavras)',
+      ariaConfirmNewPassword: 'Confirmar nova password',
+      ariaConfirmMasterPassword: 'Confirmar Master Password',
+      finishRenewal: 'Concluir e substituir o meu Recovery Kit',
+      cancelRenewal: 'Cancelar e manter o kit atual',
+      saving: 'A guardar...',
+      createdToast: 'Master Password criada.',
+      recoveredToast:
+        'Conta recuperada. A nova Master Password e o novo Recovery Kit estão ativos. As palavras antigas deixaram de funcionar.',
+      renewedToast: 'Novo Recovery Kit ativo. As palavras antigas deixaram de funcionar.',
+      recoverNextStep:
+        'A seguir vai guardar um novo Recovery Kit. As palavras que introduzir aqui deixam de funcionar quando concluir.',
+      neverShownNote:
+        'Uma versão anterior desta aplicação criava a Master Password sem mostrar o Recovery Kit. Se nunca lhe foram mostradas 24 palavras, não tem um kit e não há nada para introduzir aqui: desbloqueie com a sua Master Password e crie um kit em Backup & Restauro.',
+      errorNotSaved:
+        'Não foi possível guardar. Verifique a ligação e tente de novo. As palavras ficam neste ecrã até sair dele.',
+      errorAlreadySetUp:
+        'Já foi criada uma Master Password para esta conta noutro dispositivo ou separador. As palavras mostradas aqui NÃO foram guardadas e não funcionam: descarte-as e desbloqueie com a Master Password existente.',
+      errorWrongPassword: 'Master Password incorreta.',
+      errorWrongPhrase: 'Estas palavras não abrem esta conta. Verifique-as e tente de novo.',
+      errorInvalidPhrase:
+        'Esta não é uma frase de recuperação válida. Introduza as 24 palavras do seu kit, separadas por espaços.',
+      errorNoKit: 'Esta conta não tem Recovery Kit registado, por isso não pode ser recuperada com palavras.',
+      errorSignedOut: 'A sessão terminou. Inicie sessão e recomece.',
+      errorGeneric: 'Algo correu mal. Nada foi alterado. Tente de novo.',
+      cardTitle: 'Recovery Kit',
+      cardDescription:
+        'As 24 palavras que lhe permitem voltar a entrar se esquecer a Master Password. Crie um novo kit se perdeu o seu ou se nunca lhe foi mostrado (uma versão anterior desta aplicação saltava esse passo).',
+      cardReplaces: 'Um novo kit substitui o atual: as palavras antigas deixam de funcionar quando concluir.',
+      cardButton: 'Criar um novo Recovery Kit',
+      dialogTitle: 'Confirme a sua Master Password',
+      dialogDescription:
+        'Introduza a sua Master Password para criar um novo Recovery Kit. É verificada neste dispositivo e nunca é enviada.',
+      dialogPasswordLabel: 'Master Password',
+      dialogContinue: 'Mostrar o meu novo Recovery Kit',
+      dialogChecking: 'A verificar...',
     },
     // Panic button landing page
     panic: {
