@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 import { STORAGE_STATE } from "./e2e/backend/paths";
+import { portFor } from "./e2e/port";
 
-const PORT = 4173;
+const PORT = portFor(process.cwd(), process.env);
 
 // Two kinds of browser test (backlog A-06):
 //
@@ -61,9 +62,10 @@ export default defineConfig({
     // how the backend run gets a build that talks to the local stack.
     command: `npm run build && npm run preview -- --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
-    // Never reuse a server for a backend run: it may serve a build made for
-    // the hosted project.
-    reuseExistingServer: !process.env.CI && !BACKEND,
+    // Never reuse a server: whatever already answers on the port may be the
+    // build of another checkout, or one made for the hosted project. If the
+    // port is taken the run stops with an error instead (backlog A-09).
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
