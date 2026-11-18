@@ -224,7 +224,10 @@ charges: `POST` with no `Authorization` header to `panic-trigger`,
 Verified in CI: with a wrong integrity hash in one `deno.lock`, the runtime
 that serves the functions refuses to boot that function (`failed reading
 lockfile ... Integrity check failed`), so `functions serve` does resolve from
-the lockfile.
+the lockfile. With the same fault in `panic-trigger` only (CI run 44280854825),
+the readiness probe passed and `functions-boot.spec.ts` failed for that one
+function with `panic-trigger answered 503: {"code":"BOOT_ERROR",...}` while
+the other 30 passed: the boot test does catch a function that cannot start.
 Not verified until the first deploy runs: the deploy itself, the deploy
 workflow changes and the deployed functions. Not verified at all: that the bundle
 the deploy uploads holds exactly the locked versions. That is inferred: the
