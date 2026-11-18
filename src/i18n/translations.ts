@@ -425,6 +425,11 @@ export const translations = {
       saveAndContinue: 'Save & continue later',
       saveAndContinueDesc: 'Create a free account to save your progress across devices.',
       loginOrCreate: 'Log in / Create account',
+      // The page a sign-in link lands on, when signing in takes too long (backlog A-08)
+      callbackTimeoutTitle: 'We could not sign you in',
+      callbackTimeoutDescription: 'Signing in is taking too long. Your connection may be slow or down. Try again, or go back and ask for a new sign-in link.',
+      callbackTimeoutRetry: 'Try again',
+      callbackTimeoutSignIn: 'Go to sign-in',
     },
     // Signed out on a route behind the master password gate (backlog F-11)
     signedOutGate: {
@@ -925,6 +930,11 @@ export const translations = {
       saveAndContinue: 'Guardar & continuar depois',
       saveAndContinueDesc: 'Cria uma conta gratuita para guardar o teu progresso entre dispositivos.',
       loginOrCreate: 'Entrar / Criar conta',
+      // A página onde o link de início de sessão chega, quando entrar demora demasiado (backlog A-08)
+      callbackTimeoutTitle: 'Não conseguimos iniciar a tua sessão',
+      callbackTimeoutDescription: 'Entrar está a demorar demasiado. A tua ligação pode estar lenta ou em baixo. Tenta outra vez, ou volta atrás e pede um novo link de início de sessão.',
+      callbackTimeoutRetry: 'Tentar outra vez',
+      callbackTimeoutSignIn: 'Ir para o início de sessão',
     },
     // Sem sessão numa rota atrás da Master Password (backlog F-11)
     signedOutGate: {
