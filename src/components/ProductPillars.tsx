@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Shield, AlertCircle, Lock, FileText, FolderHeart, Users, Send, Clock, ArrowRight } from "lucide-react";
+import { Shield, AlertCircle, Lock, FileText, FolderHeart, Users, Send, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const ProductPillars = () => {
@@ -92,13 +92,6 @@ const ProductPillars = () => {
                   <div>
                     <p className="text-sm font-medium text-foreground">Panic Button  </p>
                     <p className="text-xs text-muted-foreground">Panic Button to alert key people instantly and share critical information</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Clock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Safe Triggers</p>
-                    <p className="text-xs text-muted-foreground">Share your plan automatically</p>
                   </div>
                 </div>
               </div>

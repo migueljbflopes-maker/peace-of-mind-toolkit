@@ -19,7 +19,7 @@ export default function Privacy() {
               Privacy Policy
             </h1>
             <p className="text-muted-foreground">
-              Last updated: January 2026
+              Last updated: November 2026
             </p>
           </div>
 

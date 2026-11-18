@@ -380,6 +380,11 @@ export const translations = {
       title: 'Unlock Premium',
       description: 'Get your Personalized Resiliency Plan: printable offline PDF, encrypted Vault, Plans A & B, backup/restore, and insights.',
     },
+    // Offer shown after the risk check
+    riskOffer: {
+      redFolderTitle: 'Red Folder',
+      redFolderSubtitle: 'Printable offline PDF',
+    },
     // Auth
     auth: {
       login: 'Log in',
@@ -869,6 +874,11 @@ export const translations = {
     paywall: {
       title: 'Desbloquear Premium',
       description: 'Obtém o teu Plano de Resiliência Personalizado: PDF offline imprimível, Cofre encriptado, Planos A & B, backup/restauro e insights.',
+    },
+    // Offer shown after the risk check
+    riskOffer: {
+      redFolderTitle: 'Red Folder',
+      redFolderSubtitle: 'PDF offline imprimível',
     },
     // Auth
     auth: {

@@ -4,6 +4,8 @@ name: Supabase deploy
 # supabase/config.toml. Needs two repository secrets:
 #   SUPABASE_ACCESS_TOKEN  personal access token (supabase.com/dashboard/account/tokens)
 #   SUPABASE_DB_PASSWORD   the database password chosen when the project was created
+#
+# The conditions of the steps are tested: scripts/deploy-workflow.test.mjs.
 
 on:
   workflow_dispatch:
@@ -18,6 +20,13 @@ on:
           migrations. For trying a change on one function before all of them.
         type: string
         default: ""
+      prune_dry_run:
+        description: >-
+          Change nothing. Only print which deployed functions have no directory
+          in this branch and would be deleted by a deploy from main. Every
+          other input is ignored.
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -40,25 +49,27 @@ jobs:
       # bundled by the edge runtime this CLI ships, the one the tests ran on
       # (backlog F-08). Change both together.
       - uses: supabase/setup-cli@v1
+        if: "!inputs.prune_dry_run"
         with:
           version: 3.1.0
       - name: Read project ref
         id: ref
         run: echo "ref=$(grep -m1 '^project_id' supabase/config.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
       - name: Link project
+        if: "!inputs.prune_dry_run"
         run: supabase link --project-ref "${{ steps.ref.outputs.ref }}"
       - name: Apply migrations
-        if: github.event_name == 'push' || inputs.only == ''
+        if: "!inputs.prune_dry_run && (github.event_name == 'push' || inputs.only == '')"
         run: supabase db push --remote --yes
       # Without Docker the CLI falls back to bundling on Supabase's side, and
       # sends the sources without the deno.lock files: the dependencies of the
       # functions would float again (backlog F-08). Stop instead.
       - name: Docker is available to bundle the functions
-        if: github.event_name == 'push' || inputs.functions
+        if: "!inputs.prune_dry_run && (github.event_name == 'push' || inputs.functions)"
         run: docker info > /dev/null
       # Names only: anything else in the list would reach the CLI as a flag.
       - name: The functions asked for exist
-        if: github.event_name != 'push' && inputs.functions && inputs.only != ''
+        if: "!inputs.prune_dry_run && github.event_name != 'push' && inputs.functions && inputs.only != ''"
         env:
           ONLY: ${{ inputs.only }}
         run: |
@@ -69,19 +80,18 @@ jobs:
             fi
           done
       - name: Deploy edge functions
-        if: github.event_name == 'push' || inputs.functions
+        if: "!inputs.prune_dry_run && (github.event_name == 'push' || inputs.functions)"
         env:
           ONLY: ${{ inputs.only }}
         # $ONLY is deliberately unquoted: it is a list of names.
         run: supabase functions deploy $ONLY --project-ref "${{ steps.ref.outputs.ref }}" --yes
-      # Every deployed function is asked for a CORS preflight, which has no
-      # side effects. A function that does not boot fails the run (F-08).
       - uses: actions/setup-node@v4
-        if: github.event_name == 'push' || inputs.functions
         with:
           node-version: 22
+      # Every deployed function is asked for a CORS preflight, which has no
+      # side effects. A function that does not boot fails the run (F-08).
       - name: The deployed functions boot
-        if: github.event_name == 'push' || inputs.functions
+        if: "!inputs.prune_dry_run && (github.event_name == 'push' || inputs.functions)"
         env:
           ONLY: ${{ inputs.only }}
         run: node scripts/smoke-deployed-functions.mjs "${{ steps.ref.outputs.ref }}" $ONLY
@@ -89,9 +99,22 @@ jobs:
       # repository stays deployed, and callable, until it is deleted from the
       # project (backlog A-07). After a full deploy that booted, delete exactly
       # the deployed functions that have no directory under supabase/functions,
-      # and print each one. The script deletes nothing, and fails the run, when
-      # it cannot read the deployed list or the list lacks a function of the
-      # repository (scripts/prune-deployed-functions.mjs, unit-tested).
+      # and print each one.
+      #
+      # From main only. A manual run checks out the branch it is started from:
+      # on a branch behind main this step would compare the project with that
+      # branch's directories and delete the functions main has since gained.
+      #
+      # The script deletes nothing, and fails the run, when it cannot read the
+      # deployed list or the list lacks a function of the repository
+      # (scripts/prune-deployed-functions.mjs, unit-tested).
       - name: Functions removed from the repository are deleted from the project
-        if: github.event_name == 'push' || (inputs.functions && inputs.only == '')
+        if: "github.ref == 'refs/heads/main' && !inputs.prune_dry_run && (github.event_name == 'push' || (inputs.functions && inputs.only == ''))"
         run: node scripts/prune-deployed-functions.mjs "${{ steps.ref.outputs.ref }}"
+      # The same comparison, printed and nothing else: one GET to the
+      # Management API, no link, no migration, no deploy, no deletion. It may
+      # run from any branch, which is its purpose: see what merging the branch
+      # would delete before merging it.
+      - name: "Dry run: which deployed functions have no directory in this branch"
+        if: "github.event_name == 'workflow_dispatch' && inputs.prune_dry_run"
+        run: node scripts/prune-deployed-functions.mjs "${{ steps.ref.outputs.ref }}" --dry-run

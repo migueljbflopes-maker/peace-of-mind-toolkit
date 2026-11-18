@@ -96,7 +96,7 @@ test("navigation, landing page and dashboard link to no frozen route", async ({ 
 // What the app said about the frozen features, in the places a visitor reads
 // before buying. Each line was on one of these pages before A-07.
 const FROZEN_CLAIMS =
-  /weekly briefing|consult(ar)? (experts|especialistas)|ask a security expert|real-time risk alerts|alertas de risco em tempo real|insights,? and alerts|insights e alertas|amazon|affiliate (link|tag)|GDACS|ReliefWeb|USGS/i;
+  /weekly briefing|consult(ar)? (experts|especialistas)|share your plan automatically|ask a security expert|real-time risk alerts|alertas de risco em tempo real|insights,? and alerts|insights e alertas|amazon|affiliate (link|tag)|GDACS|ReliefWeb|USGS/i;
 
 test("the pages a visitor reads before buying promise no frozen feature", async ({ page }) => {
   let read = 0;

@@ -179,27 +179,56 @@ function, and a test now fails if a migration schedules a function that does
 not exist.
 Claims changed with the code: the premium feature list and the paywall text
 no longer promise alerts (English and Portuguese); "consult experts" is gone
-from the landing page and from the offer shown after the risk check, where
-the Red Folder takes its place; the FAQ no longer lists weekly briefings as
-a free feature; the privacy page no longer says the app fetches from GDACS,
-USGS and ReliefWeb.
+from the offer shown after the risk check, where the Red Folder takes its
+place (texts in `translations.ts`, both languages), and from the landing
+page, where the whole line went: what was left of it, "Safe Triggers / Share
+your plan automatically", is not something any code does (the missed
+check-in email carries a name and a scenario; the panic functions send
+nothing), and nothing schedules the check-in job yet (P-05), so no wording
+of it could be backed today; the FAQ no longer lists weekly briefings as a
+free feature; the privacy page no longer says the app fetches from GDACS,
+USGS and ReliefWeb, and its date is now November 2026.
 Hosted project: deleting a directory does not delete the deployed function,
-and several of the ten have no caller check. The deploy workflow now ends
-with `scripts/prune-deployed-functions.mjs`: after a full deploy that booted,
-it lists the deployed functions through the Management API, deletes exactly
-those with no directory under `supabase/functions`, prints each, and lists
-again to check. It deletes nothing and fails the run if the list cannot be
-read or lacks a function of the repository (unit-tested). In the deploy run
-after the merge, expect `21 booted, 0 not shown, 0 failed`, then
-`21 functions in supabase/functions, 10 deployed function(s) not among them`,
-ten `deleted` lines and `the project now has exactly the 21 functions of the
-repository`. If that step fails, the ten are still callable: delete them in
-the Supabase dashboard (Edge Functions) or re-run the workflow.
+and several of the ten have no caller check. The deploy workflow now has a
+step that runs `scripts/prune-deployed-functions.mjs`: it lists the deployed
+functions through the Management API, deletes exactly those with no
+directory under `supabase/functions`, prints each, and lists again to check.
+Its safeguards, each with a test:
+- It runs from `main` only (`github.ref == 'refs/heads/main'`), after a full
+  deploy whose functions booted, never with `only` set. A manual run checks
+  out the branch it is started from; from a branch behind main the step would
+  have deleted the functions main had since gained.
+  `scripts/deploy-workflow.test.mjs` evaluates the `if:` of every step for
+  every event, branch and input.
+- Every directory under `supabase/functions` not starting with `_` is
+  protected, with or without an `index.ts`.
+- It deletes nothing and fails the run if the deployed list cannot be read,
+  is not a list of functions, lacks a function the deploy just uploaded
+  (wrong project, partial answer), or holds a name that differs from a
+  directory only by case. Names are compared exactly; the API's upper-case
+  slugs are accepted, because refusing them would leave the step unable to
+  run for good on a project that has one.
+- It fails if a delete is refused, or if the list read afterwards still
+  shows the function or cannot be trusted.
+Dry run: the workflow input `prune_dry_run` does only this: check out,
+read the project ref, and run the script with `--dry-run`, which makes one
+GET and prints what would be deleted. No link, migration, deploy or
+deletion; it may run from any branch. Run it from the task branch before
+merging: it must print `21 functions in supabase/functions, 10 deployed
+function(s) not among them` and ten `would delete` lines, the ten functions
+named in A-05 and above, and nothing else.
+In the deploy run after the merge, expect `21 booted, 0 not shown, 0 failed`,
+then the same count line, ten `deleted` lines and `the project now has
+exactly the 21 functions of the repository`. If that step fails, the ten are
+still callable: delete them in the Supabase dashboard (Edge Functions) or
+re-run the workflow from main.
 Tests: `scripts/frozen-features.test.mjs` (sources: routes, functions,
 configuration, calls, tables, the gateway, cron), `e2e/frozen-features.spec.ts`
 (the build: each removed address shows the not-found page, no page links to
-one, no frozen name or claim is in the scripts), and
-`e2e/backend/frozen-features.spec.ts` (the signed-in dashboard). The lists
+one, no frozen name or claim is in the scripts),
+`e2e/backend/frozen-features.spec.ts` (the signed-in dashboard),
+`scripts/prune-deployed-functions.test.mjs` and
+`scripts/deploy-workflow.test.mjs`. The lists
 they read are in `scripts/frozen-features.mjs`. Main chunk 1,048 kB before,
 1,020 kB after (gzip 301 to 293); precache 3,229 to 3,172 KiB.
 Not verified: the Management API calls against the real project (address
@@ -234,8 +263,24 @@ or keep.
   `/admin/prompts`) and the `expert_chat` row of `ai_rate_config`. Dropping
   is irreversible; S-01 must list them while they exist, and S-06 must
   delete from them.
-- Any secret of a removed feature still set on the hosted project (the AI
-  gateway key): remove it in the Supabase dashboard.
+- `LOVABLE_API_KEY` and any other secret of a removed feature still set on
+  the hosted project: remove it in the Supabase dashboard.
+- Jobs set up outside the migrations: check `cron.job` on the hosted
+  database (`select jobname, schedule, command from cron.job`) for any job
+  that calls a removed function, and unschedule it. The migrations schedule
+  only `send-scheduled-emails`; the hosted database was not looked at.
+- From the privacy review of A-07, data of the frozen features that users
+  can no longer see or manage:
+  - `expert_questions`: the questions and answers are plaintext free text
+    with a category that can be medical. `user_id` has no foreign key, so
+    the rows survive the deletion of the auth user, and there is no longer
+    a screen where a user can see them. Decide: delete, export on request,
+    or keep until the feature returns; S-06 must cover the table either way.
+  - `alert_preferences` and `weekly_briefings`: how long they are kept.
+  - The `expert_chat` rows in `ai_rate_limits` (per-user counters).
+  - `guest_purchases` rows whose source is `riskfunnel1*`.
+  - Two `localStorage` keys that nothing clears any more:
+    `resilient_amazon_market` and `resilient_alerts_last`.
 
 **A-11.** Found by A-07 while tracing what renders what. Nothing imports
 these, on any route: `BugInOutSection`, `ConsoleLogOverlay`,
@@ -821,6 +866,30 @@ payload contains no field listed as sensitive in the inventory.
 **S-05.** The app says "Only ciphertext is stored. We cannot read your data."
 Accepted when: every privacy and offline claim in `translations.ts`,
 `Privacy.tsx` and the landing page is traceable to a line of the inventory.
+Found by the privacy review of A-07; all of it predates that change and
+none was fixed there. In `src/pages/Privacy.tsx`:
+- **Required before launch.** Lines 165-169 say "anonymized inputs" and "no
+  personally identifiable information" go to "our AI provider". The plan
+  wizard sends the neighbourhood, the medication list, mobility constraints
+  and the safe locations; the risk insights call sends city and country;
+  and OpenAI is not named.
+- 195-196: Google Fonts is not listed among the third parties (see B-06).
+- 191: "session tokens (essential cookies)", while the session is kept in
+  `localStorage`.
+- 128-130, and `Terms.tsx` 96-106: "personal passphrase" that "cannot be
+  recovered", while the app has a master password and a Recovery Kit.
+- 134-135: "explicit consent before the Vault", and no such screen exists.
+- 160: Resend is said to send "emergency alerts"; no panic function sends
+  anything (P-02).
+- 221: "cloud backups: 90 days after account deletion"; no code was found
+  that does this.
+- 69: "password (optional)".
+- The data table, 66-102, omits plans, check-in sessions, location
+  snapshots, AI jobs and feature usage.
+Elsewhere: `src/pages/panic/Setup.tsx:641`, "Your Panic Button will share
+only what you select here", while no code shares plan content; and
+`src/components/FAQ.tsx` lines 13 and 28 (every core feature offline;
+"encrypted end-to-end").
 
 **S-06.** Accepted when: a test deletes an account and finds no row for that
 user in any table and no local data on the device.

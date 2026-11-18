@@ -113,8 +113,19 @@ each, no side effects) and fails if one does not. To try a change on one
 function first, run the workflow by hand with its name in `only`.
 
 Deploying only uploads. To remove a function, delete its directory and its
-entry in `supabase/config.toml`: after the next full deploy the workflow
-deletes from the project every deployed function that has no directory
-(`scripts/prune-deployed-functions.mjs`, which prints what it deletes and
-deletes nothing if it cannot read the deployed list). Run it with
-`--dry-run` to see what it would delete.
+entry in `supabase/config.toml`: after the next full deploy from `main` the
+workflow deletes from the project every deployed function that has no
+directory (`scripts/prune-deployed-functions.mjs`). What to know about it:
+
+- It runs from `main` only, never with `only` set, and only after the
+  functions booted. A manual deploy from a branch never deletes anything.
+- A directory under `supabase/functions` protects the function of that name
+  whether or not it holds an `index.ts`. Names are compared exactly, upper
+  and lower case included.
+- It deletes nothing and fails the run when it cannot read the deployed
+  list, when the list lacks a function that was just deployed, or when a
+  deployed name differs from a directory only by case.
+- To see what a branch would delete before merging it, run the workflow
+  from that branch with `prune_dry_run` ticked. It reads the list of
+  deployed functions and prints; it links, migrates, deploys and deletes
+  nothing.

@@ -148,4 +148,13 @@ describe("frozen features are removed (backlog A-07)", () => {
       expect(translations[locale].paywall.description).not.toMatch(/alert/i);
     }
   });
+
+  it("the entry that replaced the expert chat in the risk offer has its texts in both languages", async () => {
+    const { translations } = await import("../src/i18n/translations.ts");
+    expect(translations.en.riskOffer).toEqual({ redFolderTitle: "Red Folder", redFolderSubtitle: "Printable offline PDF" });
+    expect(translations.pt.riskOffer).toEqual({ redFolderTitle: "Red Folder", redFolderSubtitle: "PDF offline imprimível" });
+    const modal = read("src/components/RiskOfferModal.tsx");
+    expect(modal.match(/t\.riskOffer\.redFolderTitle/g)).toHaveLength(2);
+    expect(modal).not.toMatch(/Printable offline PDF|PDF offline imprimível/);
+  });
 });
