@@ -56,6 +56,18 @@ jobs:
       - name: Docker is available to bundle the functions
         if: github.event_name == 'push' || inputs.functions
         run: docker info > /dev/null
+      # Names only: anything else in the list would reach the CLI as a flag.
+      - name: The functions asked for exist
+        if: github.event_name != 'push' && inputs.functions && inputs.only != ''
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          set -f
+          for name in $ONLY; do
+            if ! printf '%s' "$name" | grep -Eq '^[a-z0-9][a-z0-9-]*$' || [ ! -f "supabase/functions/$name/index.ts" ]; then
+              echo "not a function in supabase/functions: $name"; exit 1
+            fi
+          done
       - name: Deploy edge functions
         if: github.event_name == 'push' || inputs.functions
         env:
