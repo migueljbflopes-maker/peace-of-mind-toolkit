@@ -15,8 +15,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
 // Import email templates
 import { getWelcomeEmailHtml } from "./_templates/welcome.ts";
