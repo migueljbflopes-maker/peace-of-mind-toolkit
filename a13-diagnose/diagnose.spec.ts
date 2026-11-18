@@ -17,6 +17,8 @@ const isLocal = (url: string) => /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test
 
 test("which request keeps the network busy", async ({ page, context }) => {
   test.setTimeout(300_000);
+  // Whatever dist/ was built for, nothing here may reach a hosted project.
+  await context.route(/^https?:\/\/[^/]*\.supabase\.(co|in)[:/]/, (route) => route.abort("blockedbyclient"));
   const t0 = Date.now();
   const seen = new Map<unknown, Seen>();
   context.on("request", (request) =>
