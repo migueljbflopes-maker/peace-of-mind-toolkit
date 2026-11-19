@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { STORAGE_STATE } from "./e2e/backend/paths";
 import { portFor } from "./e2e/port";
+import { buildEnvFor } from "./e2e/build-env";
 
 const PORT = portFor(process.cwd(), process.env);
 
@@ -31,6 +32,12 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
+    // No browser test reaches outside this machine (backlog A-13). The
+    // fixtures in e2e/fixtures.ts abort and record such requests; this is the
+    // net under them: the browser is given a proxy that does not exist for
+    // every host but this machine, so a request that got past the fixtures
+    // fails at once instead of leaving.
+    proxy: { server: "http://127.0.0.1:9", bypass: "127.0.0.1,localhost,[::1]" },
   },
   projects: [
     {
@@ -59,7 +66,10 @@ export default defineConfig({
   webServer: {
     // The build reads VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY from
     // the environment when they are set there (they win over .env), which is
-    // how the backend run gets a build that talks to the local stack.
+    // how the backend run gets a build that talks to the local stack, and how
+    // every other run gets one that does not know the hosted project
+    // (e2e/build-env.ts). e2e/global-setup.ts checks the result.
+    env: buildEnvFor(process.env),
     command: `npm run build && npm run preview -- --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
     // Never reuse a server: whatever already answers on the port may be the

@@ -21,6 +21,20 @@ Browser tests use Playwright. Install its browser once with
 `npx playwright install chromium`, or use a system Chrome with
 `PW_CHANNEL=chrome npm run test:e2e`.
 
+No browser test reaches outside this machine. Every spec takes `test` from
+`e2e/fixtures.ts` (specs in `e2e/backend` from `e2e/backend/fixtures.ts`, which
+extends it), never from `@playwright/test`; a unit test
+(`scripts/e2e-stays-local.test.mjs`) fails otherwise. That fixture aborts every
+request to another host, from any tab and from the service worker, and records
+it in `blockedRequests`, which is also attached to the test in the report as
+`blocked-requests`. To stand in for a host (Stripe, an image, a Supabase
+answer), add a `page.route(...)` in the spec: it is asked first. Behind the
+fixture the browser is started with no way out (`proxy` in
+`playwright.config.ts`), and the app is built for `http://127.0.0.1:54321`
+with dummy keys instead of the hosted project in `.env`
+(`e2e/build-env.ts`); a build that names a hosted Supabase project stops the
+run before the first test (`e2e/global-setup.ts`).
+
 ### Backend tests
 
 Tests in `e2e/backend` sign in and use a real database, auth and edge
@@ -57,9 +71,9 @@ How it is put together:
   client for arranging data and asserting on rows; `createUser()` makes a
   throwaway user; `clientFor(user)` is a client signed in as a user, for
   calling edge functions; `pageErrors` collects uncaught errors.
-- A page under test cannot reach anything outside this machine: such requests
-  are aborted and listed in `blockedRequests`. Mock Stripe or an AI answer
-  with `page.route(...)`.
+- A page under test cannot reach anything outside this machine, as in every
+  browser test (above): such requests are aborted and listed in
+  `blockedRequests`. Mock Stripe or an AI answer with `page.route(...)`.
 - Edge functions get `e2e/backend/functions.env`, dummy keys only. A function
   that calls Stripe, Resend or OpenAI still makes the call and is refused by
   the provider, so a test must not depend on such a call: mock the function's

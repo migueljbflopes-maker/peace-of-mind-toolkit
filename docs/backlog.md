@@ -63,7 +63,8 @@ next worked on.
 | A-10 | `[DECISION]` What is left of the frozen features in kept code and data | A-07 | todo |
 | A-11 | Remove code that nothing renders | A-07 | todo |
 | A-12 | The sign-in callback page: an expired link is reported as such, in the user's language | A-08 | todo |
-| A-13 | The "no frozen feature" page test does not time out on `networkidle` | A-07 | todo |
+| A-13 | No browser test reaches outside this machine; the "no frozen feature" page test does not time out on `networkidle` | A-07 | done |
+| A-20 | `[DECISION]` The Inter font the design names is never loaded | A-13 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -435,6 +436,82 @@ Accepted when: the request that keeps the network busy is named (the trace
 of a failing run shows it); the test waits for what it reads instead of for
 a quiet network, or that request is answered in the test; and the test
 passes 20 times in a row in CI with retries off.
+Widened by the coordinator on 2026-11-18 to the cause behind it: the tests
+without a backend let every request through. Outside CI they ran against a
+build made from the committed `.env`, so a run on a machine with internet
+access inserted `page_views` and `feature_usage` rows into the hosted
+project and loaded Stripe.js for real.
+What was found. The four traces of the two failed runs (44307078392 and
+44362439246, both attempts of each; read in CI run 44376958367, because the
+report cannot be downloaded from the agent's machine) all stop on the last
+of the eight routes, `/riskfunnel`. The seven other routes make no request
+to another machine at all and are quiet in under a second. `/riskfunnel`
+makes 24 to 26: four portraits from `images.unsplash.com`, and everything
+else is Stripe.js, which the page loads when it opens: its script, two
+frames (`js.stripe.com/v3/controller...`, `m.stripe.network/inner.html`),
+`merchant-ui-api.stripe.com/elements/wallet-config` (refused, the key is a
+dummy) and telemetry posted to `r.stripe.com/b` and `m.stripe.com/6`. The
+same walk with nothing aborted, 60 times in CI (runs 44374789305 and
+44376958367): quiet 2.2 to 2.7 seconds after `/riskfunnel` opened 54
+times, after about 3.4 seconds twice, and 4 times only after 7.3 seconds, when Stripe.js had loaded one more script
+at 5.7 seconds (`trusted-types-checker`) and posted one more
+`POST https://r.stripe.com/b` a second later; never 30 seconds. In all four
+failed traces every request up to and including that late script is there
+and finished, and that last `POST https://r.stripe.com/b` is the one request
+missing from the log, which only lists requests that ended. So the network
+was held open by Stripe.js's own late telemetry, and the request is that
+beacon. Not established: whether it was sent and never answered or its end
+was not reported to Playwright, and why the timeout did not come back in 60
+runs on 2026-11-18 when it had in 5 of 10 runs before. Ruled out: Google
+Fonts (the stylesheet import never reaches the build, see A-20) and the
+`page_views` insert (in CI it goes to the local stack and is answered in under 10 ms).
+What changed. `e2e/fixtures.ts` is now where every spec takes `test` from
+(the backend fixtures extend it). Its automatic fixture aborts every request
+of the browser context to a host other than this machine, from any tab and
+from the service worker, WebSockets included, and records it in
+`blockedRequests` (attached to the test in the report); a route a spec adds
+is asked first, which is how a spec stands in for a host.
+`scripts/e2e-stays-local.test.mjs` fails the unit tests if a file under
+`e2e/` takes anything but types and `expect` from `@playwright/test`, if a
+spec does not import `test` from the fixtures, or if a spec without a
+backend makes its own context or browser, calls `unrouteAll`, or sends
+requests through Playwright's `request`. Behind the fixture
+`playwright.config.ts` starts every browser with a proxy that does not exist
+for all hosts but this machine, so a context the fixture never saw cannot
+leave either. `e2e/stays-local.spec.ts` shows each of these in the browser
+against a server on this machine's network address: before the change every
+request arrived there, after it none does. The build under test no longer
+names the hosted project: outside the backend run it is built for
+`http://127.0.0.1:54321` with dummy Supabase and Stripe keys
+(`e2e/build-env.ts`), and `e2e/global-setup.ts` now stops any browser run,
+not only the backend one, whose `dist/` names a `*.supabase.co` address or
+the project reference. The specs that answer Supabase themselves match on
+the path and did not need to change.
+The test itself is unchanged and still waits for `networkidle`: with
+Stripe.js aborted nothing is left that could hold the network open, so
+aborting was enough and the wait was not replaced. Acceptance: with retries
+off and `--repeat-each=20` the test passed 20 of 20 on the agent's machine
+and 20 of 20 in each of CI runs 44374789305 and 44376958367. Those steps
+were temporary and are not in the workflow.
+Limits. The guard is on what the browser sends; code a test runs in Node
+(a `fetch` in the test process, a database client) is not covered, and the
+unit test only refuses the Playwright ways of doing that.
+`e2e/auth-callback.spec.ts` keeps its own list of unanswered backend
+requests: it is about requests to the Supabase API on any host, this
+machine included, which the guard lets through.
+
+**A-20.** `[DECISION]` Found by A-13. `tailwind.config.ts` names Inter as the
+app's font and `src/index.css` imports it from `fonts.googleapis.com`, but
+the `@import` stands after the `@tailwind` lines, where CSS does not allow
+it, and the build drops it: the built stylesheet has no such import, no
+browser test ever sees a request to Google Fonts, and every visitor gets the
+system font. Making the import work as written would send every visitor's
+address to Google on every page and would not work offline, so it is a
+decision, not a fix: ship Inter with the app (the service worker already
+precaches `woff2`) or take Inter out of the design.
+Accepted when: the owner has chosen; the font the design names is the font a
+browser test finds computed on the landing page, online and offline, or
+Inter is named nowhere; and no page asks another host for a font.
 
 ## Phase F: the core features and funnels work
 
