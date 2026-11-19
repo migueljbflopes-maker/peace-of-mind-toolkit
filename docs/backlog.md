@@ -43,9 +43,17 @@ next worked on.
 - **Clipboard (S-07).** Copying the words does not count as saved; download
   or writing down is required.
 - **Gate order (Phase U).** The paywall comes before the master password.
-- **Open:** the user counts, review counts, countdown and crossed-out price on
-  the funnel (F-25). The owner asked why they should go; answered the same
-  day, decision pending.
+**2026-11-19**
+- **Funnel claims (F-25).** Remove the user counts, review counts and stars,
+  the countdown, the crossed-out price and "works offline after purchase".
+  They may return when real figures exist.
+- **Price (F-24).** Confirmed that it is to be dynamic. The coordinator's
+  reading, put back to the owner the same day: one source changeable without
+  a code change first; built so that a price per campaign, per country or
+  currency, and price tests can follow without the price shown and the price
+  charged ever differing.
+- **A public address to look at the product** was asked for. Needs a host
+  (A-02); the owner was asked to choose one.
 
 ## Phase A: foundations
 
@@ -65,6 +73,7 @@ next worked on.
 | A-12 | The sign-in callback page: an expired link is reported as such, in the user's language | A-08 | todo |
 | A-13 | No browser test reaches outside this machine; the "no frozen feature" page test does not time out on `networkidle` | A-07 | done |
 | A-20 | `[DECISION]` The Inter font the design names is never loaded | A-13 | todo |
+| A-21 | Browser tests: close the remaining ways out, and say exactly what is recorded | A-13 | todo |
 
 **A-02.** Create a Supabase project the owner controls, apply every migration
 to it, set the function secrets, deploy the functions, and point `.env` at it.
@@ -512,6 +521,32 @@ precaches `woff2`) or take Inter out of the design.
 Accepted when: the owner has chosen; the font the design names is the font a
 browser test finds computed on the landing page, online and offline, or
 Inter is named nowhere; and no page asks another host for a font.
+
+**A-21.** From the verification of A-13 (2026-11-19), which tried about 45
+ways of getting a request out of a test and passed the change.
+- One way out remains: WebRTC. An `RTCPeerConnection` with an outside ICE
+  server sent UDP packets; neither a route nor an HTTP proxy stops UDP.
+  Nothing in `src/` or `e2e/` uses it and third-party scripts are aborted, so
+  no current test sends such a packet. The launch flag
+  `--force-webrtc-ip-handling-policy=disable_non_proxied_udp` was tried and
+  did not stop it; removing `RTCPeerConnection` in an init script is the
+  other candidate.
+- Stopped but NOT recorded in `blockedRequests` (the proxy stops them, the
+  fixture never sees them): a SharedWorker's fetch, a WebSocket from a worker
+  or the service worker, a local URL that redirects outside, a beacon sent on
+  pagehide, and anything from a context the fixture did not create. A test
+  that asserts on `blockedRequests` does not see these.
+- `e2e/fixtures.ts`, `playwright.config.ts` and the README say "no way out at
+  all" and "every request is recorded"; reword to what is true.
+- The guard test misses: an import from `playwright/test` (the same module
+  under its other name), `browser.newPage()`, a spec's own catch-all
+  `route.continue()`, `context.unroute(...)` of the guard, and
+  `launchOptions` with `--no-proxy-server`. The first four are still stopped
+  by the proxy at run time.
+- A `fetch` made by the Node test process itself is outside both layers.
+Accepted when: a test in `e2e/stays-local.spec.ts` shows no UDP packet
+arrives from an `RTCPeerConnection`; the guard test fails on each pattern
+above; the three texts match the behaviour.
 
 ## Phase F: the core features and funnels work
 
